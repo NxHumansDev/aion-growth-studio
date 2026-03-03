@@ -7,7 +7,8 @@ export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
     return { skipped: true, reason: 'GOOGLE_PAGESPEED_API_KEY not configured' };
   }
 
-  const base = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${API_KEY}`;
+  const cats = 'category=performance&category=accessibility&category=best-practices&category=seo';
+  const base = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${API_KEY}&${cats}`;
 
   const fetchWithTimeout = async (url: string, timeoutMs = 45000) => {
     const controller = new AbortController();
