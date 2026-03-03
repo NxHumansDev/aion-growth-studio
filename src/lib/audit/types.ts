@@ -9,7 +9,10 @@ export type AuditStep =
   | 'linkedin'
   | 'gbp'
   | 'traffic'
+  | 'seo'
   | 'competitors'
+  | 'techstack'
+  | 'conversion'
   | 'score'
   | 'insights';
 
@@ -18,22 +21,26 @@ export type AuditStatus = 'processing' | 'completed' | 'error';
 
 export const STEP_ORDER: AuditStep[] = [
   'crawl', 'ssl', 'pagespeed', 'sector', 'content', 'geo',
-  'gbp', 'traffic', 'competitors', 'instagram', 'linkedin', 'score', 'insights',
+  'gbp', 'traffic', 'seo', 'competitors', 'instagram', 'linkedin',
+  'techstack', 'conversion', 'score', 'insights',
 ];
 
 export const STEP_PROGRESS: Record<AuditStep, number> = {
-  crawl: 8,
-  ssl: 15,
-  pagespeed: 23,
-  sector: 31,
-  content: 38,
-  geo: 46,
-  gbp: 54,
-  traffic: 61,
-  competitors: 69,
-  instagram: 77,
-  linkedin: 84,
-  score: 92,
+  crawl: 6,
+  ssl: 12,
+  pagespeed: 18,
+  sector: 24,
+  content: 30,
+  geo: 36,
+  gbp: 42,
+  traffic: 47,
+  seo: 52,
+  competitors: 57,
+  instagram: 62,
+  linkedin: 67,
+  techstack: 73,
+  conversion: 79,
+  score: 90,
   insights: 100,
 };
 
@@ -45,10 +52,13 @@ export const NEXT_STEP: Record<AuditStep, AuditStepOrDone> = {
   content: 'geo',
   geo: 'gbp',
   gbp: 'traffic',
-  traffic: 'competitors',
+  traffic: 'seo',
+  seo: 'competitors',
   competitors: 'instagram',
   instagram: 'linkedin',
-  linkedin: 'score',
+  linkedin: 'techstack',
+  techstack: 'conversion',
+  conversion: 'score',
   score: 'insights',
   insights: 'done',
 };
@@ -205,11 +215,14 @@ export interface CompetitorsResult extends ModuleResult {
   competitors?: Competitor[];
 }
 
+// ── 6-pillar score breakdown ──────────────────────────────────────
 export interface ScoreBreakdown {
-  technical: number;
-  performance: number;
-  content: number;
-  visibility: number;
+  technical: number;      // Pilar 1: Fundamentos técnicos (15%)
+  seoVisibility: number;  // Pilar 2: Visibilidad orgánica (25%)
+  content: number;        // Pilar 3: Contenido y propuesta de valor (20%)
+  socialReputation: number; // Pilar 4: Presencia social y reputación (15%)
+  conversion: number;     // Pilar 5: Capacidad de conversión (15%)
+  measurement: number;    // Pilar 6: Datos y medición (10%)
 }
 
 export interface ScoreResult extends ModuleResult {
@@ -253,6 +266,49 @@ export interface InsightsInitiative {
 export interface InsightsResult extends ModuleResult {
   bullets?: string[];
   initiatives?: InsightsInitiative[];
+}
+
+// ── New: Pilar 6 — Tech Stack & Measurement ──────────────────────
+export interface TechStackResult extends ModuleResult {
+  analytics?: string[];
+  tagManager?: string[];
+  conversionPixels?: string[];
+  crmAutomation?: string[];
+  chatSupport?: string[];
+  heatmaps?: string[];
+  cms?: string;
+  maturityScore?: number; // 0-100
+  allTools?: string[];
+}
+
+// ── New: Pilar 5 — Conversion ─────────────────────────────────────
+export interface ConversionResult extends ModuleResult {
+  hasContactForm?: boolean;
+  formCount?: number;
+  formFieldCount?: number;
+  hasCTA?: boolean;
+  ctaCount?: number;
+  hasLeadMagnet?: boolean;
+  hasTestimonials?: boolean;
+  hasPricing?: boolean;
+  hasVideo?: boolean;
+  hasChatWidget?: boolean;
+  funnelScore?: number;   // 0-100
+  summary?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+}
+
+// ── New: Pilar 2 enrichment — DataForSEO ─────────────────────────
+export interface SEOResult extends ModuleResult {
+  domainRank?: number;              // 0-100 domain authority equivalent
+  organicKeywordsTotal?: number;    // total keywords ranking
+  keywordsTop3?: number;            // positions 1-3
+  keywordsTop10?: number;           // positions 1-10
+  keywordsTop30?: number;           // positions 1-30
+  organicTrafficEstimate?: number;  // estimated monthly organic visits
+  referringDomains?: number;
+  backlinksTotal?: number;
 }
 
 export interface AuditPageData {

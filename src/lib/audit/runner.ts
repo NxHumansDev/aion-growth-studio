@@ -8,7 +8,10 @@ import { runInstagram } from './modules/instagram';
 import { runLinkedIn } from './modules/linkedin';
 import { runGBP } from './modules/gbp';
 import { runTraffic } from './modules/traffic';
+import { runSEO } from './modules/seo';
 import { runCompetitors } from './modules/competitors';
+import { runTechStack } from './modules/techstack';
+import { runConversion } from './modules/conversion';
 import { runScore } from './modules/score';
 import { runInsights } from './modules/insights';
 import { NEXT_STEP } from './types';
@@ -54,6 +57,24 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
         break;
       }
 
+      case 'gbp':
+        result = await runGBP(url, results.crawl || {});
+        break;
+
+      case 'traffic':
+        result = await runTraffic(url);
+        break;
+
+      case 'seo':
+        result = await runSEO(url);
+        break;
+
+      case 'competitors': {
+        const sector = (results.sector as any)?.sector || 'business services';
+        result = await runCompetitors(url, sector, results.crawl || {}, audit.userCompetitors);
+        break;
+      }
+
       case 'instagram': {
         const competitorUrls = (results.competitors as any)?.competitors?.map((c: any) => c.url) || [];
         result = await runInstagram(results.crawl || {}, competitorUrls, audit.userInstagram);
@@ -66,19 +87,13 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
         break;
       }
 
-      case 'gbp':
-        result = await runGBP(url, results.crawl || {});
+      case 'techstack':
+        result = await runTechStack(url);
         break;
 
-      case 'traffic':
-        result = await runTraffic(url);
+      case 'conversion':
+        result = await runConversion(url, results.crawl || {});
         break;
-
-      case 'competitors': {
-        const sector = (results.sector as any)?.sector || 'business services';
-        result = await runCompetitors(url, sector, results.crawl || {}, audit.userCompetitors);
-        break;
-      }
 
       case 'score':
         result = await runScore(results);

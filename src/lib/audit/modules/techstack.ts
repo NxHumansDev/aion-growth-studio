@@ -1,0 +1,161 @@
+import axios from 'axios';
+import type { TechStackResult } from '../types';
+
+type Category = 'analytics' | 'tagManager' | 'conversionPixels' | 'crmAutomation' | 'chatSupport' | 'heatmaps';
+
+const TOOLS: Array<{ name: string; category: Category; patterns: string[] }> = [
+  // Analytics
+  { name: 'Google Analytics 4', category: 'analytics',
+    patterns: ['gtag/js', 'googletagmanager.com/gtag', '"G-'] },
+  { name: 'Universal Analytics', category: 'analytics',
+    patterns: ['analytics.js', "'UA-", '"UA-'] },
+  { name: 'Plausible', category: 'analytics',
+    patterns: ['plausible.io'] },
+  { name: 'Matomo', category: 'analytics',
+    patterns: ['matomo.js', 'piwik.js'] },
+  { name: 'Mixpanel', category: 'analytics',
+    patterns: ['cdn.mxpnl.com', 'mixpanel.com/lib'] },
+  { name: 'Amplitude', category: 'analytics',
+    patterns: ['cdn.amplitude.com'] },
+  { name: 'Heap', category: 'analytics',
+    patterns: ['heapanalytics.com'] },
+  { name: 'Adobe Analytics', category: 'analytics',
+    patterns: ['omniture', 'AppMeasurement.js', 'sc.js'] },
+
+  // Tag Manager
+  { name: 'Google Tag Manager', category: 'tagManager',
+    patterns: ['googletagmanager.com/gtm.js', "'GTM-", '"GTM-'] },
+  { name: 'Tealium', category: 'tagManager',
+    patterns: ['tags.tiqcdn.com'] },
+  { name: 'Segment', category: 'tagManager',
+    patterns: ['cdn.segment.com', 'cdn.segment.io'] },
+
+  // Conversion pixels
+  { name: 'Meta Pixel', category: 'conversionPixels',
+    patterns: ['connect.facebook.net', 'fbevents.js'] },
+  { name: 'Google Ads', category: 'conversionPixels',
+    patterns: ['googleadservices.com/pagead', "'AW-", '"AW-'] },
+  { name: 'LinkedIn Insight', category: 'conversionPixels',
+    patterns: ['snap.licdn.com', 'linkedin.com/px'] },
+  { name: 'TikTok Pixel', category: 'conversionPixels',
+    patterns: ['analytics.tiktok.com'] },
+  { name: 'Twitter/X Pixel', category: 'conversionPixels',
+    patterns: ['static.ads-twitter.com', 'ads.twitter.com/uwt.js'] },
+  { name: 'Pinterest Tag', category: 'conversionPixels',
+    patterns: ['s.pinimg.com/ct', 'pintrk('] },
+
+  // CRM / Marketing Automation
+  { name: 'HubSpot', category: 'crmAutomation',
+    patterns: ['js.hs-scripts.com', 'hs-analytics.net', 'hubspot.com/embed'] },
+  { name: 'Salesforce / Pardot', category: 'crmAutomation',
+    patterns: ['pi.pardot.com', 'pardot.com/pd.js'] },
+  { name: 'Marketo', category: 'crmAutomation',
+    patterns: ['mktoweb.com', 'marketo.com/js/forms2'] },
+  { name: 'ActiveCampaign', category: 'crmAutomation',
+    patterns: ['trackcmp.net'] },
+  { name: 'Mailchimp', category: 'crmAutomation',
+    patterns: ['chimpstatic.com', 'list-manage.com'] },
+  { name: 'Klaviyo', category: 'crmAutomation',
+    patterns: ['static.klaviyo.com'] },
+  { name: 'Brevo', category: 'crmAutomation',
+    patterns: ['sibautomation.com', 'sendinblue.com'] },
+  { name: 'Mailerlite', category: 'crmAutomation',
+    patterns: ['ml-attr.com', 'mailerlite.com/js'] },
+
+  // Chat / Support
+  { name: 'Intercom', category: 'chatSupport',
+    patterns: ['widget.intercom.io', 'js.intercomcdn.com'] },
+  { name: 'Drift', category: 'chatSupport',
+    patterns: ['js.driftt.com'] },
+  { name: 'Crisp', category: 'chatSupport',
+    patterns: ['client.crisp.chat'] },
+  { name: 'Zendesk', category: 'chatSupport',
+    patterns: ['static.zdassets.com', 'ekr.zdassets.com'] },
+  { name: 'LiveChat', category: 'chatSupport',
+    patterns: ['cdn.livechatinc.com'] },
+  { name: 'Tidio', category: 'chatSupport',
+    patterns: ['code.tidio.co'] },
+  { name: 'Freshchat', category: 'chatSupport',
+    patterns: ['wchat.freshchat.com'] },
+  { name: 'Tawk.to', category: 'chatSupport',
+    patterns: ['embed.tawk.to'] },
+
+  // Heatmaps / UX tools
+  { name: 'Hotjar', category: 'heatmaps',
+    patterns: ['static.hotjar.com', 'script.hotjar.com'] },
+  { name: 'Microsoft Clarity', category: 'heatmaps',
+    patterns: ['clarity.ms'] },
+  { name: 'FullStory', category: 'heatmaps',
+    patterns: ['fullstory.com/s/fs.js'] },
+  { name: 'Crazy Egg', category: 'heatmaps',
+    patterns: ['cetrk.com', 'crazyfed.com'] },
+  { name: 'Lucky Orange', category: 'heatmaps',
+    patterns: ['luckyorange.com/v7/'] },
+];
+
+const CMS_SIGNATURES: Array<{ name: string; patterns: string[] }> = [
+  { name: 'WordPress',    patterns: ['wp-content/', 'wp-includes/'] },
+  { name: 'Shopify',      patterns: ['cdn.shopify.com', 'Shopify.theme'] },
+  { name: 'Webflow',      patterns: ['assets.website-files.com', 'webflow.com/'] },
+  { name: 'Wix',          patterns: ['static.wixstatic.com'] },
+  { name: 'Squarespace',  patterns: ['squarespace-cdn.com', 'squarespace.com/s/static'] },
+  { name: 'Framer',       patterns: ['framerusercontent.com'] },
+  { name: 'HubSpot CMS',  patterns: ['hs-sites.com', 'hubspotpagebuilder.com'] },
+  { name: 'PrestaShop',   patterns: ['/modules/blockcart/', 'prestashop'] },
+  { name: 'Magento',      patterns: ['Mage.Cookies', 'magento'] },
+  { name: 'Drupal',       patterns: ['sites/default/files', 'Drupal.settings'] },
+  { name: 'Joomla',       patterns: ['/media/jui/', 'joomla'] },
+];
+
+export async function runTechStack(url: string): Promise<TechStackResult> {
+  try {
+    const res = await axios.get(url, {
+      timeout: 10000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+      maxRedirects: 5,
+      validateStatus: (s) => s < 500,
+    });
+
+    const html = String(res.data);
+
+    const result: TechStackResult = {
+      analytics: [],
+      tagManager: [],
+      conversionPixels: [],
+      crmAutomation: [],
+      chatSupport: [],
+      heatmaps: [],
+      allTools: [],
+    };
+
+    for (const tool of TOOLS) {
+      if (tool.patterns.some((p) => html.includes(p))) {
+        result[tool.category]!.push(tool.name);
+        result.allTools!.push(tool.name);
+      }
+    }
+
+    // CMS detection (first match wins)
+    for (const cms of CMS_SIGNATURES) {
+      if (cms.patterns.some((p) => html.includes(p))) {
+        result.cms = cms.name;
+        break;
+      }
+    }
+
+    // Maturity score:
+    // Analytics (25) + TagManager (20) + Conversion pixels (20) + CRM/Automation (25) + Chat (10)
+    // Heatmaps are a bonus (+5) but don't increase base score beyond 100
+    let score = 0;
+    if (result.analytics!.length > 0) score += 25;
+    if (result.tagManager!.length > 0) score += 20;
+    if (result.conversionPixels!.length > 0) score += 20;
+    if (result.crmAutomation!.length > 0) score += 25;
+    if (result.chatSupport!.length > 0) score += 10;
+    result.maturityScore = Math.min(100, score);
+
+    return result;
+  } catch (err: any) {
+    return { skipped: true, reason: err.message?.slice(0, 100) };
+  }
+}
