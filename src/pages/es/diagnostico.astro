@@ -133,11 +133,18 @@ const lang = 'es';
           <!-- Detected competitors -->
           <div id="competitor-list" class="space-y-2 mb-5"></div>
 
-          <!-- Custom competitor -->
+          <!-- Manual competitors -->
           <div class="mb-5">
-            <label for="custom-competitor" class="block text-xs font-medium text-slate-300 mb-1.5">O añade una URL manualmente</label>
-            <input type="text" id="custom-competitor" placeholder="competidor.com"
-              class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-400/50 focus:bg-white/10 transition-all" />
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">O añade competidores manualmente</label>
+            <div class="flex gap-2">
+              <input type="text" id="manual-competitor-input" placeholder="competidor.com"
+                class="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-400/50 focus:bg-white/10 transition-all" />
+              <button id="btn-add-competitor" type="button"
+                class="px-4 py-3 bg-white/10 border border-white/20 text-white font-medium text-sm rounded-xl hover:bg-white/20 transition-all shrink-0">
+                + Añadir
+              </button>
+            </div>
+            <div id="manual-competitors-list" class="flex flex-wrap gap-2 mt-2"></div>
           </div>
 
           <div class="flex gap-3">
@@ -214,6 +221,37 @@ const lang = 'es';
   let competitorsResult: any = null;
   let waitingForCompetitors = false;
   let selectedCompetitors: string[] = [];
+  let manualCompetitors: string[] = [];
+
+  function renderManualCompetitors() {
+    const list = document.getElementById('manual-competitors-list');
+    if (!list) return;
+    list.innerHTML = manualCompetitors.map(url => `
+      <div class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/15 rounded-lg">
+        <span class="text-xs text-slate-200 truncate max-w-[160px]">${url}</span>
+        <button onclick="removeManualCompetitor('${url}')" class="text-slate-400 hover:text-white text-sm leading-none ml-1 shrink-0">×</button>
+      </div>
+    `).join('');
+  }
+
+  (window as any).removeManualCompetitor = function(url: string) {
+    manualCompetitors = manualCompetitors.filter(u => u !== url);
+    renderManualCompetitors();
+  };
+
+  function addManualCompetitor() {
+    const input = document.getElementById('manual-competitor-input') as HTMLInputElement;
+    const val = input.value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (!val || manualCompetitors.includes(val)) { input.value = ''; return; }
+    manualCompetitors.push(val);
+    renderManualCompetitors();
+    input.value = '';
+  }
+
+  document.getElementById('btn-add-competitor')?.addEventListener('click', addManualCompetitor);
+  document.getElementById('manual-competitor-input')?.addEventListener('keydown', (e: any) => {
+    if (e.key === 'Enter') { e.preventDefault(); addManualCompetitor(); }
+  });
 
   // UI helpers
   function showStep(n: number) {
@@ -368,9 +406,8 @@ const lang = 'es';
     setBtn('btn-start-audit', 'Iniciando…', true);
     setBtn('btn-skip-step3', '…', true);
 
-    const customUrl = (document.getElementById('custom-competitor') as HTMLInputElement).value.trim();
     const allCompetitors = withCompetitors
-      ? [...selectedCompetitors, ...(customUrl ? [customUrl] : [])]
+      ? [...selectedCompetitors, ...manualCompetitors]
       : [];
 
     try {
