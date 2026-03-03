@@ -9,15 +9,25 @@ export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
 
   const base = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${API_KEY}`;
 
-  try {
-    const [mobileRes, desktopRes] = await Promise.all([
-      fetch(`${base}&strategy=mobile`),
-      fetch(`${base}&strategy=desktop`),
-    ]);
+  const fetchWithTimeout = async (url: string, timeoutMs = 45000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+      }
+      return res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
+  try {
     const [mobileData, desktopData] = await Promise.all([
-      mobileRes.json(),
-      desktopRes.json(),
+      fetchWithTimeout(`${base}&strategy=mobile`),
+      fetchWithTimeout(`${base}&strategy=desktop`),
     ]);
 
     return {
@@ -25,7 +35,8 @@ export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
       desktop: parseScore(desktopData),
     };
   } catch (err: any) {
-    return { error: err.message?.slice(0, 100) };
+    const msg = err.name === 'AbortError' ? 'PageSpeed API timed out (45s)' : err.message?.slice(0, 100);
+    return { skipped: true, reason: msg };
   }
 }
 

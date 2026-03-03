@@ -2,6 +2,8 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { LinkedInResult, LinkedInCompetitor, CrawlResult } from '../types';
 
+const APIFY_TOKEN = import.meta.env.APIFY_TOKEN || process.env.APIFY_TOKEN;
+
 // LinkedIn serves HTML to Googlebot — enough to extract og: meta tags
 const HEADERS = {
   'User-Agent':
@@ -9,6 +11,19 @@ const HEADERS = {
   Accept: 'text/html,application/xhtml+xml',
   'Accept-Language': 'en-US,en;q=0.9',
 };
+
+// Apify residential proxy config — bypasses cloud IP blocks on LinkedIn
+function apifyProxyConfig() {
+  if (!APIFY_TOKEN) return {};
+  return {
+    proxy: {
+      protocol: 'http' as const,
+      host: 'proxy.apify.com',
+      port: 8000,
+      auth: { username: 'auto', password: APIFY_TOKEN },
+    },
+  };
+}
 
 export async function runLinkedIn(
   crawlData: CrawlResult,
@@ -43,94 +58,103 @@ export async function runLinkedIn(
 }
 
 async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
-  try {
-    const res = await axios.get(url, {
-      headers: HEADERS,
-      timeout: 10000,
-      maxRedirects: 3,
-      validateStatus: (s) => s < 500,
-    });
+  // Try with Apify residential proxy first (needed on Vercel/cloud)
+  // Fall back to direct request (works on localhost)
+  const attempts = [
+    ...(APIFY_TOKEN
+      ? [{ headers: HEADERS, timeout: 12000, maxRedirects: 3, validateStatus: (s: number) => s < 500, ...apifyProxyConfig() }]
+      : []),
+    { headers: HEADERS, timeout: 10000, maxRedirects: 3, validateStatus: (s: number) => s < 500 },
+  ];
 
-    const $ = cheerio.load(res.data as string);
+  let lastErr: any;
 
-    // LinkedIn embeds rich data in og: meta tags for crawlers
-    const ogTitle = $('meta[property="og:title"]').attr('content') || '';
-    const ogDesc = $('meta[property="og:description"]').attr('content') || '';
-    const name = ogTitle.replace(/\s*\|\s*LinkedIn\s*$/i, '').trim();
+  for (const config of attempts) {
+    try {
+      const res = await axios.get(url, config);
+      const $ = cheerio.load(res.data as string);
 
-    // og:description format examples:
-    // "2,345 followers · Software company · Madrid, Spain"
-    // "12,345 followers · 50-200 employees · Consulting"
-    const followersMatch = ogDesc.match(/([\d,.]+)\s*followers?/i);
-    const employeesMatch = ogDesc.match(/(\d[\d,\-\+]*(?:\s*employees?)?)/i);
-    const parts = ogDesc.split('·').map((s) => s.trim());
+      // LinkedIn embeds rich data in og: meta tags for crawlers
+      const ogTitle = $('meta[property="og:title"]').attr('content') || '';
+      const ogDesc = $('meta[property="og:description"]').attr('content') || '';
+      const name = ogTitle.replace(/\s*\|\s*LinkedIn\s*$/i, '').trim();
 
-    const followers = followersMatch ? parseLinkedInNum(followersMatch[1]) : undefined;
+      // og:description format examples:
+      // "2,345 followers · Software company · Madrid, Spain"
+      // "12,345 followers · 50-200 employees · Consulting"
+      const followersMatch = ogDesc.match(/([\d,.]+)\s*followers?/i);
+      const parts = ogDesc.split('·').map((s) => s.trim());
 
-    // Try to extract employee range, industry, location from the parts
-    let employees: string | undefined;
-    let industry: string | undefined;
-    let headquarters: string | undefined;
+      const followers = followersMatch ? parseLinkedInNum(followersMatch[1]) : undefined;
 
-    for (const part of parts) {
-      if (/employee/i.test(part)) {
-        employees = part.replace(/employees?/i, '').trim();
-      } else if (/follower/i.test(part)) {
-        // already handled
-      } else if (part && !headquarters) {
-        // heuristic: city/country patterns
-        if (/,/.test(part) || /^[A-Z]/.test(part)) {
-          if (!industry) industry = part;
-          else headquarters = part;
+      // Try to extract employee range, industry, location from the parts
+      let employees: string | undefined;
+      let industry: string | undefined;
+      let headquarters: string | undefined;
+
+      for (const part of parts) {
+        if (/employee/i.test(part)) {
+          employees = part.replace(/employees?/i, '').trim();
+        } else if (/follower/i.test(part)) {
+          // already handled
+        } else if (part && !headquarters) {
+          // heuristic: city/country patterns
+          if (/,/.test(part) || /^[A-Z]/.test(part)) {
+            if (!industry) industry = part;
+            else headquarters = part;
+          }
         }
       }
-    }
 
-    // Also try structured data (JSON-LD)
-    $('script[type="application/ld+json"]').each((_, el) => {
-      try {
-        const json = JSON.parse($(el).html() || '{}');
-        if (json.numberOfEmployees?.value) {
-          employees = employees || String(json.numberOfEmployees.value);
+      // Also try structured data (JSON-LD)
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const json = JSON.parse($(el).html() || '{}');
+          if (json.numberOfEmployees?.value) {
+            employees = employees || String(json.numberOfEmployees.value);
+          }
+          if (json.address?.addressLocality) {
+            headquarters =
+              headquarters ||
+              [json.address.addressLocality, json.address.addressCountry]
+                .filter(Boolean)
+                .join(', ');
+          }
+          if (json.industry) industry = industry || json.industry;
+        } catch {
+          // ignore
         }
-        if (json.address?.addressLocality) {
-          headquarters =
-            headquarters ||
-            [json.address.addressLocality, json.address.addressCountry]
-              .filter(Boolean)
-              .join(', ');
-        }
-        if (json.industry) industry = industry || json.industry;
-      } catch {
-        // ignore
+      });
+
+      if (!name && !followers) {
+        return {
+          found: true,
+          url,
+          reason: 'LinkedIn profile found but content is behind login wall',
+        };
       }
-    });
 
-    if (!name && !followers) {
       return {
         found: true,
         url,
-        reason: 'LinkedIn profile found but content is behind login wall',
+        ...(name && { name }),
+        ...(followers !== undefined && { followers }),
+        ...(employees && { employees }),
+        ...(ogDesc && { description: ogDesc.slice(0, 200) }),
+        ...(industry && { industry }),
+        ...(headquarters && { headquarters }),
       };
+    } catch (err: any) {
+      lastErr = err;
+      // try next attempt
     }
-
-    return {
-      found: true,
-      url,
-      ...(name && { name }),
-      ...(followers !== undefined && { followers }),
-      ...(employees && { employees }),
-      ...(ogDesc && { description: ogDesc.slice(0, 200) }),
-      ...(industry && { industry }),
-      ...(headquarters && { headquarters }),
-    };
-  } catch (err: any) {
-    return {
-      found: true,
-      url,
-      reason: `Could not fetch LinkedIn data: ${err.message?.slice(0, 80)}`,
-    };
   }
+
+  return {
+    found: true,
+    url,
+    reason: `Could not fetch LinkedIn data: ${lastErr?.message?.slice(0, 80)}`,
+  };
 }
 
 async function extractLinkedInFromSite(
