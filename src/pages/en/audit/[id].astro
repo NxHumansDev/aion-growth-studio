@@ -397,7 +397,7 @@ const MODULES = [
         { level: 4, icon: '🏷️', label: 'Direct brand query',  pts: 10, desc: 'AI knows your brand when asked about it directly' },
       ];
 
-      const funnelRows = (g.queries || []).map((q, idx) => {
+      const funnelRows = (g.queries || []).slice(0, 4).map((q, idx) => {
         const meta = FUNNEL_META[idx] || FUNNEL_META[3];
         const statusColor = q.mentioned ? 'text-emerald-400' : 'text-slate-500';
         const statusText  = q.mentioned ? '✅ Mentioned' : '❌ Not mentioned';
