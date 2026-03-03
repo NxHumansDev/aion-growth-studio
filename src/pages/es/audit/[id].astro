@@ -266,12 +266,60 @@ const MODULES = [
           </div>`
         ).join('');
 
+        // GEO mini-card
+        const geo = results.geo;
+        let geoCardHtml = '';
+        if (geo && !geo.skipped) {
+          const geoScore = geo.overallScore ?? 0;
+          const geoColor = geoScore >= 60 ? '#22c55e' : geoScore >= 30 ? '#f59e0b' : '#ef4444';
+          const geoLabel = geoScore >= 60 ? 'Visible en IA' : geoScore >= 30 ? 'Presencia parcial' : 'Invisible para la IA';
+          const levels = (geo.queries || []).slice(0, 4).map((q, i) => {
+            const icons = ['🌐','💬','🎯','🏷️'];
+            const labels = ['Sector','Valor','Keywords','Marca'];
+            return `<div class="flex items-center gap-1.5">
+              <span class="text-xs">${q.mentioned ? '✅' : '❌'}</span>
+              <span class="text-xs text-slate-400">${icons[i]} ${labels[i]}</span>
+              ${q.mentioned ? `<span class="text-xs text-slate-500">(${q.pts ?? 0}pts)</span>` : ''}
+            </div>`;
+          }).join('');
+          geoCardHtml = `
+            <div class="flex items-center gap-4 p-4 bg-cyan-500/5 border border-cyan-400/20 rounded-xl mb-6">
+              <div class="text-center shrink-0">
+                <div class="text-3xl font-bold" style="color:${geoColor}">${geoScore}</div>
+                <div class="text-xs text-slate-400 leading-tight">GEO /100</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold mb-2" style="color:${geoColor}">🤖 Visibilidad en IA — ${geoLabel}</p>
+                <div class="flex flex-wrap gap-x-4 gap-y-1">${levels}</div>
+              </div>
+            </div>`;
+        }
+
+        // Social media availability note
+        const ig = results.instagram;
+        const li = results.linkedin;
+        const igHasData = ig?.found === true && ig?.followers != null;
+        const liHasData = li?.found === true && li?.followers != null;
+        const igHandle = ig?.found === true ? ig.handle : null;
+        const liUrl = li?.found === true ? li.url : null;
+        let socialNoteHtml = '';
+        if ((igHandle || liUrl) && (!igHasData || !liHasData)) {
+          const detected = [igHandle ? `@${igHandle} en Instagram` : null, liUrl ? 'LinkedIn' : null].filter(Boolean).join(' y ');
+          socialNoteHtml = `
+            <div class="flex items-start gap-2.5 p-3 bg-amber-500/5 border border-amber-400/15 rounded-lg mb-5">
+              <span class="text-amber-400 shrink-0 mt-0.5 text-xs">ℹ️</span>
+              <p class="text-xs text-slate-400 leading-relaxed">Detectamos tu presencia en ${detected}. Las métricas de seguidores y engagement no están disponibles porque Instagram y LinkedIn restringen el acceso a estas métricas desde servidores externos.</p>
+            </div>`;
+        }
+
         insSection.innerHTML = `
           <div class="bg-gradient-to-br from-[#0d2347] to-[#0B1B3D] border border-cyan-400/20 rounded-2xl p-6 md:p-8">
-            <div class="flex items-center gap-2 mb-6">
+            <div class="flex items-center gap-2 mb-5">
               <span class="text-xl">💡</span>
               <h2 class="text-lg font-bold text-white">Diagnóstico de tu presencia digital</h2>
             </div>
+            ${geoCardHtml}
+            ${socialNoteHtml}
             <ul class="space-y-3 mb-8">${bulletsHtml}</ul>
             ${initiativesHtml.length ? `
               <div class="border-t border-white/10 pt-6 mt-6">
