@@ -25,8 +25,6 @@ const lang = 'en';
       <div class="flex items-center gap-2">
         <div id="step-dot-1" class="step-dot active"></div>
         <div class="w-8 h-px bg-white/20"></div>
-        <div id="step-dot-2" class="step-dot"></div>
-        <div class="w-8 h-px bg-white/20"></div>
         <div id="step-dot-3" class="step-dot"></div>
       </div>
     </div>
@@ -73,49 +71,6 @@ const lang = 'en';
           <p class="text-center text-xs text-slate-500 mt-5">
             By continuing you accept our <a href="/en/" class="underline hover:text-slate-300">privacy policy</a>
           </p>
-        </div>
-
-        <!-- STEP 2: Instagram + LinkedIn (optional) -->
-        <div id="step-2" class="step-card hidden bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 md:p-10 shadow-2xl">
-          <div class="text-center mb-8">
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-400/20 rounded-full text-purple-300 text-xs font-medium mb-4">
-              <span class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
-              Detecting competitors…
-            </div>
-            <h2 class="text-xl md:text-2xl font-bold text-white mb-3">Do you have social media?</h2>
-            <p class="text-sm text-slate-300 leading-relaxed">Optional. If you add them, we include them in the analysis and compare you with your competition.</p>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <label for="instagram" class="block text-xs font-medium text-slate-300 mb-1.5">Instagram <span class="text-slate-500">(optional)</span></label>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-400 text-sm pl-3">@</span>
-                <input type="text" id="instagram" placeholder="yourcompany"
-                  class="flex-1 px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-400/50 focus:bg-white/10 transition-all" />
-              </div>
-            </div>
-            <div>
-              <label for="linkedin" class="block text-xs font-medium text-slate-300 mb-1.5">LinkedIn <span class="text-slate-500">(optional)</span></label>
-              <input type="text" id="linkedin" placeholder="linkedin.com/company/yourcompany"
-                class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-400/50 focus:bg-white/10 transition-all" />
-            </div>
-
-            <div class="flex gap-3 pt-2">
-              <button id="btn-skip-step2" type="button"
-                class="flex-1 py-3 border border-white/20 text-white/70 font-medium text-sm rounded-xl hover:bg-white/5 transition-all">
-                Skip this
-              </button>
-              <button id="btn-step2" type="button"
-                class="flex-1 py-3 bg-white text-[#0B1B3D] font-semibold text-sm rounded-xl hover:bg-cyan-300 transition-all duration-300 shadow-lg">
-                Next →
-              </button>
-            </div>
-          </div>
-
-          <div id="competitors-status" class="mt-5 p-3 bg-white/3 border border-white/10 rounded-xl text-xs text-slate-400 text-center">
-            <span class="animate-pulse">⏳ Detecting competitors in parallel…</span>
-          </div>
         </div>
 
         <!-- STEP 3: Competitor selection -->
@@ -201,7 +156,6 @@ const lang = 'en';
   let userData: { url: string; name: string; email: string } = { url: '', name: '', email: '' };
   let competitorsPromise: Promise<any> | null = null;
   let competitorsResult: any = null;
-  let waitingForCompetitors = false;
   let selectedCompetitors: string[] = [];
   let manualCompetitors: string[] = [];
 
@@ -236,7 +190,7 @@ const lang = 'en';
   });
 
   function showStep(n: number) {
-    [1, 2, 3].forEach(i => {
+    [1, 3].forEach(i => {
       const el = document.getElementById(`step-${i}`);
       if (el) el.classList.toggle('hidden', i !== n);
       const dot = document.getElementById(`step-dot-${i}`);
@@ -274,6 +228,12 @@ const lang = 'en';
     if (!email || !email.includes('@')) return showError('error-step1', 'Please enter a valid email.');
 
     userData = { url, name, email };
+
+    // Show loading state in competitor list
+    const listEl = document.getElementById('competitor-list');
+    if (listEl) listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-2 animate-pulse">⏳ Looking for competitors…</p>`;
+
+    // Start competitor detection in background
     competitorsResult = null;
     competitorsPromise = fetch('/api/audit/find-competitors', {
       method: 'POST',
@@ -283,52 +243,16 @@ const lang = 'en';
       .then(r => r.json())
       .then(data => {
         competitorsResult = data;
-        updateCompetitorsStatus();
-        if (waitingForCompetitors) renderStep3();
+        renderStep3();
         return data;
       })
       .catch(() => {
         competitorsResult = { competitors: [] };
-        updateCompetitorsStatus();
-        if (waitingForCompetitors) renderStep3();
+        renderStep3();
       });
 
-    showStep(2);
+    showStep(3);
   });
-
-  function updateCompetitorsStatus() {
-    const el = document.getElementById('competitors-status');
-    if (!el) return;
-    const count = competitorsResult?.competitors?.length || 0;
-    if (count > 0) {
-      el.innerHTML = `<span class="text-emerald-400">✅ ${count} competitors detected</span>`;
-    } else {
-      el.innerHTML = `<span class="text-slate-400">No competitors detected automatically — you can add one manually</span>`;
-    }
-  }
-
-  async function goToStep3() {
-    const igRaw = (document.getElementById('instagram') as HTMLInputElement).value.trim().replace(/^@/, '');
-    const li = (document.getElementById('linkedin') as HTMLInputElement).value.trim();
-    (userData as any).instagramHandle = igRaw || undefined;
-    (userData as any).linkedinUrl = li || undefined;
-
-    if (competitorsResult) {
-      renderStep3();
-    } else {
-      waitingForCompetitors = true;
-      setBtn('btn-step2', 'Detecting…', true);
-      setBtn('btn-skip-step2', '…', true);
-      await competitorsPromise;
-      waitingForCompetitors = false;
-      setBtn('btn-step2', 'Next →', false);
-      setBtn('btn-skip-step2', 'Skip this', false);
-      renderStep3();
-    }
-  }
-
-  document.getElementById('btn-step2')?.addEventListener('click', goToStep3);
-  document.getElementById('btn-skip-step2')?.addEventListener('click', goToStep3);
 
   function renderStep3() {
     const competitors = competitorsResult?.competitors || [];
@@ -388,8 +312,6 @@ const lang = 'en';
           url: userData.url,
           email: userData.email,
           name: userData.name,
-          instagramHandle: (userData as any).instagramHandle,
-          linkedinUrl: (userData as any).linkedinUrl,
           selectedCompetitors: allCompetitors,
         }),
       });
