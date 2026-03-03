@@ -41,7 +41,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    if (!import.meta.env.NOTION_AUDITS_DB_ID) {
+    if (!import.meta.env.NOTION_AUDITS_DB_ID && !process.env.NOTION_AUDITS_DB_ID) {
       console.error('NOTION_AUDITS_DB_ID is not configured');
       return new Response(JSON.stringify({ error: 'Audit service not configured' }), {
         status: 503,

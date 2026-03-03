@@ -1,6 +1,6 @@
 import type { GeoResult, GeoQuery, CrawlResult } from '../types';
 
-const API_KEY = import.meta.env.OPENAI_API_KEY;
+const API_KEY = import.meta.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 
 /**
  * GEO Funnel — 4 levels from broadest to most specific.

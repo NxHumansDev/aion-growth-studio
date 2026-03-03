@@ -1,6 +1,6 @@
 import type { PageSpeedResult, PageSpeedScore } from '../types';
 
-const API_KEY = import.meta.env.GOOGLE_PAGESPEED_API_KEY;
+const API_KEY = import.meta.env.GOOGLE_PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY;
 
 export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
   if (!API_KEY) {
