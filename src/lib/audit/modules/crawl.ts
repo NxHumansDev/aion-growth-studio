@@ -55,13 +55,29 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       // no sitemap
     }
 
-    // Extract social media handles
+    // Extract social media handles — check <a href> first, then full HTML text
     const allLinks = $('a[href]').map((_, el) => $(el).attr('href') || '').get();
 
-    const instagramHandle = extractHandle(allLinks, /instagram\.com\/([A-Za-z0-9_.]+)/);
+    let instagramHandle = extractHandle(allLinks, /instagram\.com\/([A-Za-z0-9_.]+)/);
     const twitterHandle = extractHandle(allLinks, /(?:twitter|x)\.com\/([A-Za-z0-9_]+)/);
     const linkedinRaw = allLinks.find((h) => h.includes('linkedin.com/company') || h.includes('linkedin.com/in'));
-    const linkedinUrl = linkedinRaw ? linkedinRaw.split('?')[0] : undefined;
+    let linkedinUrl = linkedinRaw ? linkedinRaw.split('?')[0] : undefined;
+
+    // Fallback: search raw HTML for social patterns (catches JS-rendered links, data-href, etc.)
+    const IG_BLACKLIST = ['explore', 'reels', 'stories', 'p', 'tv', 'share', 'sharer', 'reel'];
+    if (!instagramHandle) {
+      const igMatch = html.match(/instagram\.com\/([A-Za-z0-9_.]{3,30})(?:\/|\?|"|'|\s|\\)/);
+      const igCandidate = igMatch?.[1];
+      if (igCandidate && !IG_BLACKLIST.includes(igCandidate)) {
+        instagramHandle = igCandidate;
+      }
+    }
+    if (!linkedinUrl) {
+      const liMatch = html.match(/linkedin\.com\/(company|in)\/([A-Za-z0-9_%\-]+)/);
+      if (liMatch) {
+        linkedinUrl = `https://www.linkedin.com/${liMatch[1]}/${liMatch[2]}`;
+      }
+    }
 
     return {
       title,
