@@ -25,26 +25,29 @@ const FUNNEL_LEVELS = [
   { level: 4, maxPts: 10, labelEs: 'Consulta directa',       labelEn: 'Direct brand query' },
 ] as const;
 
-const MULTI_LEVEL_BONUS = 4; // +4 if mentioned in ≥3 levels
+const MULTI_LEVEL_BONUS = 4;
 
-// AI denial phrases — prevent false positives on level-4 direct queries
+// Denial phrases that signal the AI doesn't know this SPECIFIC brand.
+// Checked NEAR the brand mention only, not in the whole answer,
+// to avoid false negatives like "I know [brand]... I don't have updated financials".
 const DENIAL_PHRASES = [
-  'no tengo información',
-  'no conozco',
-  'no estoy seguro',
-  'no puedo confirmar',
-  'no tengo datos',
-  'no tengo conocimiento',
-  'lamentablemente, no',
-  'desafortunadamente, no',
-  'no dispongo de información',
-  'no encuentro información',
+  'no tengo información sobre',
+  'no conozco esta empresa',
+  'no tengo datos sobre',
+  'no tengo conocimiento de esta',
+  'no he encontrado información',
+  'no dispongo de información sobre',
+  'no estoy familiarizado con',
+  'lamentablemente no conozco',
+  'desafortunadamente no tengo',
+  'no me es posible confirmar',
 ];
 
-// Hedging phrases — reduce pts on level-4 (uncertain knowledge)
+// Hedging phrases — partial knowledge, reduce level-4 pts to 50%
 const HEDGING_PHRASES = [
   'podría ser', 'creo que', 'me parece', 'si no me equivoco',
-  'no estoy completamente', 'es posible que', 'quizás', 'podría tratarse',
+  'no estoy completamente seguro', 'es posible que', 'quizás',
+  'podría tratarse', 'no tengo información actualizada sobre',
 ];
 
 function detectMention(answer: string, domain: string, brandName: string): boolean {
@@ -60,9 +63,23 @@ function hasHedging(answer: string): boolean {
   return HEDGING_PHRASES.some((p) => lower.includes(p));
 }
 
-function hasDenial(answer: string): boolean {
+/**
+ * Only counts as denial if the phrase is within 80 chars BEFORE the brand mention.
+ * e.g. "no conozco Global Exchange" → denial
+ * e.g. "Global Exchange opera en 30 países... no tengo datos financieros" → NOT denial
+ */
+function hasDenialNearBrand(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
-  return DENIAL_PHRASES.some((p) => lower.includes(p));
+
+  let brandIdx = lower.indexOf(domain.toLowerCase());
+  if (brandIdx === -1 && brandName.length > 5) {
+    brandIdx = lower.indexOf(brandName.toLowerCase());
+  }
+  if (brandIdx === -1) return false;
+
+  // Check only the window just before the brand name (the "no conozco [brand]" pattern)
+  const context = lower.slice(Math.max(0, brandIdx - 80), brandIdx + 40);
+  return DENIAL_PHRASES.some((p) => context.includes(p));
 }
 
 export async function runGEO(url: string, sector: string, crawl: CrawlResult): Promise<GeoResult> {
@@ -73,23 +90,22 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
   const brandName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
   const valueProposition = crawl.description?.slice(0, 120) || '';
-  // Use H1 or first clause of description as the most specific keyword signal
   const keywords = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
 
   const queryTexts = [
-    // Level 1 — Sector: broadest signal, no brand context
-    `¿Cuáles son las mejores empresas y referentes en ${sector} en España o Latinoamérica? Dame 5 ejemplos concretos con sus nombres.`,
+    // Level 1 — Sector: broadest, no geographic restriction so global brands surface too
+    `¿Cuáles son las empresas líderes y referentes en ${sector}? Dame 5 ejemplos concretos con sus nombres, incluyendo operadores internacionales si los hay.`,
 
     // Level 2 — Value proposition: does the AI recommend them for the specific problem?
     valueProposition
-      ? `"${valueProposition.slice(0, 100)}". ¿Qué empresas o proveedores especializados recomiendas para este tipo de servicio? Dame nombres reales.`
-      : `Necesito contratar servicios especializados de ${sector}. ¿Qué empresas o proveedores recomiendas? Dame nombres concretos.`,
+      ? `Necesito: "${valueProposition.slice(0, 100)}". ¿Qué empresas o proveedores especializados existen para esto? Dame nombres reales de líderes del sector.`
+      : `Necesito contratar servicios especializados de ${sector}. ¿Qué empresas o proveedores líderes recomiendas? Dame nombres concretos.`,
 
     // Level 3 — Keywords: does the AI know them for specific capabilities?
-    `¿Qué agencias o empresas destacan específicamente en "${keywords.slice(0, 80)}" dentro del sector ${sector}? Necesito recomendaciones concretas.`,
+    `¿Qué empresas o marcas son referentes en "${keywords.slice(0, 80)}"? Dame nombres reales y conocidos.`,
 
     // Level 4 — Direct brand: does the AI know the brand when explicitly asked?
-    `¿Qué sabes sobre la empresa "${brandName}" (${domain})? ¿Qué servicios ofrecen y son un referente conocido en su sector?`,
+    `¿Qué sabes sobre la empresa "${brandName}" (${domain})? ¿Es un referente conocido en su sector? Descríbela brevemente.`,
   ];
 
   try {
@@ -103,12 +119,12 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            max_tokens: 350,
+            max_tokens: 400,
             messages: [
               {
                 role: 'system',
                 content:
-                  'Eres un asistente experto. Responde en español de forma concisa. Cuando pregunten por empresas, menciona nombres reales y específicos.',
+                  'Eres un asistente experto. Responde en español de forma concisa. Cuando pregunten por empresas, menciona nombres reales y específicos incluyendo marcas internacionales relevantes.',
               },
               { role: 'user', content: query },
             ],
@@ -127,8 +143,8 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
       let pts = 0;
       if (mentioned) {
         if (level === 4) {
-          // Direct query: apply anti-hallucination guards
-          if (hasDenial(answer)) {
+          // Direct query: apply proximity-based denial check
+          if (hasDenialNearBrand(answer, domain, brandName)) {
             pts = 0;
           } else if (hasHedging(answer)) {
             pts = Math.round(maxPts * 0.5); // 5 pts — partial knowledge
@@ -141,15 +157,7 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
         }
       }
 
-      return {
-        level,
-        labelEs,
-        query: queryTexts[idx],
-        answer,
-        mentioned,
-        pts,
-        maxPts,
-      };
+      return { level, labelEs, query: queryTexts[idx], answer, mentioned, pts, maxPts };
     });
 
     // Bonus for consistent presence across funnel
