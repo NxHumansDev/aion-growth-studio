@@ -373,41 +373,65 @@ const MODULES = [
 
     if (results.geo && !results.geo.skipped) {
       const g = results.geo;
-      const brandScore = g.brandScore ?? 0;
-      const sectorScore = g.sectorScore ?? 0;
-      const brandLabel = brandScore >= 60 ? 'High' : brandScore >= 30 ? 'Partial' : 'Not present';
-      const sectorLabel = sectorScore >= 40 ? 'High' : sectorScore >= 20 ? 'Medium' : 'Low';
-      const brandColor = brandScore >= 60 ? 'text-emerald-400' : brandScore >= 30 ? 'text-amber-400' : 'text-slate-400';
-      const sectorColor = sectorScore >= 40 ? 'text-emerald-400' : sectorScore >= 20 ? 'text-amber-400' : 'text-red-400';
+      const overallScore = g.overallScore ?? 0;
+      const sectorScore = g.sectorScore ?? 0; // unprompted visibility (levels 1+2)
+      const brandScore  = g.brandScore  ?? 0; // direct recognition (levels 3+4)
 
-      const queries = (g.queries || []).map(q =>
-        `<div class="flex items-start gap-2 py-2 border-b border-white/5 last:border-0">
-          <span class="mt-0.5 shrink-0">${q.mentioned ? '✅' : q.isBrandQuery ? '○' : '◉'}</span>
-          <div class="flex-1">
-            <span class="text-xs text-slate-300">${q.query}</span>
-            ${q.mentioned ? '<span class="block text-xs text-emerald-400 mt-0.5">Your brand was mentioned</span>' : ''}
-            ${!q.isBrandQuery && !q.mentioned ? '<span class="block text-xs text-slate-500 mt-0.5">Sector covered — brand not yet mentioned</span>' : ''}
-          </div>
-        </div>`
-      ).join('');
+      const sectorColor = sectorScore >= 30 ? 'text-emerald-400' : sectorScore >= 15 ? 'text-amber-400' : 'text-red-400';
+      const brandColor  = brandScore  >= 45 ? 'text-emerald-400' : brandScore  >= 20 ? 'text-amber-400' : 'text-slate-400';
+
+      const FUNNEL_META = [
+        { level: 1, icon: '🌐', label: 'General sector',       pts: 40, desc: 'Your brand appears without anyone asking about it directly' },
+        { level: 2, icon: '💬', label: 'Value proposition',    pts: 28, desc: 'Your brand appears when someone searches for the problem you solve' },
+        { level: 3, icon: '🎯', label: 'Specific keywords',    pts: 18, desc: 'Your brand appears when asking about your specific capabilities' },
+        { level: 4, icon: '🏷️', label: 'Direct brand query',  pts: 10, desc: 'AI knows your brand when asked about it directly' },
+      ];
+
+      const funnelRows = (g.queries || []).map((q, idx) => {
+        const meta = FUNNEL_META[idx] || FUNNEL_META[3];
+        const statusColor = q.mentioned ? 'text-emerald-400' : 'text-slate-500';
+        const statusText  = q.mentioned ? '✅ Mentioned' : '❌ Not mentioned';
+        const barWidth = [100, 80, 62, 46][idx] || 100;
+        const ptsEarned = q.pts ?? (q.mentioned ? meta.pts : 0);
+        return `
+          <div class="mb-3">
+            <div class="flex items-center gap-2 mb-1" style="width:${barWidth}%">
+              <span class="text-base shrink-0">${meta.icon}</span>
+              <div class="flex-1 bg-white/5 border border-white/8 rounded-xl px-3 py-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <span class="text-xs font-semibold text-slate-200">Level ${meta.level} — ${meta.label}</span>
+                    <p class="text-xs text-slate-500 mt-0.5 leading-snug">${meta.desc}</p>
+                    ${q.mentioned && q.context ? `<p class="text-xs text-slate-300 mt-1.5 italic leading-relaxed">"${q.context.slice(0, 120)}..."</p>` : ''}
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span class="text-xs font-semibold ${statusColor} block">${statusText}</span>
+                    <span class="text-xs text-slate-500">${ptsEarned}/${meta.pts} pts</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
 
       sections.push(`
         <div class="bg-white/3 border border-white/8 rounded-2xl p-5">
           <h3 class="text-base font-semibold text-white mb-1">🤖 AI Visibility (GEO)</h3>
-          <p class="text-xs text-slate-400 mb-4">Overall score: <span class="text-cyan-400 font-bold">${g.overallScore || 0}/100</span></p>
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-white/5 rounded-xl p-3 text-center">
-              <div class="text-xl font-bold ${brandColor}">${brandScore}</div>
-              <div class="text-xs text-slate-400 mt-0.5">Brand in AI</div>
-              <div class="text-xs ${brandColor} font-medium">${brandLabel}</div>
-            </div>
+          <p class="text-xs text-slate-400 mb-4">Overall score: <span class="text-cyan-400 font-bold">${overallScore}/100</span></p>
+          <div class="grid grid-cols-2 gap-3 mb-5">
             <div class="bg-white/5 rounded-xl p-3 text-center">
               <div class="text-xl font-bold ${sectorColor}">${sectorScore}</div>
-              <div class="text-xs text-slate-400 mt-0.5">Sector in AI</div>
-              <div class="text-xs ${sectorColor} font-medium">${sectorLabel}</div>
+              <div class="text-xs text-slate-400 mt-0.5">Unprompted visibility</div>
+              <div class="text-xs ${sectorColor} font-medium mt-0.5">${sectorScore >= 30 ? 'High' : sectorScore >= 15 ? 'Medium' : 'Low'}</div>
+            </div>
+            <div class="bg-white/5 rounded-xl p-3 text-center">
+              <div class="text-xl font-bold ${brandColor}">${brandScore}</div>
+              <div class="text-xs text-slate-400 mt-0.5">Direct recognition</div>
+              <div class="text-xs ${brandColor} font-medium mt-0.5">${brandScore >= 45 ? 'High' : brandScore >= 20 ? 'Partial' : 'No data'}</div>
             </div>
           </div>
-          <div>${queries}</div>
+          <p class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wide">Semantic proximity funnel</p>
+          ${funnelRows}
         </div>
       `);
     }

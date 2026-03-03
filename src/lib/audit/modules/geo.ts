@@ -2,7 +2,32 @@ import type { GeoResult, GeoQuery, CrawlResult } from '../types';
 
 const API_KEY = import.meta.env.OPENAI_API_KEY;
 
-// Phrases the AI uses when it doesn't actually know a brand
+/**
+ * GEO Funnel — 4 levels from broadest to most specific.
+ *
+ * The value of a brand mention is inversely proportional to how
+ * directly the query asks about that brand. Appearing organically
+ * in a broad sector query signals true AI authority.
+ *
+ * Level 1 — Sector (40 pts)  : "Best companies in [sector]?" — no brand context
+ * Level 2 — Value prop (28 pts): "Who solves [specific problem]?" — no brand context
+ * Level 3 — Keywords (18 pts) : "Who excels at [keywords]?" — no brand context
+ * Level 4 — Direct (10 pts)   : "What do you know about [brand]?" — direct ask
+ *
+ * Bonus: +4 pts if brand appears in ≥3 levels (consistently present).
+ * Max total: 40 + 28 + 18 + 10 + 4 = 100
+ */
+
+const FUNNEL_LEVELS = [
+  { level: 1, maxPts: 40, labelEs: 'Sector general',         labelEn: 'General sector' },
+  { level: 2, maxPts: 28, labelEs: 'Propuesta de valor',     labelEn: 'Value proposition' },
+  { level: 3, maxPts: 18, labelEs: 'Keywords específicas',   labelEn: 'Specific keywords' },
+  { level: 4, maxPts: 10, labelEs: 'Consulta directa',       labelEn: 'Direct brand query' },
+] as const;
+
+const MULTI_LEVEL_BONUS = 4; // +4 if mentioned in ≥3 levels
+
+// AI denial phrases — prevent false positives on level-4 direct queries
 const DENIAL_PHRASES = [
   'no tengo información',
   'no conozco',
@@ -13,82 +38,31 @@ const DENIAL_PHRASES = [
   'lamentablemente, no',
   'desafortunadamente, no',
   'no dispongo de información',
-  'fuera de mi conocimiento',
   'no encuentro información',
 ];
 
-/**
- * Brand mention scoring (0-30 per query):
- * - Not mentioned or AI is clearly uncertain: 0
- * - Mentioned but hedged ("podría ser", "creo que"): 15
- * - Clearly mentioned with factual context: 30
- */
-function scoreBrandMention(
-  answer: string,
-  domain: string,
-  brandName: string,
-): { mentioned: boolean; pts: number } {
+// Hedging phrases — reduce pts on level-4 (uncertain knowledge)
+const HEDGING_PHRASES = [
+  'podría ser', 'creo que', 'me parece', 'si no me equivoco',
+  'no estoy completamente', 'es posible que', 'quizás', 'podría tratarse',
+];
+
+function detectMention(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
-
-  // If the AI explicitly denies knowing the brand → 0 pts even if the name appears
-  const isDenied = DENIAL_PHRASES.some((p) => lower.includes(p));
-
-  // Match domain (safe, very specific) or brand name if long enough to avoid false positives
-  const lowerDomain = domain.toLowerCase();
-  const lowerBrand = brandName.toLowerCase();
-  const isMentioned =
-    lower.includes(lowerDomain) ||
-    (lowerBrand.length > 5 && lower.includes(lowerBrand));
-
-  if (!isMentioned || isDenied) return { mentioned: false, pts: 0 };
-
-  // Check for hedging language that signals low confidence
-  const isHedged =
-    lower.includes('podría') ||
-    lower.includes('creo que') ||
-    lower.includes('me parece') ||
-    lower.includes('si no me equivoco') ||
-    lower.includes('no estoy completamente') ||
-    lower.includes('es posible que');
-
-  return { mentioned: true, pts: isHedged ? 15 : 30 };
+  return (
+    lower.includes(domain.toLowerCase()) ||
+    (brandName.length > 5 && lower.includes(brandName.toLowerCase()))
+  );
 }
 
-/**
- * Sector quality scoring (0-13 per query):
- * Requires substantive evidence, not just generic words.
- *
- * Criteria (each worth ~4 pts):
- * 1. Substantive response: length > 200 chars
- * 2. Names specific entities: ≥2 capitalized tokens in mid-sentence
- *    (proper nouns / brand names that GPT is naming)
- * 3. Actionable recommendation language
- */
-function scoreSectorQuery(answer: string): { hasSectorData: boolean; pts: number } {
+function hasHedging(answer: string): boolean {
   const lower = answer.toLowerCase();
-  let pts = 0;
+  return HEDGING_PHRASES.some((p) => lower.includes(p));
+}
 
-  // 1. Substantive length (up to 4 pts)
-  if (answer.length > 200) pts += 4;
-
-  // 2. Contains ≥2 proper nouns in mid-sentence — evidence the AI is naming specific entities
-  // Match capitalized words that are NOT at the start of a sentence
-  const midSentenceCapitals =
-    answer.match(/(?<=[a-záéíóúüña-z,;] )[A-ZÁÉÍÓÚÜ][a-záéíóúü]{2,}/g) || [];
-  if (midSentenceCapitals.length >= 2) pts += 5;
-
-  // 3. Actionable recommendation language (up to 4 pts)
-  const recommendationWords = [
-    'recomiendo', 'te recomiendo', 'recomendamos',
-    'destacan', 'destacan por', 'se destacan',
-    'líder', 'líderes', 'referente', 'referentes',
-    'top ', 'mejor opción', 'mejores opciones',
-    'opta por', 'considera', 'te sugiero',
-    'plataforma de referencia', 'solución recomendada',
-  ];
-  if (recommendationWords.some((w) => lower.includes(w))) pts += 4;
-
-  return { hasSectorData: pts >= 4, pts };
+function hasDenial(answer: string): boolean {
+  const lower = answer.toLowerCase();
+  return DENIAL_PHRASES.some((p) => lower.includes(p));
 }
 
 export async function runGEO(url: string, sector: string, crawl: CrawlResult): Promise<GeoResult> {
@@ -98,28 +72,29 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
 
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
   const brandName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
-  const valueProposition = crawl.description?.slice(0, 100) || '';
+  const valueProposition = crawl.description?.slice(0, 120) || '';
+  // Use H1 or first clause of description as the most specific keyword signal
+  const keywords = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
 
-  // 2 brand-focused queries
-  const brandQueryList = [
-    `¿Conoces la empresa "${brandName}"? ¿Qué sabes sobre ellos y sus servicios?`,
-    `Busco información sobre ${domain} en el ámbito de ${sector}. ¿Puedes ayudarme?`,
+  const queryTexts = [
+    // Level 1 — Sector: broadest signal, no brand context
+    `¿Cuáles son las mejores empresas y referentes en ${sector} en España o Latinoamérica? Dame 5 ejemplos concretos con sus nombres.`,
+
+    // Level 2 — Value proposition: does the AI recommend them for the specific problem?
+    valueProposition
+      ? `"${valueProposition.slice(0, 100)}". ¿Qué empresas o proveedores especializados recomiendas para este tipo de servicio? Dame nombres reales.`
+      : `Necesito contratar servicios especializados de ${sector}. ¿Qué empresas o proveedores recomiendas? Dame nombres concretos.`,
+
+    // Level 3 — Keywords: does the AI know them for specific capabilities?
+    `¿Qué agencias o empresas destacan específicamente en "${keywords.slice(0, 80)}" dentro del sector ${sector}? Necesito recomendaciones concretas.`,
+
+    // Level 4 — Direct brand: does the AI know the brand when explicitly asked?
+    `¿Qué sabes sobre la empresa "${brandName}" (${domain})? ¿Qué servicios ofrecen y son un referente conocido en su sector?`,
   ];
-
-  // 3 sector-focused queries — explicitly ask for specific names to get scorable answers
-  const sectorQueryList = [
-    `¿Cuáles son las mejores empresas de ${sector} en España o Latinoamérica? Dame nombres concretos.`,
-    `Necesito contratar servicios de ${sector}${valueProposition ? ` para ${valueProposition.slice(0, 60)}` : ''}. ¿Qué empresas o proveedores recomiendas?`,
-    `¿Qué marcas o plataformas son referentes en ${sector}? Dame ejemplos reales.`,
-  ];
-
-  const allQueries = [...brandQueryList, ...sectorQueryList];
 
   try {
-    const results = await Promise.all(
-      allQueries.map(async (query, idx) => {
-        const isBrandQuery = idx < 2;
-
+    const answers = await Promise.all(
+      queryTexts.map(async (query) => {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -133,65 +108,76 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
               {
                 role: 'system',
                 content:
-                  'Eres un asistente experto. Responde en español de forma concisa y directa. Cuando pregunten por empresas, menciona nombres reales y específicos.',
+                  'Eres un asistente experto. Responde en español de forma concisa. Cuando pregunten por empresas, menciona nombres reales y específicos.',
               },
               { role: 'user', content: query },
             ],
           }),
         });
-
         const data = await res.json();
-        const answer: string = data?.choices?.[0]?.message?.content || '';
-
-        if (isBrandQuery) {
-          const { mentioned, pts } = scoreBrandMention(answer, domain, brandName);
-          return {
-            query,
-            mentioned,
-            isBrandQuery: true,
-            hasSectorData: false,
-            brandPts: pts,
-            sectorPts: 0,
-            context: mentioned ? answer.slice(0, 150) : undefined,
-          };
-        } else {
-          const { hasSectorData, pts } = scoreSectorQuery(answer);
-          return {
-            query,
-            mentioned: false,
-            isBrandQuery: false,
-            hasSectorData,
-            brandPts: 0,
-            sectorPts: pts,
-            context: undefined,
-          };
-        }
+        return (data?.choices?.[0]?.message?.content || '') as string;
       }),
     );
 
-    const brandResults = results.slice(0, 2);
-    const sectorResults = results.slice(2);
+    // Score each funnel level
+    const levelResults = FUNNEL_LEVELS.map(({ level, maxPts, labelEs }, idx) => {
+      const answer = answers[idx];
+      const mentioned = detectMention(answer, domain, brandName);
 
-    // Brand score: 0-60 (0, 15, or 30 per query)
-    const brandScore = brandResults.reduce((sum, r) => sum + r.brandPts, 0); // 0–60
+      let pts = 0;
+      if (mentioned) {
+        if (level === 4) {
+          // Direct query: apply anti-hallucination guards
+          if (hasDenial(answer)) {
+            pts = 0;
+          } else if (hasHedging(answer)) {
+            pts = Math.round(maxPts * 0.5); // 5 pts — partial knowledge
+          } else {
+            pts = maxPts; // 10 pts — AI clearly knows the brand
+          }
+        } else {
+          // Unprompted mention in broad queries → full value
+          pts = maxPts;
+        }
+      }
 
-    // Sector score: 0-40 (0-13 per query, normalized)
-    const rawSectorPts = sectorResults.reduce((sum, r) => sum + r.sectorPts, 0); // 0-39
-    const sectorScore = Math.min(40, Math.round((rawSectorPts / 39) * 40));
-
-    const overallScore = Math.min(100, brandScore + sectorScore);
-
-    return {
-      queries: results.map(({ query, mentioned, isBrandQuery, context }) => ({
-        query,
+      return {
+        level,
+        labelEs,
+        query: queryTexts[idx],
+        answer,
         mentioned,
-        isBrandQuery,
-        context,
-      })),
-      overallScore,
-      brandScore,
-      sectorScore,
-    };
+        pts,
+        maxPts,
+      };
+    });
+
+    // Bonus for consistent presence across funnel
+    const mentionedCount = levelResults.filter((r) => r.mentioned).length;
+    const bonus = mentionedCount >= 3 ? MULTI_LEVEL_BONUS : 0;
+
+    const rawScore = levelResults.reduce((sum, r) => sum + r.pts, 0) + bonus;
+    const overallScore = Math.min(100, rawScore);
+
+    // sectorScore (0-40): visibility in unprompted queries (levels 1+2, max=68 → normalize)
+    const sectorPts = levelResults[0].pts + levelResults[1].pts;
+    const sectorScore = Math.round((sectorPts / 68) * 40);
+
+    // brandScore (0-60): direct recognition (levels 3+4, max=28 → normalize)
+    const brandPts = levelResults[2].pts + levelResults[3].pts;
+    const brandScore = Math.round((brandPts / 28) * 60);
+
+    const queries: GeoQuery[] = levelResults.map((r) => ({
+      query: r.query,
+      mentioned: r.mentioned,
+      isBrandQuery: r.level === 4,
+      context: r.mentioned ? r.answer.slice(0, 180) : undefined,
+      level: r.level,
+      levelLabel: r.labelEs,
+      pts: r.pts,
+    }));
+
+    return { queries, overallScore, brandScore, sectorScore };
   } catch (err: any) {
     return {
       queries: [],
