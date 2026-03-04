@@ -15,7 +15,31 @@ import { runConversion } from './modules/conversion';
 import { runScore } from './modules/score';
 import { runInsights } from './modules/insights';
 import { NEXT_STEP } from './types';
-import type { AuditStep, AuditStepOrDone, ModuleResult, AuditPageData } from './types';
+import type { AuditStep, AuditStepOrDone, ModuleResult, AuditPageData, CrawlResult } from './types';
+
+const APPS_SCRIPT_SOCIAL_WEBHOOK =
+  import.meta.env.APPS_SCRIPT_SOCIAL_WEBHOOK || process.env.APPS_SCRIPT_SOCIAL_WEBHOOK;
+
+/**
+ * Fire-and-forget: asks Google Apps Script (residential Google IP) to scrape
+ * Instagram and LinkedIn and write results directly to the Notion audit page.
+ * By the time the audit reaches the instagram/linkedin steps (~3 min later),
+ * the data is already in Notion and the steps just read it.
+ */
+function triggerSocialPrefetch(pageId: string, crawl: CrawlResult): void {
+  if (!APPS_SCRIPT_SOCIAL_WEBHOOK) return;
+  if (!crawl.instagramHandle && !crawl.linkedinUrl) return;
+
+  fetch(APPS_SCRIPT_SOCIAL_WEBHOOK, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pageId,
+      instagramHandle: crawl.instagramHandle || null,
+      linkedinUrl: crawl.linkedinUrl || null,
+    }),
+  }).catch(() => { /* intentionally ignored — Apps Script runs independently */ });
+}
 
 export interface StepExecution {
   result: ModuleResult;
@@ -33,6 +57,7 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
     switch (step) {
       case 'crawl':
         result = await runCrawl(url);
+        triggerSocialPrefetch(audit.notionPageId, result as CrawlResult);
         break;
 
       case 'ssl':
@@ -76,12 +101,16 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
       }
 
       case 'instagram': {
+        // If Apps Script already wrote the result to Notion, use it directly
+        if (results.instagram) { result = results.instagram; break; }
         const competitorUrls = (results.competitors as any)?.competitors?.map((c: any) => c.url) || [];
         result = await runInstagram(results.crawl || {}, competitorUrls, audit.userInstagram);
         break;
       }
 
       case 'linkedin': {
+        // If Apps Script already wrote the result to Notion, use it directly
+        if (results.linkedin) { result = results.linkedin; break; }
         const competitorUrls = (results.competitors as any)?.competitors?.map((c: any) => c.url) || [];
         result = await runLinkedIn(results.crawl || {}, competitorUrls, audit.userLinkedin);
         break;
