@@ -303,12 +303,14 @@ const MODULES = [
         const igHandle = ig?.found === true ? ig.handle : null;
         const liUrl = li?.found === true ? li.url : null;
         let socialNoteHtml = '';
-        if ((igHandle || liUrl) && (!igHasData || !liHasData)) {
-          const detected = [igHandle ? `@${igHandle} en Instagram` : null, liUrl ? 'LinkedIn' : null].filter(Boolean).join(' y ');
+        const missingPlatforms = [];
+        if (igHandle && !igHasData) missingPlatforms.push(`@${igHandle} en Instagram`);
+        if (liUrl && !liHasData) missingPlatforms.push('LinkedIn');
+        if (missingPlatforms.length > 0) {
           socialNoteHtml = `
             <div class="flex items-start gap-2.5 p-3 bg-amber-500/5 border border-amber-400/15 rounded-lg mb-5">
               <span class="text-amber-400 shrink-0 mt-0.5 text-xs">ℹ️</span>
-              <p class="text-xs text-slate-400 leading-relaxed">Detectamos tu presencia en ${detected}. Las métricas de seguidores y engagement no están disponibles porque Instagram y LinkedIn restringen el acceso a estas métricas desde servidores externos.</p>
+              <p class="text-xs text-slate-400 leading-relaxed">Detectamos ${missingPlatforms.join(' y ')}, pero Instagram no expone métricas de seguidores sin autenticación incluso desde IPs externas de confianza.</p>
             </div>`;
         }
 
