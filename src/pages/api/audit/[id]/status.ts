@@ -5,8 +5,9 @@ import { getAuditPage, saveModuleResult, markAuditError } from '../../../../lib/
 import { executeStep } from '../../../../lib/audit/runner';
 import { STEP_PROGRESS } from '../../../../lib/audit/types';
 import type { AuditStep } from '../../../../lib/audit/types';
+import { validateApiKey, mapResultsForPlatform } from '../../../../lib/api-auth';
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, request }) => {
   const { id } = params;
 
   if (!id) {
@@ -16,11 +17,37 @@ export const GET: APIRoute = async ({ params }) => {
     });
   }
 
+  const auth = validateApiKey(request);
+
+  if (!auth.valid) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const isPlatform = auth.source === 'platform' || auth.source === 'dev';
+
   try {
     const audit = await getAuditPage(id);
 
     // Already completed
     if (audit.status === 'completed' || audit.currentStep === 'done') {
+      const completedModules = Object.keys(audit.results);
+      const mappedResults = isPlatform ? mapResultsForPlatform(audit.results) : audit.results;
+
+      if (isPlatform) {
+        return new Response(
+          JSON.stringify({
+            status: 'completed',
+            currentModule: 'done',
+            completedModules,
+            results: mappedResults,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
       return new Response(
         JSON.stringify({
           status: 'completed',
@@ -35,6 +62,12 @@ export const GET: APIRoute = async ({ params }) => {
 
     // Error state
     if (audit.status === 'error') {
+      if (isPlatform) {
+        return new Response(
+          JSON.stringify({ status: 'failed', error: 'Audit processing failed' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
       return new Response(
         JSON.stringify({ status: 'error', progress: 0 }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -63,6 +96,19 @@ export const GET: APIRoute = async ({ params }) => {
       ? { ...audit.results, [moduleKey]: result }
       : null;
 
+    if (isPlatform) {
+      const completedModules = [...Object.keys(audit.results), moduleKey];
+      return new Response(
+        JSON.stringify({
+          status: isCompleted ? 'completed' : 'running',
+          currentModule: isCompleted ? 'done' : (nextStep as string),
+          completedModules,
+          ...(isCompleted && allResults ? { results: mapResultsForPlatform(allResults) } : {}),
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(
       JSON.stringify({
         status: isCompleted ? 'completed' : 'processing',
@@ -80,6 +126,13 @@ export const GET: APIRoute = async ({ params }) => {
       await markAuditError(id);
     } catch {
       // ignore secondary error
+    }
+
+    if (isPlatform) {
+      return new Response(
+        JSON.stringify({ status: 'failed', error: 'Internal server error' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } },
+      );
     }
     return new Response(
       JSON.stringify({ status: 'error', error: 'Internal server error' }),

@@ -2,6 +2,9 @@ export const prerender = false;
 
 import type { APIRoute } from 'astro';
 import { createAuditPage } from '../../../lib/audit/notion';
+import { validateApiKey } from '../../../lib/api-auth';
+
+const PLATFORM_EMAIL = 'platform-internal@aiongrowth.com';
 
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -14,13 +17,30 @@ function normalizeUrl(raw: string): string {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const { email, url, name, company, instagramHandle, linkedinUrl, selectedCompetitors } = body;
+    const auth = validateApiKey(request, body);
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return new Response(JSON.stringify({ error: 'Valid email is required' }), {
-        status: 400,
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    const { url, name, company, instagramHandle, linkedinUrl, selectedCompetitors } = body;
+
+    // Email required for public flow; Platform requests use a synthetic email
+    let email: string;
+    if (auth.source === 'platform' || auth.source === 'dev') {
+      email = body.email || PLATFORM_EMAIL;
+    } else {
+      // Public flow: email is required
+      if (!body.email || typeof body.email !== 'string' || !body.email.includes('@')) {
+        return new Response(JSON.stringify({ error: 'Valid email is required' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      email = body.email.trim();
     }
 
     if (!url || typeof url !== 'string') {
@@ -60,9 +80,9 @@ export const POST: APIRoute = async ({ request }) => {
       opts.competitors = selectedCompetitors.slice(0, 5).filter((u: any) => typeof u === 'string');
     }
 
-    const auditId = await createAuditPage(normalizedUrl, email.trim(), opts);
+    const auditId = await createAuditPage(normalizedUrl, email, opts);
 
-    return new Response(JSON.stringify({ audit_id: auditId, url: normalizedUrl }), {
+    return new Response(JSON.stringify({ audit_id: auditId, status: 'processing', url: normalizedUrl }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
