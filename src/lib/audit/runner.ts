@@ -10,6 +10,7 @@ import { runGBP } from './modules/gbp';
 import { runTraffic } from './modules/traffic';
 import { runSEO } from './modules/seo';
 import { runCompetitors } from './modules/competitors';
+import { runCompetitorTraffic } from './modules/competitor-traffic';
 import { runTechStack } from './modules/techstack';
 import { runConversion } from './modules/conversion';
 import { runScore } from './modules/score';
@@ -97,6 +98,13 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
       case 'competitors': {
         const sector = (results.sector as any)?.sector || 'business services';
         result = await runCompetitors(url, sector, results.crawl || {}, audit.userCompetitors);
+        break;
+      }
+
+      case 'competitor_traffic': {
+        const comps: Array<{ name: string; url: string }> =
+          (results.competitors as any)?.competitors || [];
+        result = await runCompetitorTraffic(comps);
         break;
       }
 

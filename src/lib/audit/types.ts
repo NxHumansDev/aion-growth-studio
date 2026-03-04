@@ -11,6 +11,7 @@ export type AuditStep =
   | 'traffic'
   | 'seo'
   | 'competitors'
+  | 'competitor_traffic'
   | 'techstack'
   | 'conversion'
   | 'score'
@@ -21,7 +22,7 @@ export type AuditStatus = 'processing' | 'completed' | 'error';
 
 export const STEP_ORDER: AuditStep[] = [
   'crawl', 'ssl', 'pagespeed', 'sector', 'content', 'geo',
-  'gbp', 'traffic', 'seo', 'competitors', 'instagram', 'linkedin',
+  'gbp', 'traffic', 'seo', 'competitors', 'competitor_traffic', 'instagram', 'linkedin',
   'techstack', 'conversion', 'score', 'insights',
 ];
 
@@ -36,10 +37,11 @@ export const STEP_PROGRESS: Record<AuditStep, number> = {
   traffic: 47,
   seo: 52,
   competitors: 57,
-  instagram: 62,
-  linkedin: 67,
-  techstack: 73,
-  conversion: 79,
+  competitor_traffic: 61,
+  instagram: 65,
+  linkedin: 69,
+  techstack: 74,
+  conversion: 80,
   score: 90,
   insights: 100,
 };
@@ -54,7 +56,8 @@ export const NEXT_STEP: Record<AuditStep, AuditStepOrDone> = {
   gbp: 'traffic',
   traffic: 'seo',
   seo: 'competitors',
-  competitors: 'instagram',
+  competitors: 'competitor_traffic',
+  competitor_traffic: 'instagram',
   instagram: 'linkedin',
   linkedin: 'techstack',
   techstack: 'conversion',
@@ -213,6 +216,19 @@ export interface Competitor {
 
 export interface CompetitorsResult extends ModuleResult {
   competitors?: Competitor[];
+}
+
+export interface CompetitorTrafficItem {
+  name: string;
+  domain: string;
+  url: string;
+  domainRank?: number;
+  organicTrafficEstimate?: number;
+  keywordsTop10?: number;
+}
+
+export interface CompetitorTrafficResult extends ModuleResult {
+  items?: CompetitorTrafficItem[];
 }
 
 // ── 6-pillar score breakdown ──────────────────────────────────────
