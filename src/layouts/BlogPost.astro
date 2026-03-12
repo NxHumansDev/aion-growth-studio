@@ -125,5 +125,7 @@ const dateLocale = lang === 'en' ? 'en-US' : 'es-ES';
   .prose pre { background: #0B1B3D; color: rgb(226 232 240); border-radius: 0.75rem; padding: 1.5rem; overflow-x: auto; margin: 2rem 0; }
   .prose pre code { background: transparent; color: inherit; padding: 0; }
   .prose img { border-radius: 0.75rem; margin: 2rem 0; }
+  /* Hide duplicate cover image — rendered explicitly above the prose */
+  .prose > p:first-child > img:only-child { display: none; }
   .prose hr { border-color: rgb(226 232 240); margin: 3rem 0; }
 </style>
