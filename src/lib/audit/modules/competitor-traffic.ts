@@ -40,8 +40,7 @@ export async function runCompetitorTraffic(
         body: JSON.stringify(
           items.map((item) => ({
             target: item.domain,
-            location_code: 2724,
-            language_code: 'es',
+            // No location/language filter — global data has much better coverage for small sites
           })),
         ),
       },

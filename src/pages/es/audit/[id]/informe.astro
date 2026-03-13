@@ -635,9 +635,15 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
               </tbody>
             </table>
           </div>
-          <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">
-            DR = Domain Rank (0-100). Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
-          </p>
+          {benchRows.every(r => r.dr == null && r.etv == null && r.kw10 == null) ? (
+            <p style="font-size:0.8rem;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;padding:0.5rem 0.75rem;border-radius:0.375rem;margin-top:0.75rem;">
+              ⚠️ DataForSEO no dispone de datos de tráfico orgánico para estos dominios. Las métricas aparecerán en el próximo análisis con los parámetros actualizados.
+            </p>
+          ) : (
+            <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">
+              DR = Domain Rank (0-100). Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
+            </p>
+          )}
         </>
       )}
 
@@ -663,35 +669,6 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
         </div>
       )}
 
-      <!-- Detalle competidores enriquecido -->
-      {competitors.length > 0 && (
-        <div class="sub-section">
-          <h3>Competidores detectados</h3>
-          <div style="display:flex;flex-direction:column;gap:0.5rem;">
-            {competitors.map((c: any) => {
-              const cDomain = (() => { try { return new URL(c.url).hostname.replace(/^www\./, ''); } catch { return c.url; } })();
-              const cTraffic = ctItems.find((ct: any) => ct.domain === cDomain || ct.url === c.url || c.url.includes(ct.domain));
-              return (
-                <div style="padding:0.875rem 1rem;background:#f8fafc;border-radius:0.5rem;border:1px solid #e2e8f0;">
-                  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-                    <div>
-                      <a href={c.url} target="_blank" rel="noopener" style="font-weight:600;color:#1A4B8C;font-size:0.875rem;text-decoration:none;">{c.name}</a>
-                      <p style="font-size:0.775rem;color:#64748b;margin:0.2rem 0 0;">{c.snippet}</p>
-                    </div>
-                    {cTraffic && (
-                      <div style="display:flex;gap:0.5rem;flex-shrink:0;">
-                        {cTraffic.domainRank != null && <span style="font-size:0.7rem;background:#e0e7ff;color:#3730a3;padding:0.15rem 0.5rem;border-radius:9999px;font-weight:600;">DR {cTraffic.domainRank}</span>}
-                        {cTraffic.organicTrafficEstimate != null && <span style="font-size:0.7rem;background:#f0fdf4;color:#15803d;padding:0.15rem 0.5rem;border-radius:9999px;font-weight:600;">{fmt(cTraffic.organicTrafficEstimate)}/mo</span>}
-                        {cTraffic.keywordsTop10 != null && <span style="font-size:0.7rem;background:#fefce8;color:#a16207;padding:0.15rem 0.5rem;border-radius:9999px;font-weight:600;">{fmt(cTraffic.keywordsTop10)} KW</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
 
     <!-- ── BLOQUE 4: EXPERIENCIA Y CONVERSIÓN ────────────────────── -->

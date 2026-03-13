@@ -29,8 +29,7 @@ export async function runSEO(url: string): Promise<SEOResult> {
         body: JSON.stringify([
           {
             target: domain,
-            location_code: 2724, // Spain — can be parameterized later
-            language_code: 'es',
+            // No location/language filter — global data has much better coverage for small sites
           },
         ]),
       },
