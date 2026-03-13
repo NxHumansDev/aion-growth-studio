@@ -264,11 +264,11 @@ const MODULES = [
   }
 
   function showResults(data) {
-    document.getElementById('processing-state').classList.add('hidden');
-    document.getElementById('results-state').classList.remove('hidden');
-    const navActions = document.querySelector('.nav-actions');
-    if (navActions) navActions.style.display = '';
+    // Redirect to the full rich report
+    window.location.href = `/en/audit/${auditId}/report`;
+  }
 
+  function showResults_unused(data) {
     const results = data.results || {};
     const score = results.score?.total ?? data.score ?? 0;
 
