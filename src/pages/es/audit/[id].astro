@@ -53,9 +53,9 @@ const MODULES = [
     <!-- Header -->
     <nav class="flex items-center justify-between px-6 md:px-12 py-5">
       <a href="/es/">
-        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-32 w-auto brightness-0 invert" />
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-20 w-auto brightness-0 invert" />
       </a>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 nav-actions" style="display:none">
         <a href="/es/diagnostico" class="text-sm text-white/60 hover:text-white transition-colors">Nuevo análisis</a>
       </div>
     </nav>
@@ -63,49 +63,22 @@ const MODULES = [
     <div class="flex-1 px-4 py-8 max-w-3xl mx-auto w-full">
 
       <!-- PROCESSING STATE -->
-      <div id="processing-state">
-        <div class="text-center mb-10">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-400/20 rounded-full text-cyan-300 text-xs font-medium mb-4">
-            <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
-            Análisis en curso
-          </div>
-          <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">
-            Analizando tu presencia digital
-          </h1>
-          {domain && (
-            <p class="text-slate-400 text-sm font-mono">{domain}</p>
-          )}
+      <div id="processing-state" class="flex flex-col items-center justify-center py-32">
+        <!-- Centered logo with pulse ring -->
+        <div class="relative flex items-center justify-center mb-8">
+          <div class="absolute w-40 h-40 rounded-full border border-cyan-400/20 animate-ping" style="animation-duration:2s"></div>
+          <div class="absolute w-32 h-32 rounded-full border border-cyan-400/10 animate-ping" style="animation-duration:2.5s;animation-delay:0.5s"></div>
+          <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-20 w-auto brightness-0 invert relative z-10" />
         </div>
 
-        <!-- Progress bar -->
-        <div class="mb-6">
-          <div class="flex justify-between text-xs text-slate-400 mb-2">
-            <span>Progreso</span>
-            <span id="progress-pct">0%</span>
-          </div>
-          <div class="h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
-            <div
-              id="progress-bar"
-              class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700"
-              style="width: 0%"
-            ></div>
-          </div>
-        </div>
-
-        <!-- Narrative copy — updates dynamically as modules complete -->
-        <div class="mb-6 min-h-[2.5rem]">
-          <p id="progress-narrative" class="text-sm text-slate-300 text-center italic opacity-80 transition-all duration-500"></p>
-        </div>
-
-        <!-- Module list -->
-        <div class="space-y-2">
-          {MODULES.map((mod, i) => (
-            <div
-              id={`module-${mod.key}`}
-              class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/3 border border-white/5 opacity-40 transition-all duration-300"
-            >
-              <span class="module-icon text-lg w-6 text-center">○</span>
-              <span class="text-sm text-slate-300">{mod.icon} {mod.label}</span>
+        <!-- Hidden functional elements (JS needs them in DOM) -->
+        <div class="hidden" aria-hidden="true">
+          <span id="progress-pct"></span>
+          <div id="progress-bar"></div>
+          <p id="progress-narrative"></p>
+          {MODULES.map((mod) => (
+            <div id={`module-${mod.key}`}>
+              <span class="module-icon">○</span>
             </div>
           ))}
         </div>
@@ -279,6 +252,8 @@ const MODULES = [
   function showResults(data) {
     document.getElementById('processing-state').classList.add('hidden');
     document.getElementById('results-state').classList.remove('hidden');
+    const navActions = document.querySelector('.nav-actions');
+    if (navActions) navActions.style.display = '';
 
     const results = data.results || {};
     const score = results.score?.total ?? data.score ?? 0;
@@ -1058,6 +1033,8 @@ const MODULES = [
   function showError() {
     document.getElementById('processing-state').classList.add('hidden');
     document.getElementById('error-state').classList.remove('hidden');
+    const navActions = document.querySelector('.nav-actions');
+    if (navActions) navActions.style.display = '';
   }
 
   async function poll() {
