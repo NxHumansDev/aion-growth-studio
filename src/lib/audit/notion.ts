@@ -137,22 +137,30 @@ export async function markAuditError(pageId: string): Promise<void> {
 function prepareBlockContent(module: string, data: ModuleResult): string {
   const str = JSON.stringify({ m: module, d: data });
   if (str.length <= 1990) return str;
-  // Truncate data to fit within Notion's 2000 char limit per text block
-  const truncated = truncateData(data);
-  return JSON.stringify({ m: module, d: truncated }).slice(0, 1990);
+
+  // Progressive truncation — each pass more aggressive than the last
+  // Always produces valid JSON (never bare slice)
+  for (const maxStr of [120, 80, 40]) {
+    const truncated = truncateData(data, maxStr);
+    const candidate = JSON.stringify({ m: module, d: truncated });
+    if (candidate.length <= 1990) return candidate;
+  }
+
+  // Nuclear: just flag it as truncated so parsing doesn't fail silently
+  return JSON.stringify({ m: module, d: { _truncated: true } });
 }
 
-function truncateData(data: any): any {
+function truncateData(data: any, maxStr = 150): any {
   if (typeof data !== 'object' || data === null) return data;
-  if (Array.isArray(data)) return data.slice(0, 5).map(truncateData);
+  if (Array.isArray(data)) return data.slice(0, 5).map((v) => truncateData(v, maxStr));
   const result: any = {};
   for (const [key, value] of Object.entries(data)) {
-    if (typeof value === 'string' && value.length > 150) {
-      result[key] = value.slice(0, 150) + '…';
+    if (typeof value === 'string' && value.length > maxStr) {
+      result[key] = value.slice(0, maxStr) + '…';
     } else if (Array.isArray(value)) {
-      result[key] = value.slice(0, 5).map(truncateData);
+      result[key] = value.slice(0, 5).map((v) => truncateData(v, maxStr));
     } else if (typeof value === 'object' && value !== null) {
-      result[key] = truncateData(value);
+      result[key] = truncateData(value, maxStr);
     } else {
       result[key] = value;
     }

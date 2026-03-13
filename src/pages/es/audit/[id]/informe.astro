@@ -380,22 +380,29 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
     </div>
 
     <!-- ── RESUMEN EJECUTIVO ──────────────────────────────────────── -->
-    {insights.bullets?.length > 0 && (
-      <div class="section" style="background:#f8fafc;">
-        <div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:1.25rem;">
-          <span style="font-size:1.1rem;">💡</span>
-          <h2 style="margin:0;">Diagnóstico de tu presencia digital</h2>
+    {(() => {
+      const bullets: string[] = insights.bullets?.length > 0
+        ? insights.bullets
+        : [diagSEO, diagGEO, diagTraffic, diagPS, diagFunnel, diagStack].filter(
+            (t) => t && !t.startsWith('No se pudieron') && !t.startsWith('Este dominio no')
+          );
+      return (
+        <div class="section" style="background:#f8fafc;">
+          <div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:1.25rem;">
+            <span style="font-size:1.1rem;">💡</span>
+            <h2 style="margin:0;">Diagnóstico de tu presencia digital</h2>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.125rem;">
+            {bullets.map((b: string) => (
+              <div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.625rem 0;border-bottom:1px solid #f1f5f9;">
+                <span style="color:#1A4B8C;font-weight:700;font-size:1rem;flex-shrink:0;margin-top:0.1rem;">→</span>
+                <p style="margin:0;font-size:0.9375rem;color:#334155;line-height:1.7;">{b}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0.125rem;">
-          {insights.bullets.map((b: string) => (
-            <div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.625rem 0;border-bottom:1px solid #f1f5f9;">
-              <span style="color:#1A4B8C;font-weight:700;font-size:1rem;flex-shrink:0;margin-top:0.1rem;">→</span>
-              <p style="margin:0;font-size:0.9375rem;color:#334155;line-height:1.7;">{b}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
+      );
+    })()}
 
     <!-- ── BLOQUE 2: ¿TE ENCUENTRAN? ─────────────────────────────── -->
     <div class="section">
