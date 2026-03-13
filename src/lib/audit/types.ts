@@ -79,6 +79,12 @@ export interface ModuleResult {
   [key: string]: any;
 }
 
+export interface HreflangAlternate {
+  hreflang: string;
+  href: string;
+  domain: string;
+}
+
 export interface CrawlResult extends ModuleResult {
   title?: string;
   description?: string;
@@ -96,6 +102,7 @@ export interface CrawlResult extends ModuleResult {
   instagramHandle?: string;
   twitterHandle?: string;
   linkedinUrl?: string;
+  hreflangAlternates?: HreflangAlternate[];
 }
 
 export interface SSLResult extends ModuleResult {

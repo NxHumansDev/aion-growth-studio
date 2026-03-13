@@ -158,12 +158,20 @@ const MODULES = [
         <div class="mt-12 p-6 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-400/20 rounded-2xl text-center">
           <h3 class="text-lg font-bold text-white mb-2">¿Quieres implementar estas mejoras?</h3>
           <p class="text-sm text-slate-300 mb-4">En AION desplegamos la infraestructura de crecimiento en 8 semanas.</p>
-          <a
-            href="mailto:hola@aiongrowth.studio"
-            class="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0B1B3D] font-semibold text-sm rounded-xl hover:bg-cyan-300 transition-all duration-300"
-          >
-            Hablar con AION →
-          </a>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="mailto:hola@aiongrowth.studio"
+              class="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0B1B3D] font-semibold text-sm rounded-xl hover:bg-cyan-300 transition-all duration-300"
+            >
+              Hablar con AION →
+            </a>
+            <a
+              href={`/es/audit/${id}/informe`}
+              class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm rounded-xl hover:opacity-90 transition-all duration-300"
+            >
+              📄 Ver informe completo →
+            </a>
+          </div>
         </div>
       </div>
 

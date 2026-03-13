@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import type { CrawlResult } from '../types';
+import type { CrawlResult, HreflangAlternate } from '../types';
 
 export async function runCrawl(url: string): Promise<CrawlResult> {
   try {
@@ -55,6 +55,22 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       // no sitemap
     }
 
+    // Extract hreflang alternates (multi-domain detection)
+    const domain = hostname.replace(/^www\./, '');
+    const hreflangAlternates: HreflangAlternate[] = [];
+    $('link[rel="alternate"][hreflang]').each((_, el) => {
+      const hreflang = $(el).attr('hreflang');
+      const href = $(el).attr('href');
+      if (hreflang && href && hreflang !== 'x-default') {
+        try {
+          const altDomain = new URL(href).hostname.replace(/^www\./, '');
+          if (altDomain !== domain) {
+            hreflangAlternates.push({ hreflang, href, domain: altDomain });
+          }
+        } catch { /* invalid URL, skip */ }
+      }
+    });
+
     // Extract social media handles — check <a href> first, then full HTML text
     const allLinks = $('a[href]').map((_, el) => $(el).attr('href') || '').get();
 
@@ -96,6 +112,7 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       ...(instagramHandle && { instagramHandle }),
       ...(twitterHandle && { twitterHandle }),
       ...(linkedinUrl && { linkedinUrl }),
+      ...(hreflangAlternates.length > 0 && { hreflangAlternates }),
     };
   } catch (err: any) {
     return {

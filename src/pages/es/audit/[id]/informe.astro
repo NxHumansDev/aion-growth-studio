@@ -1,0 +1,734 @@
+---
+export const prerender = false;
+import { getAuditPage } from '../../../../lib/audit/notion';
+import { computeHealthScore, scoreColor, scoreLabel, scoreEmoji } from '../../../../lib/audit/report/health-score';
+import {
+  diagnosisHealthSummary,
+  diagnosisSEO,
+  diagnosisGEO,
+  diagnosisTrafficMix,
+  diagnosisPageSpeed,
+  diagnosisFunnel,
+  diagnosisTechStack,
+  diagnosisCompetitiveGap,
+} from '../../../../lib/audit/report/diagnostics';
+
+const { id } = Astro.params;
+
+let audit: any = null;
+let error = '';
+
+try {
+  audit = await getAuditPage(id!);
+} catch (e: any) {
+  error = e.message || 'No se pudo cargar el análisis.';
+}
+
+if (!audit || audit.status !== 'completed') {
+  return Astro.redirect(`/es/audit/${id}`);
+}
+
+const r = audit.results;
+const domain = new URL(audit.url).hostname.replace(/^www\./, '');
+const auditDate = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+// ── Scores ───────────────────────────────────────────────────────
+const health = computeHealthScore(r);
+
+// ── Data shortcuts ────────────────────────────────────────────────
+const crawl = r.crawl || {};
+const seo = (!r.seo?.skipped && r.seo) ? r.seo : null;
+const geo = (!r.geo?.skipped && r.geo) ? r.geo : null;
+const traffic = (!r.traffic?.skipped && r.traffic) ? r.traffic : null;
+const ps = (!r.pagespeed?.skipped && r.pagespeed) ? r.pagespeed : null;
+const gbp = (!r.gbp?.skipped && r.gbp?.found) ? r.gbp : null;
+const ssl = (!r.ssl?.skipped && r.ssl) ? r.ssl : null;
+const ctItems: any[] = r.competitor_traffic?.items || [];
+const competitors: any[] = r.competitors?.competitors || [];
+const kg = (!r.keyword_gap?.skipped && r.keyword_gap?.items?.length) ? r.keyword_gap : null;
+const ts = (!r.techstack?.skipped && r.techstack) ? r.techstack : null;
+const cv = (!r.conversion?.skipped && r.conversion) ? r.conversion : null;
+const insights = r.insights || {};
+const seoPages = (!r.seo_pages?.skipped && r.seo_pages?.pages?.length) ? r.seo_pages : null;
+const sector = r.sector?.sector || audit.sector || '';
+
+// ── Hreflang / multi-domain ────────────────────────────────────────
+const hreflangAlts: any[] = crawl.hreflangAlternates || [];
+
+// ── Helpers ───────────────────────────────────────────────────────
+function fmt(n: number | undefined | null): string {
+  if (n == null) return '—';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return Math.round(n / 1_000) + 'K';
+  return String(n);
+}
+
+function cwvColor(metric: string, value: number): string {
+  const thresholds: Record<string, [number, number]> = {
+    lcp: [2500, 4000],
+    cls: [0.1, 0.25],
+    fcp: [1800, 3000],
+    ttfb: [800, 1800],
+  };
+  const [good, poor] = thresholds[metric] || [50, 90];
+  if (value <= good) return 'text-emerald-600';
+  if (value <= poor) return 'text-amber-500';
+  return 'text-red-500';
+}
+
+function cwvEmoji(metric: string, value: number): string {
+  const thresholds: Record<string, [number, number]> = {
+    lcp: [2500, 4000], cls: [0.1, 0.25], fcp: [1800, 3000], ttfb: [800, 1800],
+  };
+  const [good, poor] = thresholds[metric] || [50, 90];
+  if (value <= good) return '🟢';
+  if (value <= poor) return '🟡';
+  return '🔴';
+}
+
+// ── Competitor benchmark table data ──────────────────────────────
+interface BenchRow { label: string; dr: number | null; etv: number | null; kw10: number | null; bl: number | null; isOwn: boolean }
+const benchRows: BenchRow[] = [];
+if (seo) {
+  benchRows.push({
+    label: `★ ${domain}`,
+    dr: seo.domainRank ?? null,
+    etv: seo.organicTrafficEstimate ?? null,
+    kw10: seo.keywordsTop10 ?? null,
+    bl: seo.backlinksTotal ?? null,
+    isOwn: true,
+  });
+}
+for (const c of ctItems) {
+  benchRows.push({ label: c.domain, dr: c.domainRank ?? null, etv: c.organicTrafficEstimate ?? null, kw10: c.keywordsTop10 ?? null, bl: null, isOwn: false });
+}
+// Sector average row
+if (benchRows.length > 1) {
+  const compRows = benchRows.filter(r => !r.isOwn);
+  const avg = (vals: (number | null)[]) => {
+    const nums = vals.filter((v) => v != null) as number[];
+    return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null;
+  };
+  benchRows.push({
+    label: 'Media sector',
+    dr: avg(compRows.map(r => r.dr)),
+    etv: avg(compRows.map(r => r.etv)),
+    kw10: avg(compRows.map(r => r.kw10)),
+    bl: null,
+    isOwn: false,
+  });
+}
+
+// ── Max values for bar widths ─────────────────────────────────────
+const maxDR = Math.max(...benchRows.map(r => r.dr || 0), 1);
+const maxETV = Math.max(...benchRows.map(r => r.etv || 0), 1);
+const maxKW = Math.max(...benchRows.map(r => r.kw10 || 0), 1);
+
+// ── Channel bar data ──────────────────────────────────────────────
+const channelColors: Record<string, string> = {
+  organic: '#1A4B8C', direct: '#64748b', social: '#7c3aed',
+  referral: '#0891b2', paid: '#d97706', email: '#16a34a',
+};
+const channelLabels: Record<string, string> = {
+  organic: 'Orgánico', direct: 'Directo', social: 'Social',
+  referral: 'Referral', paid: 'Paid', email: 'Email',
+};
+const channels = traffic?.channels || {};
+const totalVisits = Object.values(channels).reduce((s: number, c: any) => s + (c.visits || 0), 0);
+const channelSegments = Object.entries(channels)
+  .sort(([, a]: any, [, b]: any) => (b.visits || 0) - (a.visits || 0))
+  .map(([key, ch]: [string, any]) => ({
+    key,
+    label: channelLabels[key] || key,
+    visits: ch.visits || 0,
+    pct: totalVisits > 0 ? Math.round((ch.visits / totalVisits) * 100) : 0,
+    color: channelColors[key] || '#94a3b8',
+  }));
+
+// ── Diagnostic texts ──────────────────────────────────────────────
+const diagSEO = diagnosisSEO(seo, ctItems);
+const diagGEO = diagnosisGEO(geo);
+const diagTraffic = diagnosisTrafficMix(traffic);
+const diagPS = diagnosisPageSpeed(ps);
+const diagFunnel = diagnosisFunnel(cv);
+const diagStack = diagnosisTechStack(ts);
+const diagGap = diagnosisCompetitiveGap(seo, ctItems, kg);
+const diagSummary = diagnosisHealthSummary(health);
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Informe de Diagnóstico — {domain} — AION Growth Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; }
+    .report { max-width: 900px; margin: 0 auto; background: #fff; }
+    .section { padding: 2rem 2.5rem; border-bottom: 1px solid #e2e8f0; }
+    .section:last-child { border-bottom: none; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem; }
+    h3 { font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0 0 0.5rem; }
+    p { margin: 0 0 0.75rem; line-height: 1.65; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; background: #f1f5f9; color: #475569; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr.own-row td { background: #eff6ff; font-weight: 600; }
+    tr.avg-row td { background: #f8fafc; color: #64748b; font-style: italic; font-size: 0.8rem; }
+    .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .badge-green { background: #dcfce7; color: #16a34a; }
+    .badge-amber { background: #fef3c7; color: #d97706; }
+    .badge-red { background: #fee2e2; color: #dc2626; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .pillar-card { border-radius: 0.75rem; padding: 1rem; text-align: center; border: 1px solid #e2e8f0; }
+    .pillar-score { font-size: 1.75rem; font-weight: 800; line-height: 1; }
+    .pillar-label { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+    .sub-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #f1f5f9; }
+    .diag-text { font-size: 0.9375rem; color: #334155; line-height: 1.7; background: #f8fafc; border-left: 3px solid #1A4B8C; padding: 0.875rem 1rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0 1rem; }
+    .initiative-card { border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem; }
+    .initiative-num { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; border-radius: 9999px; background: #1A4B8C; color: #fff; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+    .check-row { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.375rem 0; border-bottom: 1px solid #f8fafc; font-size: 0.875rem; }
+    .check-row:last-child { border-bottom: none; }
+    .check-ok { color: #16a34a; font-size: 1rem; shrink: 0; }
+    .check-no { color: #dc2626; font-size: 1rem; shrink: 0; }
+    .bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .bar-bg { flex: 1; height: 0.5rem; background: #f1f5f9; border-radius: 9999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 9999px; }
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .report { max-width: 100%; }
+      .section { page-break-inside: avoid; }
+      .initiative-card { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVEGACIÓN (no imprimible) -->
+  <div class="no-print" style="background:#0B1B3D;padding:0.75rem 2rem;display:flex;align-items:center;justify-content:space-between;">
+    <a href={`/es/audit/${id}`} style="color:#94a3b8;font-size:0.8rem;text-decoration:none;">← Volver al análisis</a>
+    <button onclick="window.print()" style="background:#1A4B8C;color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;font-size:0.8rem;cursor:pointer;">🖨️ Imprimir / PDF</button>
+  </div>
+
+  <div class="report">
+    <!-- ── BLOQUE 0: PORTADA ──────────────────────────────────────── -->
+    <div style="padding:2.5rem 2.5rem 2rem;background:linear-gradient(135deg,#0B1B3D 0%,#1A4B8C 100%);color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;">
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:48px;filter:brightness(0) invert(1);" />
+        <span style="font-size:0.75rem;color:#94a3b8;">CONFIDENCIAL · Uso interno</span>
+      </div>
+      <p style="font-size:0.8rem;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.5rem;">Diagnóstico de Crecimiento Digital</p>
+      <h1 style="font-size:2rem;font-weight:800;margin:0 0 0.25rem;line-height:1.1;">{domain}</h1>
+      <p style="font-size:0.9rem;color:#94a3b8;margin:0 0 1.5rem;">{sector && `Sector: ${sector} · `}Análisis del {auditDate}</p>
+      {hreflangAlts.length > 0 && (
+        <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.8rem;color:#e2e8f0;">
+          📌 Este análisis cubre el dominio {domain}. Se han detectado {hreflangAlts.length} versiones adicionales de la marca en:&nbsp;
+          {hreflangAlts.slice(0, 5).map((a: any) => a.domain).join(', ')}.
+          Para un análisis multi-mercado completo, contacta con AION.
+        </div>
+      )}
+    </div>
+
+    <!-- ── BLOQUE 1: PANEL DE ESTADO ─────────────────────────────── -->
+    <div class="section">
+      <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+        <!-- Score ring -->
+        <div style="text-align:center;flex-shrink:0;">
+          <svg width="100" height="100" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke={scoreColor(health.total)}
+              stroke-width="3" stroke-linecap="round"
+              stroke-dasharray={`${health.total}, 100`} />
+          </svg>
+          <div style="margin-top:-80px;height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <span style={`font-size:1.5rem;font-weight:800;color:${scoreColor(health.total)}`}>{health.total}</span>
+            <span style="font-size:0.65rem;color:#64748b;font-weight:500;">/100</span>
+          </div>
+          <div style="font-size:0.7rem;color:#64748b;font-weight:500;margin-top:0.25rem;">{scoreLabel(health.total)}</div>
+        </div>
+        <!-- 4 pillars -->
+        <div style="flex:1;display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;min-width:260px;">
+          {[
+            { label: 'Visibilidad', value: health.visibilidad, desc: '¿Te encuentran?' },
+            { label: 'Competitividad', value: health.competitividad, desc: '¿Cómo estás vs sector?' },
+            { label: 'Experiencia', value: health.experiencia, desc: '¿Qué pasa cuando llegan?' },
+            { label: 'Conversión', value: health.conversion, desc: '¿Convierten?' },
+          ].map((p) => (
+            <div class="pillar-card">
+              <div class="pillar-score" style={`color:${scoreColor(p.value)}`}>{scoreEmoji(p.value)} {p.value}</div>
+              <div class="pillar-label">{p.label}</div>
+              <div style="font-size:0.65rem;color:#94a3b8;margin-top:0.125rem;">{p.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="diag-text">{diagSummary}</div>
+    </div>
+
+    <!-- ── BLOQUE 2: ¿TE ENCUENTRAN? ─────────────────────────────── -->
+    <div class="section">
+      <h2>¿Te encuentran?</h2>
+      <p style="color:#64748b;font-size:0.875rem;margin:0 0 1rem;">Visibilidad en buscadores, IA y canales de adquisición</p>
+
+      <!-- 2.1 SEO -->
+      <h3>🔗 Posicionamiento orgánico (SEO)</h3>
+      <div class="diag-text">{diagSEO}</div>
+      {seo && (
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1rem;">
+          {[
+            { label: 'Domain Rank', value: seo.domainRank ?? '—', color: scoreColor(seo.domainRank ?? 0) },
+            { label: 'Tráf. org./mes', value: fmt(seo.organicTrafficEstimate), color: '#0f172a' },
+            { label: 'Keywords top 10', value: fmt(seo.keywordsTop10), color: '#0f172a' },
+            { label: 'Dom. referentes', value: fmt(seo.referringDomains), color: '#0f172a' },
+          ].map((m) => (
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.75rem;text-align:center;">
+              <div style={`font-size:1.25rem;font-weight:700;color:${m.color}`}>{m.value}</div>
+              <div style="font-size:0.7rem;color:#64748b;margin-top:0.125rem;">{m.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <!-- Top páginas -->
+      {seoPages && (
+        <div style="margin-top:0.75rem;">
+          <p style="font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Top páginas orgánicas</p>
+          <table>
+            <thead><tr><th>Página</th><th style="text-align:right;">Tráf. est./mo</th><th style="text-align:right;">Keywords</th></tr></thead>
+            <tbody>
+              {seoPages.pages.map((p: any) => (
+                <tr>
+                  <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.pageAddress}>
+                    {p.pageAddress.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                  </td>
+                  <td style="text-align:right;font-size:0.8rem;">{p.trafficEstimate != null ? fmt(p.trafficEstimate) + '/mo' : '—'}</td>
+                  <td style="text-align:right;font-size:0.8rem;">{p.keywords ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <!-- 2.2 GEO / IA -->
+      <div class="sub-section">
+        <h3>🤖 Visibilidad en IA (GEO)</h3>
+        <p style="font-size:0.875rem;color:#64748b;margin-bottom:0.75rem;">Cuando alguien le pregunta a ChatGPT o Perplexity por servicios como los tuyos, ¿apareces en la respuesta? Hemos simulado consultas reales.</p>
+        {geo && geo.queries?.length > 0 ? (
+          <>
+            <table style="margin-bottom:0.75rem;">
+              <thead><tr><th>Consulta simulada</th><th style="text-align:center;">¿Apareces?</th><th>Score pts</th></tr></thead>
+              <tbody>
+                {geo.queries.slice(0, 5).map((q: any) => (
+                  <tr>
+                    <td style="font-size:0.8rem;color:#334155;max-width:280px;">{q.query}</td>
+                    <td style="text-align:center;">{q.mentioned ? '✅' : '❌'}</td>
+                    <td style="font-size:0.8rem;color:#64748b;">{q.pts ?? '—'} pts</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style="display:flex;gap:1rem;margin-bottom:0.75rem;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.75rem 1rem;flex:1;text-align:center;">
+                <div style={`font-size:1.5rem;font-weight:800;color:${scoreColor(geo.overallScore ?? 0)}`}>{geo.overallScore ?? 0}/100</div>
+                <div style="font-size:0.7rem;color:#64748b;">Score GEO global</div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.75rem 1rem;flex:1;text-align:center;">
+                <div style={`font-size:1.5rem;font-weight:800;color:${scoreColor(geo.sectorScore ?? 0)}`}>{geo.sectorScore ?? 0}</div>
+                <div style="font-size:0.7rem;color:#64748b;">Visibilidad espontánea</div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.75rem 1rem;flex:1;text-align:center;">
+                <div style={`font-size:1.5rem;font-weight:800;color:${scoreColor(geo.brandScore ?? 0)}`}>{geo.brandScore ?? 0}</div>
+                <div style="font-size:0.7rem;color:#64748b;">Reconocimiento de marca</div>
+              </div>
+            </div>
+            <div class="diag-text">{diagGEO}</div>
+          </>
+        ) : (
+          <p style="color:#94a3b8;font-size:0.875rem;">Datos GEO no disponibles para este análisis.</p>
+        )}
+      </div>
+
+      <!-- 2.3 Mix canales -->
+      {traffic && channelSegments.length > 0 && (
+        <div class="sub-section">
+          <h3>📊 Mix de canales de tráfico</h3>
+          <div class="diag-text">{diagTraffic}</div>
+          <!-- Stacked bar -->
+          <div style="display:flex;height:28px;border-radius:0.5rem;overflow:hidden;margin-bottom:0.75rem;">
+            {channelSegments.map((ch) => (
+              <div title={`${ch.label}: ${ch.pct}%`} style={`width:${ch.pct}%;background:${ch.color};transition:none;`}></div>
+            ))}
+          </div>
+          <!-- Legend -->
+          <div style="display:flex;flex-wrap:wrap;gap:0.75rem;">
+            {channelSegments.map((ch) => (
+              <div style="display:flex;align-items:center;gap:0.375rem;font-size:0.8rem;color:#475569;">
+                <span style={`width:10px;height:10px;border-radius:2px;background:${ch.color};display:inline-block;`}></span>
+                {ch.label} <strong>{ch.pct}%</strong>
+              </div>
+            ))}
+          </div>
+          {traffic.visitsGrowth != null && (
+            <div style={`margin-top:0.75rem;font-size:0.85rem;font-weight:600;color:${traffic.visitsGrowth >= 0 ? '#16a34a' : '#dc2626'}`}>
+              {traffic.visitsGrowth > 0 ? '↑' : '↓'} {Math.abs(traffic.visitsGrowth)}% de tráfico total vs año anterior
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- 2.4 GBP -->
+      {gbp && (
+        <div class="sub-section">
+          <h3>📍 Google Business Profile</h3>
+          <p style="font-size:0.875rem;color:#334155;">
+            <strong>{gbp.name}</strong> · Valoración: <strong>{gbp.rating}/5</strong> ⭐ ({gbp.reviewCount} reseñas) ·
+            {gbp.rating >= 4 ? ' Buena reputación en Google Maps.' : gbp.rating >= 3.5 ? ' Reputación mejorable — trabajar las reseñas activamente.' : ' Valoración baja — atención urgente a las reseñas y respuestas.'}
+          </p>
+        </div>
+      )}
+    </div>
+
+    <!-- ── BLOQUE 3: BENCHMARK COMPETITIVO ──────────────────────── -->
+    <div class="section">
+      <h2>¿Cómo estás vs tu competencia?</h2>
+      <p style="color:#64748b;font-size:0.875rem;margin:0 0 1rem;">Posicionamiento relativo frente a los competidores detectados en tu sector</p>
+
+      {diagGap && <div class="diag-text">{diagGap}</div>}
+
+      {benchRows.length > 1 && (
+        <>
+          <!-- Tabla benchmark con barras -->
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Marca</th>
+                  <th>DR</th>
+                  <th>Tráfico org./mes</th>
+                  <th>Keywords top 10</th>
+                </tr>
+              </thead>
+              <tbody>
+                {benchRows.map((row) => (
+                  <tr class={row.isOwn ? 'own-row' : row.label === 'Media sector' ? 'avg-row' : ''}>
+                    <td style={row.isOwn ? 'color:#1A4B8C;font-weight:700;' : ''}>{row.label}</td>
+                    <td>
+                      <div class="bar-wrap">
+                        <div class="bar-bg">
+                          <div class="bar-fill" style={`width:${Math.round(((row.dr || 0) / maxDR) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
+                        </div>
+                        <span style="font-size:0.8rem;width:2rem;text-align:right;">{row.dr ?? '—'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="bar-wrap">
+                        <div class="bar-bg">
+                          <div class="bar-fill" style={`width:${Math.round(((row.etv || 0) / maxETV) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
+                        </div>
+                        <span style="font-size:0.8rem;width:3rem;text-align:right;">{fmt(row.etv)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="bar-wrap">
+                        <div class="bar-bg">
+                          <div class="bar-fill" style={`width:${Math.round(((row.kw10 || 0) / maxKW) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
+                        </div>
+                        <span style="font-size:0.8rem;width:3rem;text-align:right;">{fmt(row.kw10)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">DR = Domain Rank (0-100, autoridad de dominio). Estimaciones DataForSEO.</p>
+        </>
+      )}
+
+      <!-- Keyword gap -->
+      {kg && (
+        <div class="sub-section">
+          <h3>🔑 Keyword gap — oportunidades de posicionamiento</h3>
+          <p style="font-size:0.875rem;color:#334155;margin-bottom:0.75rem;">
+            Keywords en top 10 de <strong>{kg.competitor}</strong> donde no apareces. Cada keyword es una oportunidad de tráfico potencial.
+          </p>
+          <table>
+            <thead><tr><th>Keyword</th><th style="text-align:right;">Búsquedas/mes</th><th style="text-align:right;">Posición competidor</th></tr></thead>
+            <tbody>
+              {kg.items.map((item: any) => (
+                <tr>
+                  <td style="font-size:0.875rem;">{item.keyword}</td>
+                  <td style="text-align:right;font-size:0.8rem;">{item.searchVolume != null ? fmt(item.searchVolume) + '/mo' : '—'}</td>
+                  <td style="text-align:right;font-size:0.8rem;">{item.competitorPosition ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <!-- Detalle competidores -->
+      {competitors.length > 0 && (
+        <div class="sub-section">
+          <h3>Competidores detectados</h3>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            {competitors.map((c: any) => (
+              <div style="padding:0.75rem;background:#f8fafc;border-radius:0.5rem;border:1px solid #e2e8f0;">
+                <a href={c.url} target="_blank" rel="noopener" style="font-weight:600;color:#1A4B8C;font-size:0.875rem;text-decoration:none;">{c.name}</a>
+                <p style="font-size:0.8rem;color:#64748b;margin:0.25rem 0 0;">{c.snippet}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- ── BLOQUE 4: EXPERIENCIA Y CONVERSIÓN ────────────────────── -->
+    <div class="section">
+      <h2>¿Qué pasa cuando llegan?</h2>
+      <p style="color:#64748b;font-size:0.875rem;margin:0 0 1rem;">Rendimiento web, herramientas y capacidad de conversión</p>
+
+      <!-- 4.1 PageSpeed -->
+      {ps && ps.mobile && (
+        <>
+          <h3>⚡ Rendimiento web (PageSpeed)</h3>
+          <div class="diag-text">{diagPS}</div>
+          <!-- 4 SVG gauges -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem;">
+            {[
+              { label: 'Rendimiento', value: ps.mobile.performance },
+              { label: 'Accesibilidad', value: ps.mobile.accessibility },
+              { label: 'SEO Lighthouse', value: ps.mobile.seo },
+              { label: 'Best Practices', value: ps.mobile.bestPractices },
+            ].map((g) => {
+              const color = g.value >= 90 ? '#22c55e' : g.value >= 50 ? '#f59e0b' : '#ef4444';
+              return (
+                <div style="text-align:center;">
+                  <div style="position:relative;width:80px;height:80px;margin:0 auto;">
+                    <svg width="80" height="80" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke={color}
+                        stroke-width="3" stroke-linecap="round"
+                        stroke-dasharray={`${g.value}, 100`} />
+                    </svg>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                      <span style={`font-size:1rem;font-weight:800;color:${color}`}>{g.value}</span>
+                    </div>
+                  </div>
+                  <div style="font-size:0.7rem;color:#64748b;font-weight:500;margin-top:0.25rem;">{g.label}</div>
+                  <div style="font-size:0.65rem;color:#94a3b8;">Móvil</div>
+                </div>
+              );
+            })}
+          </div>
+          <!-- Core Web Vitals -->
+          {(ps.mobile.lcp || ps.mobile.cls != null || ps.mobile.fcp || ps.mobile.ttfb) && (
+            <div style="margin-bottom:1rem;">
+              <p style="font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Core Web Vitals (móvil)</p>
+              <table style="max-width:400px;">
+                <thead><tr><th>Métrica</th><th style="text-align:right;">Valor</th><th style="text-align:center;">Estado</th></tr></thead>
+                <tbody>
+                  {ps.mobile.lcp && (
+                    <tr>
+                      <td style="font-size:0.8rem;">LCP (Largest Contentful Paint)</td>
+                      <td style="text-align:right;font-size:0.8rem;">{(ps.mobile.lcp / 1000).toFixed(2)}s</td>
+                      <td style="text-align:center;">{cwvEmoji('lcp', ps.mobile.lcp)}</td>
+                    </tr>
+                  )}
+                  {ps.mobile.cls != null && (
+                    <tr>
+                      <td style="font-size:0.8rem;">CLS (Cumulative Layout Shift)</td>
+                      <td style="text-align:right;font-size:0.8rem;">{ps.mobile.cls.toFixed(3)}</td>
+                      <td style="text-align:center;">{cwvEmoji('cls', ps.mobile.cls)}</td>
+                    </tr>
+                  )}
+                  {ps.mobile.fcp && (
+                    <tr>
+                      <td style="font-size:0.8rem;">FCP (First Contentful Paint)</td>
+                      <td style="text-align:right;font-size:0.8rem;">{(ps.mobile.fcp / 1000).toFixed(2)}s</td>
+                      <td style="text-align:center;">{cwvEmoji('fcp', ps.mobile.fcp)}</td>
+                    </tr>
+                  )}
+                  {ps.mobile.ttfb && (
+                    <tr>
+                      <td style="font-size:0.8rem;">TTFB (Time to First Byte)</td>
+                      <td style="text-align:right;font-size:0.8rem;">{(ps.mobile.ttfb / 1000).toFixed(2)}s</td>
+                      <td style="text-align:center;">{cwvEmoji('ttfb', ps.mobile.ttfb)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              <p style="font-size:0.7rem;color:#94a3b8;margin-top:0.375rem;">🟢 Bueno · 🟡 Necesita mejora · 🔴 Crítico</p>
+            </div>
+          )}
+        </>
+      )}
+
+      <!-- SSL -->
+      {ssl && (
+        <div class="sub-section">
+          {ssl.valid ? (
+            <p style="font-size:0.875rem;color:#16a34a;">✅ Certificado SSL válido · {ssl.issuer ? `Emitido por ${ssl.issuer}` : ''} {ssl.daysUntilExpiry ? `· Expira en ${ssl.daysUntilExpiry} días` : ''}</p>
+          ) : (
+            <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:0.5rem;padding:0.75rem 1rem;">
+              <p style="color:#dc2626;font-weight:600;margin:0;">⚠️ Problema con el certificado SSL</p>
+              <p style="color:#b91c1c;font-size:0.8rem;margin:0.25rem 0 0;">El certificado no es válido o ha expirado. Esto afecta el posicionamiento en Google y genera alertas de seguridad en el navegador.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- 4.2 Tech Stack -->
+      {ts && (
+        <div class="sub-section">
+          <h3>🛠️ Madurez del stack de marketing</h3>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem;">
+            <div style="position:relative;width:72px;height:72px;flex-shrink:0;">
+              <svg width="72" height="72" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                <circle cx="18" cy="18" r="15.9" fill="none"
+                  stroke={scoreColor(ts.maturityScore ?? 0)}
+                  stroke-width="3" stroke-linecap="round"
+                  stroke-dasharray={`${ts.maturityScore ?? 0}, 100`} />
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                <span style={`font-size:0.875rem;font-weight:800;color:${scoreColor(ts.maturityScore ?? 0)}`}>{ts.maturityScore ?? 0}</span>
+              </div>
+            </div>
+            <div>
+              <p style="font-weight:600;color:#0f172a;margin:0;">{ts.maturityScore >= 70 ? 'Stack maduro' : ts.maturityScore >= 40 ? 'Configuración básica' : 'Carencias importantes'}</p>
+              {ts.cms && <p style="font-size:0.8rem;color:#64748b;margin:0.125rem 0 0;">CMS: {ts.cms}</p>}
+            </div>
+          </div>
+          <div class="diag-text">{diagStack}</div>
+          {[
+            { label: 'Analytics', tools: ts.analytics },
+            { label: 'Tag Manager', tools: ts.tagManager },
+            { label: 'Píxeles de conversión', tools: ts.conversionPixels },
+            { label: 'CRM / Automatización', tools: ts.crmAutomation },
+            { label: 'Chat / Soporte', tools: ts.chatSupport },
+            { label: 'Mapas de calor', tools: ts.heatmaps },
+          ].filter(c => c.tools?.length).map((cat) => (
+            <div class="check-row">
+              <span class="check-ok">✓</span>
+              <div>
+                <span style="font-size:0.8rem;font-weight:500;color:#334155;">{cat.label}:</span>&nbsp;
+                <span style="font-size:0.8rem;color:#64748b;">{(cat.tools || []).join(', ')}</span>
+              </div>
+            </div>
+          ))}
+          {[
+            { key: 'analytics', label: 'Analytics' },
+            { key: 'tagManager', label: 'Tag Manager' },
+            { key: 'conversionPixels', label: 'Píxeles de conversión' },
+            { key: 'crmAutomation', label: 'CRM / Automatización' },
+            { key: 'chatSupport', label: 'Chat en vivo' },
+          ].filter(c => !ts[c.key]?.length).map((cat) => (
+            <div class="check-row">
+              <span class="check-no">✗</span>
+              <span style="font-size:0.8rem;color:#64748b;">{cat.label} — no detectado</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <!-- 4.3 Conversión -->
+      {cv && (
+        <div class="sub-section">
+          <h3>🎯 Capacidad de conversión</h3>
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+            <span style={`font-size:1.5rem;font-weight:800;color:${scoreColor(cv.funnelScore ?? 0)}`}>{cv.funnelScore ?? 0}/100</span>
+            <span style={`font-size:0.8rem;font-weight:600;color:${scoreColor(cv.funnelScore ?? 0)}`}>
+              {(cv.funnelScore ?? 0) >= 70 ? 'Funnel bien configurado' : (cv.funnelScore ?? 0) >= 40 ? 'Funnel básico, mejoras posibles' : 'Funnel débil — alta prioridad'}
+            </span>
+          </div>
+          <div class="diag-text">{diagFunnel}</div>
+          {[
+            { label: 'Formulario de contacto', ok: cv.hasContactForm },
+            { label: 'CTAs claros', ok: cv.hasCTA },
+            { label: 'Lead magnet', ok: cv.hasLeadMagnet },
+            { label: 'Testimonios / prueba social', ok: cv.hasTestimonials },
+            { label: 'Precios visibles', ok: cv.hasPricing },
+            { label: 'Contenido en vídeo', ok: cv.hasVideo },
+            { label: 'Chat en vivo', ok: cv.hasChatWidget },
+          ].map((c) => (
+            <div class="check-row">
+              <span class={c.ok ? 'check-ok' : 'check-no'}>{c.ok ? '✓' : '✗'}</span>
+              <span style="font-size:0.875rem;">{c.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <!-- ── BLOQUE 5: PLAN DE ACCIÓN ───────────────────────────────── -->
+    <div class="section">
+      <h2>¿Qué hacer, en qué orden?</h2>
+      <p style="color:#64748b;font-size:0.875rem;margin:0 0 1.5rem;">Iniciativas prioritarias ordenadas por ratio impacto/esfuerzo</p>
+
+      {insights.initiatives?.length > 0 ? (
+        insights.initiatives.map((init: any, i: number) => (
+          <div class="initiative-card">
+            <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.75rem;">
+              <span class="initiative-num">{i + 1}</span>
+              <h3 style="margin:0;font-size:1rem;">{init.title}</h3>
+            </div>
+            <p style="font-size:0.9rem;color:#334155;line-height:1.65;margin:0;">{init.description}</p>
+          </div>
+        ))
+      ) : (
+        <!-- Fallback: iniciativas genéricas basadas en scores más bajos -->
+        (() => {
+          const lowest = [
+            { key: 'visibilidad', label: 'Visibilidad orgánica', score: health.visibilidad, action: 'Desarrollar un plan de contenido SEO atacando las keywords del gap competitivo para capturar demanda orgánica.' },
+            { key: 'competitividad', label: 'Posicionamiento competitivo', score: health.competitividad, action: 'Auditar el backlink profile y establecer un plan de link building para incrementar el Domain Rank.' },
+            { key: 'experiencia', label: 'Rendimiento web', score: health.experiencia, action: 'Optimizar imágenes y reducir JavaScript bloqueante para mejorar los Core Web Vitals y la experiencia de usuario.' },
+            { key: 'conversion', label: 'Conversión', score: health.conversion, action: 'Implementar un funnel de captación con formularios optimizados, CTAs claros y prueba social.' },
+          ].sort((a, b) => a.score - b.score).slice(0, 3);
+
+          return lowest.map((item, i) => (
+            <div class="initiative-card">
+              <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.75rem;">
+                <span class="initiative-num">{i + 1}</span>
+                <h3 style="margin:0;font-size:1rem;">Mejorar: {item.label} ({item.score}/100)</h3>
+              </div>
+              <p style="font-size:0.9rem;color:#334155;line-height:1.65;margin:0;">{item.action}</p>
+            </div>
+          ));
+        })()
+      )}
+
+      {insights.bullets?.length > 0 && (
+        <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f1f5f9;">
+          <h3 style="margin-bottom:0.75rem;">Hallazgos clave del diagnóstico</h3>
+          <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.5rem;">
+            {insights.bullets.map((b: string) => (
+              <li style="display:flex;align-items:flex-start;gap:0.5rem;font-size:0.9rem;color:#334155;line-height:1.6;">
+                <span style="color:#1A4B8C;font-weight:700;margin-top:0.1rem;flex-shrink:0;">→</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+
+    <!-- ── FOOTER ──────────────────────────────────────────────────── -->
+    <div style="padding:1.5rem 2.5rem;background:#0B1B3D;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:32px;filter:brightness(0) invert(1);margin-bottom:0.25rem;display:block;" />
+        <p style="font-size:0.7rem;margin:0;">Diagnóstico generado el {auditDate} · aiongrowth.studio</p>
+      </div>
+      <div style="text-align:right;">
+        <p style="font-size:0.75rem;margin:0 0 0.25rem;">¿Quieres implementar estas mejoras?</p>
+        <a href="mailto:hola@aiongrowth.studio" style="font-size:0.75rem;color:#67e8f9;text-decoration:none;">hola@aiongrowth.studio →</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
