@@ -31,21 +31,34 @@
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 
            bg-aion-dark text-white font-medium rounded-full
-           hover:bg-aion-primary transition-all duration-300
-           shadow-soft hover:shadow-elevated hover:-translate-y-0.5;
+           transition-all duration-300;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.1);
+  }
+
+  .btn-primary:hover {
+    @apply bg-aion-primary -translate-y-0.5;
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.12);
   }
 
   /* Secondary button style */
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3.5
            bg-white text-aion-dark font-medium rounded-full
-           border border-slate-200 hover:border-aion-accent hover:text-aion-blue
-           transition-all duration-300 hover:-translate-y-0.5;
+           border border-slate-200 transition-all duration-300;
+  }
+
+  .btn-secondary:hover {
+    @apply border-aion-accent text-aion-blue -translate-y-0.5;
   }
 
   /* Card hover effect */
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-elevated hover:-translate-y-1;
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    @apply -translate-y-1;
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.12);
   }
 
   /* Section heading styles */
