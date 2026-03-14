@@ -12,20 +12,29 @@
   }
 }
 
+@layer utilities {
+  .font-display {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+}
+
 @layer components {
   /* Editorial Typography */
   .headline-xl {
-    @apply font-display font-bold tracking-editorial leading-[0.95];
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply font-bold tracking-editorial leading-[0.95];
     font-size: clamp(3rem, 8vw, 5.5rem);
   }
 
   .headline-lg {
-    @apply font-display font-bold tracking-editorial leading-[1];
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply font-bold tracking-editorial leading-[1];
     font-size: clamp(2.25rem, 5vw, 3.75rem);
   }
 
   .headline-md {
-    @apply font-display font-semibold tracking-tight leading-tight;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply font-semibold tracking-tight leading-tight;
     font-size: clamp(1.5rem, 3vw, 2.25rem);
   }
 
