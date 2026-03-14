@@ -13,7 +13,7 @@ const t = useTranslations(lang);
 const basePath = `/${lang}`;
 ---
 
-<header id="main-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-white/90 backdrop-blur-lg border-b border-slate-200/60">
+<header id="main-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-white/90 backdrop-blur-lg border-b border-slate-200/60 shadow-lg shadow-slate-900/5">
   <nav class={`max-w-7xl mx-auto px-6 md:px-8 flex items-center justify-between ${compact ? 'h-[78px] md:h-[88px]' : 'h-[140px] md:h-[160px]'}`}>
     <!-- Logo -->
     <a href={`${basePath}/`} class="flex items-center gap-3 group flex-shrink-0">
@@ -56,7 +56,7 @@ const basePath = `/${lang}`;
 
   <!-- Mobile Menu -->
   <div id="mobile-menu" class="lg:hidden hidden">
-    <div class="px-6 py-6 bg-white border-t border-slate-100">
+    <div class="px-6 py-6 bg-white border-t border-slate-100 shadow-xl shadow-slate-900/10">
       <div class="flex flex-col gap-1">
         <a href={`${basePath}/#soluciones`} class="mobile-nav-link">{t('nav.soluciones')}</a>
         <a href={`${basePath}/#casos`} class="mobile-nav-link">{t('nav.casos')}</a>
