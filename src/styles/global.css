@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Updated styles */
-
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -13,7 +11,6 @@
     @apply text-slate-900 antialiased;
   }
 
-  /* Improved typography defaults */
   h1, h2, h3 {
     @apply text-balance;
   }
@@ -24,36 +21,37 @@
 }
 
 @layer components {
-  /* Unified section container */
   .section-container {
     @apply max-w-7xl mx-auto px-6 md:px-8;
   }
 
-  /* Primary button style */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 
-           bg-aion-dark text-white font-medium rounded-full
-           transition-all duration-300;
+           font-medium rounded-full transition-all duration-300;
+    background-color: #0A0F1C;
+    color: white;
     box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.1);
   }
 
   .btn-primary:hover {
-    @apply bg-aion-primary -translate-y-0.5;
+    @apply -translate-y-0.5;
+    background-color: #1E3A5F;
     box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.12);
   }
 
-  /* Secondary button style */
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3.5
-           bg-white text-aion-dark font-medium rounded-full
+           bg-white font-medium rounded-full
            border border-slate-200 transition-all duration-300;
+    color: #0A0F1C;
   }
 
   .btn-secondary:hover {
-    @apply border-aion-accent text-aion-blue -translate-y-0.5;
+    @apply -translate-y-0.5;
+    border-color: #0EA5E9;
+    color: #2563EB;
   }
 
-  /* Card hover effect */
   .card-hover {
     @apply transition-all duration-300;
   }
@@ -63,16 +61,37 @@
     box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.12);
   }
 
-  /* Section heading styles */
   .section-eyebrow {
-    @apply text-sm font-semibold tracking-wide uppercase text-aion-accent mb-3;
+    @apply text-sm font-semibold tracking-wide uppercase mb-3;
+    color: #0EA5E9;
   }
 
   .section-title {
-    @apply text-display-md md:text-display-lg text-aion-dark mb-4;
+    @apply mb-4;
+    font-size: 2.5rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    color: #0A0F1C;
+  }
+
+  @media (min-width: 768px) {
+    .section-title {
+      font-size: 3.5rem;
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      font-weight: 700;
+    }
   }
 
   .section-subtitle {
-    @apply text-lg md:text-xl text-aion-muted leading-relaxed max-w-2xl;
+    @apply text-lg leading-relaxed max-w-2xl;
+    color: #64748B;
+  }
+
+  @media (min-width: 768px) {
+    .section-subtitle {
+      @apply text-xl;
+    }
   }
 }
