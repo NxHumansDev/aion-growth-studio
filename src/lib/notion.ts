@@ -78,7 +78,7 @@ function pageToPost(page: any): NotionPost {
   };
 }
 
-export async function fetchPublishedPosts(lang?: string): Promise<NotionPost[]> {
+export async function fetchPublishedPosts(lang?: string, excludeCategory?: string): Promise<NotionPost[]> {
   const filter: any = {
     and: [
       { property: 'Published', checkbox: { equals: true } },
@@ -86,10 +86,11 @@ export async function fetchPublishedPosts(lang?: string): Promise<NotionPost[]> 
   };
 
   if (lang) {
-    filter.and.push({
-      property: 'Lang',
-      select: { equals: lang },
-    });
+    filter.and.push({ property: 'Lang', select: { equals: lang } });
+  }
+
+  if (excludeCategory) {
+    filter.and.push({ property: 'Category', select: { does_not_equal: excludeCategory } });
   }
 
   const response = await notion.databases.query({
