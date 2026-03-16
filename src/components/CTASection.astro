@@ -47,7 +47,7 @@ const t = useTranslations(lang);
 
       <div id="contacto">
         <a
-          href="mailto:hola@aiongrowth.studio"
+          href={lang === 'es' ? '/es/diagnostico' : '/en/diagnostic'}
           class="cta-premium inline-flex items-center gap-3 text-base md:text-lg"
         >
           <span>{t('cta.button')}</span>

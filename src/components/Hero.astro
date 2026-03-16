@@ -83,47 +83,56 @@ const basePath = `/${lang}`;
   <div class="relative z-10 px-6 md:px-8 lg:px-36 pt-[18vh] md:pt-[calc(22vh-16px)]">
     <!-- Text LEFT -->
     <div class="max-w-[800px]">
-      <!-- Floating stat badge -->
-      <div class="stat-badge inline-flex items-center gap-2 mb-6 hero-animate" style="animation-delay: 0.2s;">
+      <!-- Tagline badge -->
+      <div class="inline-flex items-center gap-2 mb-6 hero-animate px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20" style="animation-delay: 0.2s;">
         <span class="flex h-2 w-2 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-aion-emerald opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-aion-emerald"></span>
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-aion-cyan opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-aion-cyan"></span>
         </span>
-        <span class="text-sm">+47% {lang === 'es' ? 'crecimiento promedio' : 'average growth'}</span>
+        <span class="text-sm text-white font-medium">{t('hero.tagline')}</span>
       </div>
+
+      <h1 class="hero-headline text-white hero-animate" style="animation-delay: 0.3s;">
+        <span class="text-reveal-line" style="animation-delay: 0.4s;">{t('hero.title.1')}</span>
+        <span class="text-reveal-line gradient-text" style="animation-delay: 0.6s;">{t('hero.title.2')}</span>
+      </h1>
+
+      <p class="hero-subheadline text-white/70 max-w-[600px] mb-10 hero-animate" style="animation-delay: 0.8s;">
+        {t('hero.subtitle')}
+      </p>
 
       <a
         href={lang === 'es' ? '/es/diagnostico' : '/en/diagnostic'}
-        class="cta-premium inline-block mb-8 hero-animate" style="animation-delay: 0.3s;"
+        class="cta-premium inline-block hero-animate" style="animation-delay: 1s;"
       >
         <span>{t('hero.cta')}</span>
       </a>
-
-      <h1 class="hero-headline text-white hero-animate" style="animation-delay: 0.4s;">
-        <span class="text-reveal-line" style="animation-delay: 0.5s;">{t('hero.title.1')}</span>
-        <span class="text-reveal-line gradient-text" style="animation-delay: 0.7s;">{t('hero.title.2')}</span>
-      </h1>
-
-      <p class="hero-subheadline text-white/70 max-w-[600px] hero-animate" style="animation-delay: 0.9s;">
-        {t('hero.subtitle')}
-      </p>
     </div>
 
-    <!-- Card RIGHT with glow effect -->
-    <div class="hidden lg:block absolute right-16 bottom-0 w-[300px] glass-dark rounded-2xl p-6 shadow-2xl hero-card-animate">
-      <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-aion-cyan/10 to-aion-emerald/5 pointer-events-none"></div>
-      <img
-        src="/projects-placeholder.jpg"
-        alt="Projects"
-        class="relative w-full h-[200px] object-cover rounded-xl mb-4"
-      />
-      <h3 class="relative text-2xl font-bold text-white mb-2">
-        {t('hero.card.label')}
-      </h3>
-      <p class="relative text-aion-cyan text-sm font-medium mb-1">{t('hero.card.project')}</p>
-      <p class="relative text-white/70 text-sm leading-relaxed whitespace-pre-line">
-        {t('hero.card.title')}
-      </p>
+    <!-- Feature highlights RIGHT -->
+    <div class="hidden lg:flex flex-col gap-4 absolute right-16 bottom-8 hero-card-animate">
+      <div class="glass-dark rounded-xl p-5 w-[280px]">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-lg bg-aion-cyan/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-aion-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <span class="text-white font-semibold">{lang === 'es' ? 'Diagnóstico IA' : 'AI Diagnostic'}</span>
+        </div>
+        <p class="text-white/60 text-sm">{lang === 'es' ? 'Analiza tu presencia digital gratis' : 'Analyze your digital presence free'}</p>
+      </div>
+      <div class="glass-dark rounded-xl p-5 w-[280px]">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-lg bg-aion-emerald/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-aion-emerald" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <span class="text-white font-semibold">{lang === 'es' ? '8 semanas' : '8 weeks'}</span>
+        </div>
+        <p class="text-white/60 text-sm">{lang === 'es' ? 'Tiempo de implementación' : 'Implementation time'}</p>
+      </div>
     </div>
   </div>
 </section>

@@ -13,6 +13,11 @@ export default {
           glow: 'rgba(0, 212, 255, 0.15)',
           'glow-emerald': 'rgba(0, 229, 160, 0.15)',
         },
+        surface: {
+          DEFAULT: '#F5F3EF',
+          light: '#FAF9F7',
+          warm: '#EDE9E3',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

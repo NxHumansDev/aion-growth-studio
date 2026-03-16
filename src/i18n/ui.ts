@@ -26,13 +26,14 @@ export const ui = {
 
     // About
     'about.label': 'Sobre nosotros',
-    'about.headline': 'Ayudamos a equipos ambiciosos a construir infraestructuras de IA que les den diferenciación competitiva sostenible en cualquier mercado',
-    'about.cta': 'More About Us',
-    'about.rating': '4.9/5 rating de clientes',
-    'about.stat.1.value': '2-50M\u20AC',
-    'about.stat.1.label': 'Sweet Spot Revenue',
-    'about.stat.2.value': '8 weeks',
-    'about.stat.2.label': 'Deployment Time',
+    'about.headline': 'Construimos la infraestructura de IA que impulsa el crecimiento de empresas ambiciosas',
+    'about.cta': 'Conoce nuestra metodología',
+    'about.stat.1.value': '8 semanas',
+    'about.stat.1.label': 'Tiempo de implementación',
+    'about.stat.2.value': '3 pilares',
+    'about.stat.2.label': 'Diagnóstico, Plataforma, Automatización',
+    'about.stat.3.value': 'Madrid',
+    'about.stat.3.label': 'Basados en España',
 
     // What we do
     'whatwedo.label': '¿Qué hacemos?',
@@ -62,10 +63,10 @@ export const ui = {
     'benefits.3.stat.value': '24-36h',
 
     // Work / Cases
-    'work.label': 'Work',
-    'work.title': 'Casos de Éxito',
-    'work.subtitle': 'Realizados entre 2024-25',
-    'work.desc': 'Nuestros proyectos demuestran soluciones reales con IA que generan valor inmediato. No pilotos. Productos de IA con valor medible.',
+    'work.label': 'Soluciones',
+    'work.title': 'Qué construimos',
+    'work.subtitle': 'Infraestructura operativa con IA',
+    'work.desc': 'Diseñamos e implementamos sistemas de IA que reemplazan procesos manuales por infraestructura escalable. Soluciones reales, no pilotos.',
     'work.1.title': 'Motor Editorial SEO/GEO',
     'work.1.desc': 'Crea contenido de tu marca para optimizar en SEO y GEO de manera automatizada.',
     'work.1.tag': 'SEO/GEO',
@@ -79,12 +80,12 @@ export const ui = {
     'work.cta': 'Discover all projects',
 
     // CTA
-    'cta.title.1': 'La\u00A0IA\u00A0ya\u00A0está',
-    'cta.title.2': 'cambiando\u00A0tu\u00A0sector.',
-    'cta.text': 'La pregunta no es si adoptar IA, sino quién diseña la infraestructura operativa sobre la que crecerás los próximos cinco años.',
-    'cta.text.2': 'Grandes consultoras tardan 18 meses y cuestan +\u20AC500K. AION despliega en 8 semanas con inversión desde \u20AC12K.',
-    'cta.button': 'Start Your AI Growth Audit',
-    'cta.button.note': 'Incluye análisis de Visibilidad en IA (AEO Score 0-100)',
+    'cta.title.1': 'Tu sector ya está',
+    'cta.title.2': 'cambiando con IA.',
+    'cta.text': 'La pregunta no es si adoptar IA, sino quién diseña la infraestructura operativa sobre la que crecerás los próximos años.',
+    'cta.text.2': 'Empieza con un diagnóstico gratuito de tu presencia digital y visibilidad en IA.',
+    'cta.button': 'Solicitar diagnóstico gratuito',
+    'cta.button.note': 'Incluye análisis SEO, velocidad y visibilidad en IA',
 
     // Footer
     'footer.tagline': 'Infraestructura de crecimiento con IA agentiva.',
@@ -140,13 +141,14 @@ export const ui = {
 
     // About
     'about.label': 'About us',
-    'about.headline': 'We help ambitious teams build AI infrastructures that give them sustainable competitive differentiation in any market',
-    'about.cta': 'More About Us',
-    'about.rating': '4.9/5 client rating',
-    'about.stat.1.value': '\u20AC2-50M',
-    'about.stat.1.label': 'Sweet Spot Revenue',
-    'about.stat.2.value': '8 weeks',
-    'about.stat.2.label': 'Deployment Time',
+    'about.headline': 'We build the AI infrastructure that powers growth for ambitious companies',
+    'about.cta': 'Learn our methodology',
+    'about.stat.1.value': '8 weeks',
+    'about.stat.1.label': 'Implementation time',
+    'about.stat.2.value': '3 pillars',
+    'about.stat.2.label': 'Diagnostic, Platform, Automation',
+    'about.stat.3.value': 'Madrid',
+    'about.stat.3.label': 'Based in Spain',
 
     // What we do
     'whatwedo.label': 'What we do',
@@ -176,10 +178,10 @@ export const ui = {
     'benefits.3.stat.value': '24-36h',
 
     // Work / Cases
-    'work.label': 'Work',
-    'work.title': 'Case Studies',
-    'work.subtitle': 'Completed between 2024-25',
-    'work.desc': 'Our projects demonstrate real AI solutions that generate immediate value. Not pilots. AI products with measurable value.',
+    'work.label': 'Solutions',
+    'work.title': 'What we build',
+    'work.subtitle': 'Operational infrastructure with AI',
+    'work.desc': 'We design and implement AI systems that replace manual processes with scalable infrastructure. Real solutions, not pilots.',
     'work.1.title': 'SEO/GEO Editorial Engine',
     'work.1.desc': 'Create brand content to optimize SEO and GEO in an automated way.',
     'work.1.tag': 'SEO/GEO',
@@ -193,12 +195,12 @@ export const ui = {
     'work.cta': 'Discover all projects',
 
     // CTA
-    'cta.title.1': 'AI\u00A0is\u00A0already',
-    'cta.title.2': 'changing\u00A0your\u00A0industry.',
-    'cta.text': 'The question is not whether to adopt AI, but who designs the operational infrastructure on which you\u2019ll grow for the next five years.',
-    'cta.text.2': 'Big consultancies take 18 months and cost +\u20AC500K. AION deploys in 8 weeks with investment from \u20AC12K.',
-    'cta.button': 'Start Your AI Growth Audit',
-    'cta.button.note': 'Includes AI Visibility analysis (AEO Score 0-100)',
+    'cta.title.1': 'Your industry is already',
+    'cta.title.2': 'changing with AI.',
+    'cta.text': 'The question is not whether to adopt AI, but who designs the operational infrastructure on which you will grow.',
+    'cta.text.2': 'Start with a free diagnostic of your digital presence and AI visibility.',
+    'cta.button': 'Request free diagnostic',
+    'cta.button.note': 'Includes SEO, speed and AI visibility analysis',
 
     // Footer
     'footer.tagline': 'Growth infrastructure with agentic AI.',

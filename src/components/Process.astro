@@ -1,5 +1,4 @@
 ---
-import { useTranslations } from '../i18n/utils';
 import type { Lang } from '../i18n/utils';
 
 interface Props {
@@ -7,39 +6,125 @@ interface Props {
 }
 
 const { lang } = Astro.props;
-const t = useTranslations(lang);
 
-const steps = [
-  { num: '01', titleKey: 'process.1.title' as const, descKey: 'process.1.desc' as const },
-  { num: '02', titleKey: 'process.2.title' as const, descKey: 'process.2.desc' as const },
-  { num: '03', titleKey: 'process.3.title' as const, descKey: 'process.3.desc' as const },
-  { num: '04', titleKey: 'process.4.title' as const, descKey: 'process.4.desc' as const },
+const steps = lang === 'es' ? [
+  {
+    number: '01',
+    title: 'Diagnóstico',
+    description: 'Analizamos tu presencia digital, SEO, velocidad y visibilidad en IA con herramientas propias.',
+    icon: 'search'
+  },
+  {
+    number: '02',
+    title: 'Estrategia',
+    description: 'Diseñamos la infraestructura de IA específica para tus objetivos de crecimiento.',
+    icon: 'map'
+  },
+  {
+    number: '03',
+    title: 'Implementación',
+    description: 'Desplegamos agentes y automatizaciones en 8 semanas, sin complicaciones técnicas.',
+    icon: 'code'
+  },
+  {
+    number: '04',
+    title: 'Optimización',
+    description: 'Monitorizamos, ajustamos y escalamos según resultados y nuevas oportunidades.',
+    icon: 'chart'
+  }
+] : [
+  {
+    number: '01',
+    title: 'Diagnostic',
+    description: 'We analyze your digital presence, SEO, speed and AI visibility with proprietary tools.',
+    icon: 'search'
+  },
+  {
+    number: '02',
+    title: 'Strategy',
+    description: 'We design the AI infrastructure specific to your growth objectives.',
+    icon: 'map'
+  },
+  {
+    number: '03',
+    title: 'Implementation',
+    description: 'We deploy agents and automations in 8 weeks, with no technical complications.',
+    icon: 'code'
+  },
+  {
+    number: '04',
+    title: 'Optimization',
+    description: 'We monitor, adjust and scale based on results and new opportunities.',
+    icon: 'chart'
+  }
 ];
 ---
 
-<section id="proceso" class="py-24 md:py-32 bg-white">
-  <div class="max-w-7xl mx-auto px-6 md:px-8">
-    <div class="text-center mb-16 md:mb-24 fade-in">
-      <h2 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-editorial leading-[0.95]">
-        {t('process.title.1')}<br />
-        <span class="text-slate-400">{t('process.title.2')}</span>
-      </h2>
+<section id="proceso" class="py-24 md:py-32 bg-surface">
+  <div class="w-full px-6 md:px-8 lg:px-16">
+    
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-16 md:mb-20 gap-6 fade-in">
+      <div>
+        <p class="text-sm font-medium text-aion-primary mb-4 tracking-wide uppercase flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          {lang === 'es' ? 'Metodología' : 'Methodology'}
+        </p>
+        <h2 class="headline-lg text-aion-dark max-w-xl">
+          {lang === 'es' ? 'Un proceso claro para resultados predecibles' : 'A clear process for predictable results'}
+        </h2>
+      </div>
+      <p class="text-slate-600 max-w-md lg:text-right">
+        {lang === 'es' 
+          ? 'Sin sorpresas. Cada fase tiene entregables definidos y métricas de éxito claras.'
+          : 'No surprises. Each phase has defined deliverables and clear success metrics.'}
+      </p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-      {steps.map((step) => (
-        <div class="fade-in">
-          <div class="text-7xl md:text-8xl font-black text-slate-100 leading-none select-none">
-            {step.num}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
+      {steps.map((step, index) => (
+        <div class="stagger-item group relative p-8 rounded-2xl bg-white border border-slate-200 hover:border-aion-cyan/30 hover:shadow-lg transition-all duration-300" style={`--i: ${index}`}>
+          <span class="absolute top-6 right-6 text-6xl font-display font-bold text-slate-100 group-hover:text-aion-cyan/10 transition-colors">
+            {step.number}
+          </span>
+          
+          <div class="relative w-12 h-12 rounded-xl bg-aion-dark flex items-center justify-center mb-6 group-hover:bg-aion-primary transition-colors">
+            {step.icon === 'search' && (
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            )}
+            {step.icon === 'map' && (
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            )}
+            {step.icon === 'code' && (
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+            )}
+            {step.icon === 'chart' && (
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            )}
           </div>
-          <h3 class="text-xl font-bold text-slate-900 mt-4 mb-3">
-            {t(step.titleKey)}
+
+          <h3 class="relative font-display font-semibold text-xl text-aion-dark mb-3">
+            {step.title}
           </h3>
-          <p class="text-base text-slate-600 leading-relaxed">
-            {t(step.descKey)}
+          <p class="relative text-slate-600 text-sm leading-relaxed">
+            {step.description}
           </p>
+
+          {index < 3 && (
+            <div class="hidden lg:block absolute top-1/2 -right-3 w-6 h-[2px] bg-slate-200 group-hover:bg-aion-cyan/30 transition-colors"></div>
+          )}
         </div>
       ))}
     </div>
+
   </div>
 </section>

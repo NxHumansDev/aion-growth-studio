@@ -81,11 +81,13 @@ const t = useTranslations(lang);
             </div>
           </div>
 
-          <!-- Floating SEO Score Badge -->
+          <!-- Floating SEO Badge -->
           <div class="absolute top-5 right-5 z-10">
             <div class="glass rounded-2xl px-4 py-3 text-center">
               <div class="text-[10px] text-white/60 uppercase tracking-wider mb-1">SEO</div>
-              <div class="text-3xl font-display font-bold text-aion-cyan leading-none">92</div>
+              <svg class="w-6 h-6 text-aion-cyan mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
             </div>
           </div>
         </div>
@@ -110,17 +112,17 @@ const t = useTranslations(lang);
           <!-- Mock: CRM Pipeline UI -->
           <div class="absolute inset-0 flex items-center justify-center p-6 pt-16">
             <div class="w-full max-w-[240px] space-y-3">
-              <!-- Avatars + leads count -->
+              <!-- Avatars -->
               <div class="flex items-center justify-between mb-2">
                 <div class="flex -space-x-2">
                   <div class="w-8 h-8 rounded-full bg-blue-400/40 border-2 border-white/20"></div>
                   <div class="w-8 h-8 rounded-full bg-cyan-400/40 border-2 border-white/20"></div>
                   <div class="w-8 h-8 rounded-full bg-indigo-400/40 border-2 border-white/20"></div>
                   <div class="w-8 h-8 rounded-full bg-white/15 border-2 border-white/20 flex items-center justify-center">
-                    <span class="text-[9px] text-white/70 font-medium">+244</span>
+                    <span class="text-[9px] text-white/70 font-medium">+</span>
                   </div>
                 </div>
-                <span class="text-xs text-white/60 font-medium">+247 leads</span>
+                <span class="text-xs text-white/60 font-medium">{lang === 'es' ? 'Nuevos leads' : 'New leads'}</span>
               </div>
               <!-- Contact Cards -->
               <div class="glass rounded-xl p-3.5 flex items-center gap-3 group-hover:scale-[1.02] transition-transform duration-300">
@@ -146,11 +148,13 @@ const t = useTranslations(lang);
             </div>
           </div>
 
-          <!-- Floating Conv Rate Badge -->
+          <!-- Floating Leads Badge -->
           <div class="absolute top-5 right-5 z-10">
             <div class="glass rounded-2xl px-4 py-3 text-center">
-              <div class="text-[10px] text-white/60 uppercase tracking-wider mb-1">Conv.</div>
-              <div class="text-2xl font-display font-bold text-white leading-none">+34%</div>
+              <div class="text-[10px] text-white/60 uppercase tracking-wider mb-1">Leads</div>
+              <svg class="w-6 h-6 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
             </div>
           </div>
         </div>
