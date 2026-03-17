@@ -445,8 +445,10 @@ const lang = 'es';
   }
 
   (window as any).toggleCompetitor = function(el: HTMLElement) {
+    console.log('[v0] toggleCompetitor called', el);
     const url = el.getAttribute('data-url') || '';
     const isSelected = el.classList.contains('selected');
+    console.log('[v0] url:', url, 'isSelected:', isSelected);
 
     if (isSelected) {
       el.classList.remove('selected');
@@ -455,6 +457,7 @@ const lang = 'es';
       el.classList.add('selected');
       if (!selectedCompetitors.includes(url)) selectedCompetitors.push(url);
     }
+    console.log('[v0] After toggle - classList:', el.classList.toString(), 'selectedCompetitors:', selectedCompetitors);
   };
 
   // STEP 3: Start audit
