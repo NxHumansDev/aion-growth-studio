@@ -1,11 +1,23 @@
+#!/usr/bin/env python3
 import subprocess
 import sys
+import os
 
-# Revertir todos los archivos a su estado original
-result = subprocess.run(['git', 'checkout', 'HEAD', '--', '.'], cwd='/vercel/share/v0-project', capture_output=True, text=True)
+# Cambiar al directorio del proyecto (directorio actual del cwd)
+os.chdir(os.getcwd())
+
+# Ejecutar git checkout para revertir todos los archivos
+result = subprocess.run(['git', 'checkout', '.'], capture_output=True, text=True)
+
+print("[v0] Git checkout iniciado...")
+print(result.stdout)
+if result.stderr:
+    print("[v0] Output:")
+    print(result.stderr)
 
 if result.returncode == 0:
-    print("✓ Todos los archivos han sido revertidos a su estado original")
+    print("[v0] ✓ Todos los archivos han sido revertidos a su estado original")
 else:
-    print(f"Error: {result.stderr}")
-    sys.exit(1)
+    print(f"[v0] Error code: {result.returncode}")
+
+
