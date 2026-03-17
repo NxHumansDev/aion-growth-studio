@@ -22,25 +22,25 @@ if (id) {
 const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
 
 const MODULES = [
-  { key: 'crawl',      label: 'Análisis técnico SEO',         icon: '🔍' },
-  { key: 'ssl',        label: 'Seguridad SSL/HTTPS',           icon: '🔒' },
-  { key: 'pagespeed',  label: 'Rendimiento web (PageSpeed)',   icon: '⚡' },
-  { key: 'sector',     label: 'Detección de sector',           icon: '🎯' },
-  { key: 'content',    label: 'Análisis de contenido',         icon: '📝' },
-  { key: 'geo',        label: 'Visibilidad en IA (GEO)',       icon: '🤖' },
-  { key: 'gbp',        label: 'Google Business Profile',       icon: '📍' },
-  { key: 'traffic',    label: 'Tráfico estimado',              icon: '📈' },
-  { key: 'seo',        label: 'SEO orgánico y backlinks',      icon: '🔗' },
-  { key: 'seo_pages',  label: 'Top páginas orgánicas',         icon: '📄' },
-  { key: 'competitors',        label: 'Análisis de competidores',      icon: '🏆' },
-  { key: 'competitor_traffic', label: 'Tráfico de competidores',       icon: '📊' },
-  { key: 'keyword_gap',        label: 'Keyword gap vs competidores',   icon: '🔑' },
-  { key: 'instagram',          label: 'Instagram & Redes Sociales',    icon: '📸' },
-  { key: 'linkedin',   label: 'LinkedIn Empresa',              icon: '💼' },
-  { key: 'techstack',  label: 'Stack tecnológico y medición',  icon: '🛠️' },
-  { key: 'conversion', label: 'Capacidad de conversión',       icon: '🎯' },
-  { key: 'score',      label: 'Puntuación final',              icon: '📊' },
-  { key: 'insights',   label: 'Diagnóstico ejecutivo',         icon: '💡' },
+  { key: 'crawl',      label: 'Análisis técnico SEO' },
+  { key: 'ssl',        label: 'Seguridad SSL/HTTPS' },
+  { key: 'pagespeed',  label: 'Rendimiento web (PageSpeed)' },
+  { key: 'sector',     label: 'Detección de sector' },
+  { key: 'content',    label: 'Análisis de contenido' },
+  { key: 'geo',        label: 'Visibilidad en IA (GEO)' },
+  { key: 'gbp',        label: 'Google Business Profile' },
+  { key: 'traffic',    label: 'Tráfico estimado' },
+  { key: 'seo',        label: 'SEO orgánico y backlinks' },
+  { key: 'seo_pages',  label: 'Top páginas orgánicas' },
+  { key: 'competitors',        label: 'Análisis de competidores' },
+  { key: 'competitor_traffic', label: 'Tráfico de competidores' },
+  { key: 'keyword_gap',        label: 'Keyword gap vs competidores' },
+  { key: 'instagram',          label: 'Instagram y Redes Sociales' },
+  { key: 'linkedin',   label: 'LinkedIn Empresa' },
+  { key: 'techstack',  label: 'Stack tecnológico y medición' },
+  { key: 'conversion', label: 'Capacidad de conversión' },
+  { key: 'score',      label: 'Puntuación final' },
+  { key: 'insights',   label: 'Diagnóstico ejecutivo' },
 ];
 ---
 
@@ -51,49 +51,55 @@ const MODULES = [
 >
   <div class="audit-bg min-h-screen text-white flex flex-col">
     <!-- Header -->
-    <nav class="flex items-center justify-between px-6 md:px-12 py-5">
+    <nav class="flex items-center justify-between px-5 md:px-10 py-3">
       <a href="/es/">
-        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-20 w-auto brightness-0 invert" />
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-8 md:h-9 w-auto brightness-0 invert" />
       </a>
       <div class="flex items-center gap-2 nav-actions" style="display:none">
-        <a href="/es/diagnostico" class="text-sm text-white/60 hover:text-white transition-colors">Nuevo análisis</a>
+        <a href="/es/diagnostico" class="text-sm text-white/60 hover:text-white transition-colors">Nuevo analisis</a>
       </div>
     </nav>
 
-    <div class="flex-1 px-4 py-8 max-w-3xl mx-auto w-full">
+    <div class="flex-1 px-4 py-6 max-w-2xl mx-auto w-full">
 
       <!-- PROCESSING STATE -->
       <div id="processing-state">
         <!-- Header -->
-        <div class="text-center mb-8">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-400/20 rounded-full text-cyan-300 text-xs font-medium mb-5">
-            <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></span>
-            Análisis en curso
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-400/20 rounded-full text-cyan-300 text-xs font-medium mb-4">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+            </span>
+            Analisis en curso
           </div>
-          <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">Analizando tu presencia digital</h1>
+          <h1 class="text-xl md:text-2xl font-bold text-white mb-1">Analizando tu presencia digital</h1>
           {domain && <p class="text-slate-500 text-sm font-mono">{domain}</p>}
         </div>
 
         <!-- Progress bar + narrative -->
-        <div class="mb-6">
+        <div class="mb-5 p-4 rounded-xl bg-white/3 border border-white/5">
           <div class="flex items-center justify-between gap-4 mb-2">
-            <p id="progress-narrative" class="text-xs text-slate-400 italic transition-all duration-500 truncate"></p>
-            <span id="progress-pct" class="text-xs text-slate-500 font-mono shrink-0">0%</span>
+            <p id="progress-narrative" class="text-sm text-slate-300 transition-all duration-500 truncate"></p>
+            <span id="progress-pct" class="text-sm text-cyan-400 font-mono font-medium shrink-0">0%</span>
           </div>
-          <div class="h-1 bg-white/8 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700" style="width:0%"></div>
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700 ease-out" style="width:0%"></div>
           </div>
         </div>
 
         <!-- Module list -->
-        <div class="space-y-1.5">
-          {MODULES.map((mod) => (
+        <div class="space-y-2">
+          {MODULES.map((mod, index) => (
             <div
               id={`module-${mod.key}`}
-              class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/3 border border-white/5 opacity-40 transition-all duration-300"
+              class="module-item flex items-center gap-3 px-4 py-3 rounded-lg bg-white/2 border border-white/5 opacity-40 transition-all duration-300"
+              style={`transition-delay: ${index * 30}ms`}
             >
-              <span class="module-icon text-sm w-5 text-center shrink-0">○</span>
-              <span class="text-sm text-slate-300">{mod.icon} {mod.label}</span>
+              <div class="module-icon w-5 h-5 rounded-full border-2 border-white/20 flex items-center justify-center shrink-0 transition-all duration-300">
+                <div class="w-1.5 h-1.5 rounded-full bg-transparent transition-all duration-300"></div>
+              </div>
+              <span class="text-sm text-slate-400 transition-colors duration-300">{mod.label}</span>
             </div>
           ))}
         </div>
@@ -101,77 +107,106 @@ const MODULES = [
 
       <!-- RESULTS STATE (hidden initially) -->
       <div id="results-state" class="hidden">
-        <div class="text-center mb-10">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-400/20 rounded-full text-emerald-300 text-xs font-medium mb-4">
-            <span>✅</span>
-            Análisis completado
+        <!-- Header with domain -->
+        <div class="mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-400/20 rounded-full text-emerald-300 text-xs font-medium">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              Completado
+            </div>
+            {domain && (
+              <span class="text-xs text-slate-500 font-mono bg-white/5 px-2 py-1 rounded">{domain}</span>
+            )}
           </div>
-          <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">
-            Informe de Visibilidad Digital
-          </h1>
-          {domain && (
-            <p class="text-slate-400 text-sm font-mono">{domain}</p>
-          )}
+          <h1 class="text-xl md:text-2xl font-bold text-white">Informe de Visibilidad Digital</h1>
         </div>
 
-        <!-- Score gauge -->
-        <div class="flex flex-col items-center mb-10">
-          <div class="relative w-36 h-36 mb-4">
-            <svg class="w-36 h-36 -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
-              <circle
-                id="score-ring"
-                cx="18" cy="18" r="15.9"
-                fill="none"
-                stroke="#22d3ee"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-dasharray="0, 100"
-                class="transition-all duration-1000"
-              />
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span id="score-value" class="text-4xl font-bold text-white">—</span>
-              <span class="text-xs text-slate-400">/100</span>
+        <!-- Score card -->
+        <div class="mb-8 p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/2 border border-white/10">
+          <div class="flex items-center gap-6">
+            <!-- Score gauge -->
+            <div class="relative w-24 h-24 shrink-0">
+              <svg class="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2.5"/>
+                <circle
+                  id="score-ring"
+                  cx="18" cy="18" r="15.9"
+                  fill="none"
+                  stroke="url(#scoreGradient)"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-dasharray="0, 100"
+                  class="transition-all duration-1000"
+                />
+                <defs>
+                  <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#22d3ee"/>
+                    <stop offset="100%" stop-color="#3b82f6"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span id="score-value" class="text-2xl font-bold text-white">--</span>
+              </div>
+            </div>
+            <!-- Score info -->
+            <div class="flex-1">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">AEO Score</p>
+              <p id="score-label" class="text-sm text-slate-300">Calculando puntuacion...</p>
             </div>
           </div>
-          <p class="text-sm text-slate-400" id="score-label">AEO Score</p>
         </div>
 
-        <!-- Score breakdown (6 pilares) -->
-        <div id="score-breakdown" class="grid grid-cols-4 md:grid-cols-7 gap-3 mb-8"></div>
+        <!-- Score breakdown (7 pilares) -->
+        <div class="mb-8">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">Desglose por area</p>
+          <div id="score-breakdown" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2"></div>
+        </div>
 
         <!-- Executive insights -->
         <div id="insights-section" class="hidden mb-8"></div>
 
         <!-- Detailed sections -->
-        <div id="detail-sections" class="space-y-4"></div>
+        <div id="detail-sections" class="space-y-3"></div>
 
         <!-- CTA -->
-        <div class="mt-12 p-6 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-400/20 rounded-2xl text-center">
-          <h3 class="text-lg font-bold text-white mb-2">¿Quieres implementar estas mejoras?</h3>
-          <p class="text-sm text-slate-300 mb-4">En AION desplegamos la infraestructura de crecimiento en 8 semanas.</p>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="mailto:hola@aiongrowth.studio"
-              class="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0B1B3D] font-semibold text-sm rounded-xl hover:bg-cyan-300 transition-all duration-300"
-            >
-              Hablar con AION →
-            </a>
-            <a
-              href={`/es/audit/${id}/informe`}
-              class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm rounded-xl hover:opacity-90 transition-all duration-300"
-            >
-              📄 Ver informe completo →
-            </a>
+        <div class="mt-10 p-5 bg-gradient-to-r from-cyan-500/8 to-blue-500/8 border border-white/10 rounded-xl">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 class="text-sm font-semibold text-white mb-1">Implementa estas mejoras</h3>
+              <p class="text-xs text-slate-400">En AION desplegamos tu infraestructura de crecimiento en 8 semanas.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <a
+                href="mailto:hola@aiongrowth.studio"
+                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-[#0B1B3D] font-medium text-sm rounded-lg hover:bg-cyan-300 transition-all"
+              >
+                Hablar con AION
+              </a>
+              <a
+                href={`/es/audit/${id}/informe`}
+                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-white/20 text-white font-medium text-sm rounded-lg hover:bg-white/5 transition-all"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Ver informe
+              </a>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- ERROR STATE (hidden initially) -->
       <div id="error-state" class="hidden text-center py-20">
-        <div class="text-5xl mb-4">⚠️</div>
-        <h2 class="text-xl font-bold text-white mb-2">El análisis no pudo completarse</h2>
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 border border-red-400/20 flex items-center justify-center">
+          <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-white mb-2">El analisis no pudo completarse</h2>
         <p class="text-slate-400 text-sm mb-6">Ha ocurrido un error al analizar tu web. Por favor, inténtalo de nuevo.</p>
         <a
           href="/es/diagnostico"
@@ -196,8 +231,46 @@ const MODULES = [
   .audit-bg {
     background: linear-gradient(160deg, #0B1B3D 0%, #0d2347 50%, #0B1B3D 100%);
   }
+  .bg-white\/2 {
+    background-color: rgba(255,255,255,0.02);
+  }
   .bg-white\/3 {
     background-color: rgba(255,255,255,0.03);
+  }
+  
+  /* Module states */
+  .module-item.running {
+    opacity: 1;
+    background: rgba(34, 211, 238, 0.05);
+    border-color: rgba(34, 211, 238, 0.2);
+  }
+  .module-item.running .module-icon {
+    border-color: rgb(34, 211, 238);
+  }
+  .module-item.running .module-icon div {
+    background: rgb(34, 211, 238);
+    animation: pulse-dot 1s ease-in-out infinite;
+  }
+  .module-item.running span:last-child {
+    color: rgb(226, 232, 240);
+  }
+  
+  .module-item.done {
+    opacity: 1;
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+  .module-item.done .module-icon {
+    background: rgb(16, 185, 129);
+    border-color: rgb(16, 185, 129);
+  }
+  .module-item.done span:last-child {
+    color: rgb(110, 231, 183);
+  }
+  
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.7; }
   }
 </style>
 
@@ -254,13 +327,17 @@ const MODULES = [
     const el = document.getElementById(`module-${key}`);
     if (!el) return;
     const icon = el.querySelector('.module-icon');
-    el.classList.remove('opacity-40');
+    
+    // Remove previous states
+    el.classList.remove('opacity-40', 'running', 'done');
+    
     if (state === 'done') {
-      if (icon) icon.textContent = '✅';
-      el.classList.add('border-emerald-500/30', 'bg-emerald-500/5');
+      el.classList.add('done');
+      if (icon) {
+        icon.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+      }
     } else if (state === 'running') {
-      if (icon) icon.textContent = '⏳';
-      el.classList.add('border-cyan-500/30', 'bg-cyan-500/5');
+      el.classList.add('running');
     }
   }
 

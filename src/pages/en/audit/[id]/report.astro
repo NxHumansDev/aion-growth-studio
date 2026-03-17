@@ -210,52 +210,81 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
 <body>
   <div class="no-print" style="background:#0B1B3D;padding:0.75rem 2rem;display:flex;align-items:center;justify-content:space-between;">
     <a href={`/en/audit/${id}`} style="color:#94a3b8;font-size:0.8rem;text-decoration:none;">← Back to analysis</a>
-    <button onclick="window.print()" style="background:#1A4B8C;color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;font-size:0.8rem;cursor:pointer;">🖨️ Print / PDF</button>
+    <button onclick="window.print()" style="background:#1A4B8C;color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.375rem;">
+      <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      Print / PDF
+    </button>
   </div>
 
   <div class="report">
-    <!-- Cover -->
-    <div style="padding:2.5rem 2.5rem 2rem;background:linear-gradient(135deg,#0B1B3D 0%,#1A4B8C 100%);color:#fff;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;">
-        <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:144px;filter:brightness(0) invert(1);" />
+    <!-- ── HERO COMBINADO (Cover + Score) ──────────────────────────── -->
+    <div style="background:linear-gradient(135deg,#0B1B3D 0%,#1A4B8C 100%);color:#fff;padding:1.5rem 2rem 2rem;position:relative;overflow:hidden;">
+      <!-- Background glow -->
+      <div style={`position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,${scoreColor(health.total)}15 0%,transparent 50%);pointer-events:none;`}></div>
+      
+      <!-- Header row: Logo + Date -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;position:relative;">
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:28px;filter:brightness(0) invert(1);opacity:0.9;" />
+        <span style="color:#94a3b8;font-size:0.7rem;">{auditDate}</span>
       </div>
-      <p style="font-size:0.8rem;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.5rem;">Digital Growth Diagnostic</p>
-      <h1 style="font-size:2rem;font-weight:800;margin:0 0 0.5rem;line-height:1.1;">{domain}</h1>
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.5rem;">
-        {btLabel && <span style="background:rgba(103,232,249,0.15);border:1px solid rgba(103,232,249,0.35);color:#67e8f9;font-size:0.7rem;font-weight:600;padding:0.2rem 0.65rem;border-radius:9999px;letter-spacing:0.06em;">{btLabel}</span>}
-        {sector && <span style="color:#94a3b8;font-size:0.8rem;">{sector}</span>}
-        <span style="color:#64748b;font-size:0.8rem;">·</span>
-        <span style="color:#94a3b8;font-size:0.8rem;">{auditDate}</span>
+      
+      <!-- Main content: Left info + Right score -->
+      <div style="display:flex;align-items:flex-start;gap:2rem;position:relative;">
+        <!-- Left: Domain info -->
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:0.65rem;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.35rem;">Digital Visibility Report</p>
+          <h1 style="font-size:1.5rem;font-weight:800;margin:0 0 0.5rem;line-height:1.15;">{domain}</h1>
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;">
+            {sector && <span style="color:#cbd5e1;font-size:0.75rem;">{sector}</span>}
+            {btLabel && (
+              <>
+                <span style="color:#475569;font-size:0.7rem;">|</span>
+                <span style="color:#94a3b8;font-size:0.7rem;">{btLabel}</span>
+              </>
+            )}
+          </div>
+          
+          <!-- Quick stats row -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;">
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.6rem 0.75rem;">
+              <p style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">Est. Traffic</p>
+              <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{fmt(seo?.organicTrafficEstimate)}</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.6rem 0.75rem;">
+              <p style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">Keywords Top10</p>
+              <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{fmt(seo?.keywordsTop10)}</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.6rem 0.75rem;">
+              <p style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">Domain Rank</p>
+              <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{seo?.domainRank ?? '--'}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right: Score gauge -->
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="position:relative;width:110px;height:110px;">
+            <svg viewBox="0 0 36 36" style="width:110px;height:110px;transform:rotate(-90deg);">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2.5"/>
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke={scoreColor(health.total)} stroke-width="2.5" stroke-linecap="round" stroke-dasharray={`${health.total}, 100`}/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <span style="font-size:2rem;font-weight:800;color:#fff;font-family:'Space Grotesk',sans-serif;line-height:1;">{health.total}</span>
+              <span style="font-size:0.6rem;color:#94a3b8;">/100</span>
+            </div>
+          </div>
+          <p style="font-size:0.65rem;color:#67e8f9;text-transform:uppercase;letter-spacing:0.08em;margin:0.5rem 0 0;font-weight:600;">AEO Score</p>
+        </div>
       </div>
+      
       {hreflangAlts.length > 0 && (
-        <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.8rem;color:#e2e8f0;">
-          📌 This analysis covers {domain}. {hreflangAlts.length} additional brand domains detected: {hreflangAlts.slice(0, 5).map((a: any) => a.domain).join(', ')}.
-          Contact AION for a full multi-market analysis.
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:0.375rem;padding:0.5rem 0.75rem;font-size:0.7rem;color:#cbd5e1;margin-top:1rem;">
+          This analysis covers {domain}. {hreflangAlts.length} additional versions detected: {hreflangAlts.slice(0, 3).map((a: any) => a.domain).join(', ')}.
         </div>
       )}
     </div>
 
-    <!-- Block 1: Health Score Hero -->
-    <div style="background:#0B1B3D;padding:3.5rem 2.5rem 2.5rem;text-align:center;color:#fff;position:relative;overflow:hidden;">
-      <div style={`position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,${scoreColor(health.total)}22 0%,transparent 70%);pointer-events:none;`}></div>
-      <p style="font-size:0.7rem;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 1.5rem;position:relative;">Digital health score</p>
-      <!-- Score ring gauge -->
-      <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;margin-bottom:1rem;">
-        <svg width="200" height="200" viewBox="0 0 36 36" style="transform:rotate(-90deg);display:block;">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="2.2"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke={scoreColor(health.total)}
-            stroke-width="2.2" stroke-linecap="round"
-            stroke-dasharray={`${health.total}, 100`}/>
-        </svg>
-        <div style="position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <span class="num" style={`font-size:3.5rem;font-weight:700;line-height:1;color:${scoreColor(health.total)};`}>{health.total}</span>
-          <span style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;">/100</span>
-        </div>
-      </div>
-      <p style={`font-size:0.8rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${scoreColor(health.total)};margin:0 0 1rem;`}>{scoreLabel(health.total)}</p>
-      <p style="font-size:1rem;color:rgba(255,255,255,0.75);max-width:520px;margin:0 auto;line-height:1.65;">{diagSummary}</p>
-    </div>
-    <!-- 4 pillar strip -->
+    <!-- ── PILLAR STRIP ──────────────────────────────────────────────── -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #e2e8f0;">
       {[
         { label: 'Visibility', value: health.visibilidad, desc: 'Can they find you?' },
@@ -274,9 +303,7 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
     <!-- Executive summary -->
     {insights.bullets?.length > 0 && (
       <div class="section" style="background:#f8fafc;">
-        <div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:1.25rem;">
-          <span style="font-size:1.1rem;">💡</span>
-          <h2 style="margin:0;">Your digital presence diagnosis</h2>
+        <h2 style="margin:0 0 1rem;">Executive Summary</h2>
         </div>
         <div style="display:flex;flex-direction:column;gap:0.125rem;">
           {insights.bullets.map((b: string) => (
