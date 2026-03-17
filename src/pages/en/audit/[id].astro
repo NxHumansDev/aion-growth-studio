@@ -22,25 +22,25 @@ if (id) {
 const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
 
 const MODULES = [
-  { key: 'crawl',       label: 'Technical SEO Analysis',         icon: '🔍' },
-  { key: 'ssl',         label: 'SSL/HTTPS Security',             icon: '🔒' },
-  { key: 'pagespeed',   label: 'Web Performance (PageSpeed)',     icon: '⚡' },
-  { key: 'sector',      label: 'Sector Detection',               icon: '🎯' },
-  { key: 'content',     label: 'Content Analysis',               icon: '📝' },
-  { key: 'geo',         label: 'AI Visibility (GEO)',             icon: '🤖' },
-  { key: 'gbp',         label: 'Google Business Profile',        icon: '📍' },
-  { key: 'traffic',     label: 'Estimated Traffic',              icon: '📈' },
-  { key: 'seo',         label: 'Organic SEO & Backlinks',        icon: '🔗' },
-  { key: 'seo_pages',   label: 'Top Organic Pages',              icon: '📄' },
-  { key: 'competitors',        label: 'Competitor Analysis',            icon: '🏆' },
-  { key: 'competitor_traffic', label: 'Competitor Traffic Analysis',    icon: '📊' },
-  { key: 'keyword_gap',        label: 'Keyword Gap vs Competitors',     icon: '🔑' },
-  { key: 'instagram',          label: 'Instagram & Social Media',       icon: '📸' },
-  { key: 'linkedin',    label: 'LinkedIn Company Page',          icon: '💼' },
-  { key: 'techstack',   label: 'Tech Stack & Measurement',       icon: '🛠️' },
-  { key: 'conversion',  label: 'Conversion Capability',          icon: '🎯' },
-  { key: 'score',       label: 'Final Score',                    icon: '📊' },
-  { key: 'insights',    label: 'Executive Diagnosis',            icon: '💡' },
+  { key: 'crawl',       label: 'Technical SEO Analysis' },
+  { key: 'ssl',         label: 'SSL/HTTPS Security' },
+  { key: 'pagespeed',   label: 'Web Performance (PageSpeed)' },
+  { key: 'sector',      label: 'Sector Detection' },
+  { key: 'content',     label: 'Content Analysis' },
+  { key: 'geo',         label: 'AI Visibility (GEO)' },
+  { key: 'gbp',         label: 'Google Business Profile' },
+  { key: 'traffic',     label: 'Estimated Traffic' },
+  { key: 'seo',         label: 'Organic SEO and Backlinks' },
+  { key: 'seo_pages',   label: 'Top Organic Pages' },
+  { key: 'competitors',        label: 'Competitor Analysis' },
+  { key: 'competitor_traffic', label: 'Competitor Traffic Analysis' },
+  { key: 'keyword_gap',        label: 'Keyword Gap vs Competitors' },
+  { key: 'instagram',          label: 'Instagram and Social Media' },
+  { key: 'linkedin',    label: 'LinkedIn Company Page' },
+  { key: 'techstack',   label: 'Tech Stack and Measurement' },
+  { key: 'conversion',  label: 'Conversion Capability' },
+  { key: 'score',       label: 'Final Score' },
+  { key: 'insights',    label: 'Executive Diagnosis' },
 ];
 ---
 
@@ -51,49 +51,55 @@ const MODULES = [
 >
   <div class="audit-bg min-h-screen text-white flex flex-col">
     <!-- Header -->
-    <nav class="flex items-center justify-between px-6 md:px-12 py-5">
+    <nav class="flex items-center justify-between px-5 md:px-10 py-3">
       <a href="/en/">
-        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-20 w-auto brightness-0 invert" />
+        <img src="/logo-aion-dark.png" alt="AION Growth Studio" class="h-8 md:h-9 w-auto brightness-0 invert" />
       </a>
       <div class="flex items-center gap-2 nav-actions" style="display:none">
         <a href="/en/diagnostic" class="text-sm text-white/60 hover:text-white transition-colors">New analysis</a>
       </div>
     </nav>
 
-    <div class="flex-1 px-4 py-8 max-w-3xl mx-auto w-full">
+    <div class="flex-1 px-4 py-6 max-w-2xl mx-auto w-full">
 
       <!-- PROCESSING STATE -->
       <div id="processing-state">
         <!-- Header -->
-        <div class="text-center mb-8">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-400/20 rounded-full text-cyan-300 text-xs font-medium mb-5">
-            <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></span>
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-400/20 rounded-full text-cyan-300 text-xs font-medium mb-4">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+            </span>
             Analysis in progress
           </div>
-          <h1 class="text-2xl md:text-3xl font-bold text-white mb-1">Analyzing your digital presence</h1>
+          <h1 class="text-xl md:text-2xl font-bold text-white mb-1">Analyzing your digital presence</h1>
           {domain && <p class="text-slate-500 text-sm font-mono">{domain}</p>}
         </div>
 
         <!-- Progress bar + narrative -->
-        <div class="mb-6">
+        <div class="mb-5 p-4 rounded-xl bg-white/3 border border-white/5">
           <div class="flex items-center justify-between gap-4 mb-2">
-            <p id="progress-narrative" class="text-xs text-slate-400 italic transition-all duration-500 truncate"></p>
-            <span id="progress-pct" class="text-xs text-slate-500 font-mono shrink-0">0%</span>
+            <p id="progress-narrative" class="text-sm text-slate-300 transition-all duration-500 truncate"></p>
+            <span id="progress-pct" class="text-sm text-cyan-400 font-mono font-medium shrink-0">0%</span>
           </div>
-          <div class="h-1 bg-white/8 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700" style="width:0%"></div>
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700 ease-out" style="width:0%"></div>
           </div>
         </div>
 
         <!-- Module list -->
-        <div class="space-y-1.5">
-          {MODULES.map((mod) => (
+        <div class="space-y-2">
+          {MODULES.map((mod, index) => (
             <div
               id={`module-${mod.key}`}
-              class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/3 border border-white/5 opacity-40 transition-all duration-300"
+              class="module-item flex items-center gap-3 px-4 py-3 rounded-lg bg-white/2 border border-white/5 opacity-40 transition-all duration-300"
+              style={`transition-delay: ${index * 30}ms`}
             >
-              <span class="module-icon text-sm w-5 text-center shrink-0">○</span>
-              <span class="text-sm text-slate-300">{mod.icon} {mod.label}</span>
+              <div class="module-icon w-5 h-5 rounded-full border-2 border-white/20 flex items-center justify-center shrink-0 transition-all duration-300">
+                <div class="w-1.5 h-1.5 rounded-full bg-transparent transition-all duration-300"></div>
+              </div>
+              <span class="text-sm text-slate-400 transition-colors duration-300">{mod.label}</span>
             </div>
           ))}
         </div>
@@ -103,7 +109,9 @@ const MODULES = [
       <div id="results-state" class="hidden">
         <div class="text-center mb-10">
           <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-400/20 rounded-full text-emerald-300 text-xs font-medium mb-4">
-            <span>✅</span>
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
             Analysis complete
           </div>
           <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">
