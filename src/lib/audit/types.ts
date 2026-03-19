@@ -335,14 +335,12 @@ export interface ConversionResult extends ModuleResult {
 
 // ── New: Pilar 2 enrichment — DataForSEO ─────────────────────────
 export interface SEOResult extends ModuleResult {
-  domainRank?: number;              // 0-100 domain authority equivalent
   organicKeywordsTotal?: number;    // total keywords ranking
   keywordsTop3?: number;            // positions 1-3
   keywordsTop10?: number;           // positions 1-10
   keywordsTop30?: number;           // positions 1-30
   organicTrafficEstimate?: number;  // estimated monthly organic visits
-  referringDomains?: number;
-  backlinksTotal?: number;
+  topKeywords?: Array<{ keyword: string; position: number; volume: number }>; // top non-branded keywords
 }
 
 // ── New: SEO top pages ─────────────────────────────────────────────

@@ -29,18 +29,21 @@ export function computeHealthScore(results: Record<string, any>): HealthScore {
   const visibilidad = Math.round(seoNorm * 0.5 + geoNorm * 0.3 + trafficNorm * 0.2);
 
   // ── COMPETITIVIDAD (25%) ──────────────────────────────────────
-  // Ratio of own metrics vs competitor averages
-  let competitividad = 50; // neutral default when no competitor data
-  if (seo && !seo.skipped && ctItems.length > 0) {
-    const avgDR = ctItems.reduce((s: number, c: any) => s + (c.domainRank || 0), 0) / ctItems.length;
-    const avgETV = ctItems.reduce((s: number, c: any) => s + (c.organicTrafficEstimate || 0), 0) / ctItems.length;
-    const avgKW = ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length;
+  // null = datos insuficientes — nunca mostrar un número inventado
+  let competitividad: number | null = null;
 
-    // ratio: 1.0 = parity, 2.0 = double → capped at 2.0 → maps to 0-100
-    const drRatio = avgDR > 0 ? Math.min(2, (seo.domainRank || 0) / avgDR) : 0;
-    const etvRatio = avgETV > 0 ? Math.min(2, (seo.organicTrafficEstimate || 0) / avgETV) : 0;
-    const kwRatio = avgKW > 0 ? Math.min(2, (seo.keywordsTop10 || 0) / avgKW) : 0;
-    competitividad = Math.min(100, Math.round(((drRatio + etvRatio + kwRatio) / 3) * 50));
+  if (seo && !seo.skipped && ctItems.length > 0) {
+    const anyHasData = ctItems.some(
+      (c: any) => c.organicTrafficEstimate != null || c.keywordsTop10 != null
+    );
+    if (anyHasData) {
+      const avgETV = ctItems.reduce((s: number, c: any) => s + (c.organicTrafficEstimate || 0), 0) / ctItems.length;
+      const avgKW  = ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length;
+      // ratio: 1.0 = parity, 2.0 = double → capped at 2.0 → maps to 0-100
+      const etvRatio = avgETV > 0 ? Math.min(2, (seo.organicTrafficEstimate || 0) / avgETV) : 0;
+      const kwRatio  = avgKW  > 0 ? Math.min(2, (seo.keywordsTop10 || 0) / avgKW) : 0;
+      competitividad = Math.min(100, Math.round(((etvRatio + kwRatio) / 2) * 50));
+    }
   }
 
   // ── EXPERIENCIA (20%) ─────────────────────────────────────────
@@ -55,12 +58,18 @@ export function computeHealthScore(results: Record<string, any>): HealthScore {
   const contentScore = breakdown.content ?? 0;
   const conversion = Math.round(convScore * 0.7 + contentScore * 0.3);
 
-  const total = Math.round(
-    visibilidad * 0.30 +
-    competitividad * 0.25 +
-    experiencia * 0.20 +
-    conversion * 0.25
-  );
+  // Redistribute weights proportionally if competitividad is null
+  const pillars = [
+    { value: visibilidad,    weight: 0.30 },
+    { value: competitividad, weight: 0.25 },
+    { value: experiencia,    weight: 0.20 },
+    { value: conversion,     weight: 0.25 },
+  ];
+  const active = pillars.filter((p) => p.value !== null) as { value: number; weight: number }[];
+  const totalWeight = active.reduce((s, p) => s + p.weight, 0);
+  const total = totalWeight > 0
+    ? Math.round(active.reduce((s, p) => s + p.value * p.weight, 0) / totalWeight)
+    : 0;
 
   return { total, visibilidad, competitividad, experiencia, conversion };
 }

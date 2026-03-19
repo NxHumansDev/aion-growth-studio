@@ -91,40 +91,42 @@ function cwvEmoji(metric: string, value: number): string {
 }
 
 // ── Competitor benchmark table data ──────────────────────────────
-interface BenchRow { label: string; dr: number | null; etv: number | null; kw10: number | null; bl: number | null; isOwn: boolean }
+interface BenchRow { label: string; etv: number | null; kw10: number | null; isOwn: boolean }
 const benchRows: BenchRow[] = [];
 if (seo) {
   benchRows.push({
     label: `★ ${domain}`,
-    dr: seo.domainRank ?? null,
     etv: seo.organicTrafficEstimate ?? null,
     kw10: seo.keywordsTop10 ?? null,
-    bl: seo.backlinksTotal ?? null,
     isOwn: true,
   });
 }
 for (const c of ctItems) {
-  benchRows.push({ label: c.domain, dr: c.domainRank ?? null, etv: c.organicTrafficEstimate ?? null, kw10: c.keywordsTop10 ?? null, bl: null, isOwn: false });
+  benchRows.push({ label: c.domain, etv: c.organicTrafficEstimate ?? null, kw10: c.keywordsTop10 ?? null, isOwn: false });
 }
 // Sector average row
 if (benchRows.length > 1) {
-  const compRows = benchRows.filter(r => !r.isOwn);
+  const compRowsForAvg = benchRows.filter(r => !r.isOwn);
   const avg = (vals: (number | null)[]) => {
     const nums = vals.filter((v) => v != null) as number[];
     return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null;
   };
   benchRows.push({
     label: 'Media sector',
-    dr: avg(compRows.map(r => r.dr)),
-    etv: avg(compRows.map(r => r.etv)),
-    kw10: avg(compRows.map(r => r.kw10)),
-    bl: null,
+    etv: avg(compRowsForAvg.map(r => r.etv)),
+    kw10: avg(compRowsForAvg.map(r => r.kw10)),
     isOwn: false,
   });
 }
 
+// ── Gate: only show competitor table if at least one competitor has real data
+function rowHasData(row: BenchRow): boolean {
+  return row.etv != null || row.kw10 != null;
+}
+const compTableRows = benchRows.filter(r => !r.isOwn && r.label !== 'Media sector');
+const hasEnoughCompetitorData = compTableRows.some(rowHasData);
+
 // ── Max values for bar widths ─────────────────────────────────────
-const maxDR = Math.max(...benchRows.map(r => r.dr || 0), 1);
 const maxETV = Math.max(...benchRows.map(r => r.etv || 0), 1);
 const maxKW = Math.max(...benchRows.map(r => r.kw10 || 0), 1);
 
@@ -197,13 +199,12 @@ const btObjective = btObjectives[businessType] || btObjectives.unknown;
 // ── Fallback initiatives (when insights module has no data) ───────
 const fallbackInitiatives = [
   { key: 'visibilidad', label: 'Visibilidad orgánica', score: health.visibilidad, action: 'Desarrollar un plan de contenido SEO atacando las keywords del gap competitivo para capturar demanda orgánica.' },
-  { key: 'competitividad', label: 'Posicionamiento competitivo', score: health.competitividad, action: 'Auditar el backlink profile y establecer un plan de link building para incrementar el Domain Rank.' },
+  ...(health.competitividad !== null ? [{ key: 'competitividad', label: 'Posicionamiento competitivo', score: health.competitividad, action: 'Analizar el gap de keywords frente a competidores y establecer un plan de contenidos para recuperar posiciones.' }] : []),
   { key: 'experiencia', label: 'Rendimiento web', score: health.experiencia, action: 'Optimizar imágenes y reducir JavaScript bloqueante para mejorar los Core Web Vitals y la experiencia de usuario.' },
   { key: 'conversion', label: 'Conversión', score: health.conversion, action: 'Implementar un funnel de captación con formularios optimizados, CTAs claros y prueba social.' },
 ].sort((a, b) => a.score - b.score).slice(0, 3);
 
 // ── Sector benchmarks (from competitors) ─────────────────────────
-const sectorAvgDR = ctItems.length > 0 ? Math.round(ctItems.reduce((s: number, c: any) => s + (c.domainRank || 0), 0) / ctItems.length) : null;
 const sectorAvgKW = ctItems.length > 0 ? Math.round(ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length) : null;
 
 // ── Competitive rank (by organic traffic) ────────────────────────
@@ -360,8 +361,8 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
               <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{fmt(seo?.keywordsTop10)}</p>
             </div>
             <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.6rem 0.75rem;">
-              <p style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">Domain Rank</p>
-              <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{seo?.domainRank ?? '--'}</p>
+              <p style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">Keywords Top 3</p>
+              <p style="font-size:1rem;font-weight:700;color:#fff;margin:0;font-family:'Space Grotesk',sans-serif;">{fmt(seo?.keywordsTop3)}</p>
             </div>
           </div>
         </div>
@@ -392,16 +393,26 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
     <!-- ── BLOQUE 1: PILARES DE SALUD ──────────────────────────── -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #e2e8f0;">
       {[
-        { label: 'Visibilidad', value: health.visibilidad, desc: '¿Te encuentran?', benchmark: sectorAvgDR != null ? `sector DR ~${sectorAvgDR}` : null },
+        { label: 'Visibilidad', value: health.visibilidad, desc: '¿Te encuentran?', benchmark: null },
         { label: 'Competitividad', value: health.competitividad, desc: 'vs sector', benchmark: sectorAvgKW != null ? `sector KW ~${fmt(sectorAvgKW)}` : null },
         { label: 'Experiencia', value: health.experiencia, desc: 'Cuando llegan', benchmark: null },
         { label: 'Conversión', value: health.conversion, desc: '¿Convierten?', benchmark: null },
       ].map((p, i) => (
         <div style={`padding:1.25rem 1rem;text-align:center;${i < 3 ? 'border-right:1px solid #e2e8f0;' : ''}`}>
-          <div class="pillar-score" style={`color:${scoreColor(p.value)}`}>{p.value}</div>
-          <div class="pillar-label">{p.label}</div>
-          <div style="font-size:0.65rem;color:#94a3b8;margin-top:0.125rem;">{p.desc}</div>
-          {p.benchmark && <div style="font-size:0.6rem;color:#cbd5e1;margin-top:0.25rem;">{p.benchmark}</div>}
+          {p.value !== null ? (
+            <>
+              <div class="pillar-score" style={`color:${scoreColor(p.value)}`}>{p.value}</div>
+              <div class="pillar-label">{p.label}</div>
+              <div style="font-size:0.65rem;color:#94a3b8;margin-top:0.125rem;">{p.desc}</div>
+              {p.benchmark && <div style="font-size:0.6rem;color:#cbd5e1;margin-top:0.25rem;">{p.benchmark}</div>}
+            </>
+          ) : (
+            <>
+              <div class="pillar-score" style="color:#94a3b8;">—</div>
+              <div class="pillar-label">{p.label}</div>
+              <div style="font-size:0.65rem;color:#94a3b8;margin-top:0.125rem;">Sin datos</div>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -446,12 +457,11 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
       <div class="diag-text">{diagSEO}</div>
       {seo ? (
         <>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0.75rem;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:0.75rem;">
             {[
-              { label: 'Domain Rank', value: seo.domainRank ?? '—', color: scoreColor(seo.domainRank ?? 0), bench: sectorAvgDR != null ? `sector: ${sectorAvgDR}` : null, above: sectorAvgDR != null && (seo.domainRank ?? 0) >= sectorAvgDR },
-              { label: 'Tráf. org./mes', value: fmt(seo.organicTrafficEstimate), color: '#0f172a', bench: avgETV > 0 ? `sector: ${fmt(Math.round(avgETV))}` : null, above: avgETV > 0 && ownETV >= avgETV },
-              { label: 'Keywords top 10', value: fmt(seo.keywordsTop10), color: '#0f172a', bench: sectorAvgKW != null ? `sector: ${fmt(sectorAvgKW)}` : null, above: sectorAvgKW != null && (seo.keywordsTop10 ?? 0) >= sectorAvgKW },
-              { label: 'Dom. referentes', value: fmt(seo.referringDomains), color: '#0f172a', bench: null, above: null },
+              { label: 'Keywords en 1ª página', value: fmt(seo.keywordsTop10), color: '#0f172a', bench: sectorAvgKW != null ? `sector: ${fmt(sectorAvgKW)}` : null, above: sectorAvgKW != null && (seo.keywordsTop10 ?? 0) >= sectorAvgKW },
+              { label: 'Tráf. org. estimado/mes', value: fmt(seo.organicTrafficEstimate), color: '#0f172a', bench: avgETV > 0 ? `sector: ${fmt(Math.round(avgETV))}` : null, above: avgETV > 0 && ownETV >= avgETV },
+              { label: 'Total keywords indexadas', value: fmt(seo.organicKeywordsTotal), color: '#0f172a', bench: null, above: null },
             ].map((m) => (
               <div style={`border-radius:0.5rem;padding:0.75rem;text-align:center;border:1px solid ${m.above === true ? '#bbf7d0' : m.above === false ? '#fecaca' : '#e2e8f0'};background:${m.above === true ? '#f0fdf4' : m.above === false ? '#fef2f2' : '#f8fafc'};`}>
                 <div style={`font-size:1.25rem;font-weight:700;color:${m.above === true ? '#16a34a' : m.above === false ? '#dc2626' : '#0f172a'}`}>{m.value}</div>
@@ -460,6 +470,18 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
               </div>
             ))}
           </div>
+          {/* Context for keywords top 10 */}
+          {seo.keywordsTop10 != null && (
+            <p style="font-size:0.8rem;color:#475569;margin-bottom:0.875rem;line-height:1.6;">
+              {seo.keywordsTop10 >= 500
+                ? `Con ${fmt(seo.keywordsTop10)} keywords en primera página, tienes una presencia orgánica sólida. Es una base competitiva real.`
+                : seo.keywordsTop10 >= 50
+                ? `${fmt(seo.keywordsTop10)} keywords en primera página es un nivel de posicionamiento moderado — hay margen claro de crecimiento frente a líderes del sector.`
+                : seo.keywordsTop10 >= 5
+                ? `${fmt(seo.keywordsTop10)} keywords en primera página. Tienes presencia inicial pero la visibilidad orgánica es todavía limitada.`
+                : `Muy pocas keywords en primera página de Google. El posicionamiento orgánico es una oportunidad de crecimiento prioritaria.`}
+            </p>
+          )}
           {totalPlayers > 1 && (
             <p style="font-size:0.8rem;color:#64748b;margin-bottom:1rem;">
               📊 Posición en ranking de tráfico orgánico sectorial: <strong style={`color:${ownRank <= Math.ceil(totalPlayers / 2) ? '#16a34a' : '#dc2626'}`}>#{ownRank} de {totalPlayers}</strong>
@@ -467,8 +489,13 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
           )}
         </>
       ) : (
-        /* SEO skipped — show technical SEO signals from crawl + pagespeed as fallback */
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-top:0.5rem;">
+        /* SEO skipped — sales message + technical SEO signals from crawl as fallback */
+        <>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.625rem;padding:1.25rem 1.5rem;margin-bottom:0.875rem;">
+            <p style="font-weight:600;color:#1e293b;margin:0 0 0.375rem;font-size:0.95rem;">Tu dominio aún no tiene suficiente historial en los índices de búsqueda</p>
+            <p style="font-size:0.875rem;color:#475569;margin:0;line-height:1.65;">No se pudieron obtener datos de tráfico orgánico estimado para este dominio. Esto es habitual en dominios recientes, nichos muy locales o webs con poca actividad orgánica — y es precisamente una de las oportunidades que AION puede ayudarte a resolver.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-top:0.5rem;">
           {[
             { label: 'Sitemap XML', ok: crawl.hasSitemap, note: crawl.hasSitemap ? 'Presente — Google puede rastrear el sitio' : 'No detectado — dificulta la indexación' },
             { label: 'Etiqueta Canonical', ok: crawl.hasCanonical, note: crawl.hasCanonical ? 'Presente — evita contenido duplicado' : 'No detectada — riesgo de duplicados' },
@@ -485,7 +512,8 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       <!-- Top páginas -->
@@ -553,6 +581,35 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
           <p style="color:#94a3b8;font-size:0.875rem;">Datos GEO no disponibles para este análisis.</p>
         )}
       </div>
+
+      <!-- 2.2.5 GEO-SEO cross-analysis (only when both modules have data) -->
+      {seo?.topKeywords?.length > 0 && geo && geo.queries?.some((q: any) => !q.isBrandQuery && !q.mentioned) && (
+        <div class="sub-section">
+          <h3>🔍 Gap SEO → IA: Rankeas en Google pero no en ChatGPT</h3>
+          <p style="font-size:0.875rem;color:#334155;margin-bottom:0.875rem;line-height:1.65;">
+            Google ya confirma tu relevancia en estas búsquedas — apareces en primera página.
+            Sin embargo, cuando un usuario hace la misma pregunta en ChatGPT o Perplexity, tu marca no aparece en la respuesta.
+            Este es el gap más accionable de tu presencia digital: autoridad ya demostrada en buscadores, aún sin transferir a los motores de IA.
+          </p>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.875rem;">
+            {seo.topKeywords.slice(0, 5).map((kw: any) => (
+              <div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;">
+                <div style="flex:1;min-width:0;">
+                  <span style="font-size:0.875rem;font-weight:600;color:#1e293b;">{kw.keyword}</span>
+                  {kw.volume > 0 && <span style="font-size:0.75rem;color:#94a3b8;margin-left:0.5rem;">{fmt(kw.volume)} búsquedas/mes</span>}
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
+                  <span style="font-size:0.7rem;background:#dcfce7;color:#16a34a;border-radius:9999px;padding:0.15rem 0.5rem;font-weight:600;">Google #{kw.position}</span>
+                  <span style="font-size:0.7rem;background:#fee2e2;color:#dc2626;border-radius:9999px;padding:0.15rem 0.5rem;font-weight:600;">IA ✗</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style="font-size:0.8rem;color:#64748b;background:#fffbeb;border:1px solid #fde68a;border-radius:0.375rem;padding:0.5rem 0.875rem;margin:0;line-height:1.5;">
+            💡 Mejorar tu visibilidad en IA para estos términos es la iniciativa GEO de mayor retorno: la intención de búsqueda ya existe, la demanda ya la captura Google, y tú ya eres relevante. Solo falta que los motores de IA lo sepan.
+          </p>
+        </div>
+      )}
 
       <!-- 2.3 Mix canales -->
       {traffic && channelSegments.length > 0 && (
@@ -658,37 +715,26 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
 
       {diagGap && <div class="diag-text">{diagGap}</div>}
 
-      {benchRows.length > 1 && (
+      {hasEnoughCompetitorData ? (
         <>
-          <!-- Tabla benchmark con barras y colores -->
+          <!-- Tabla benchmark con barras y colores (solo cuando hay datos reales) -->
           <div style="overflow-x:auto;">
             <table>
               <thead>
                 <tr>
                   <th>Marca</th>
-                  <th>DR</th>
                   <th>Tráfico org./mes</th>
                   <th>Keywords top 10</th>
-                  <th>Backlinks</th>
                 </tr>
               </thead>
               <tbody>
                 {benchRows.map((row) => {
                   const avgRow = benchRows.find(r => r.label === 'Media sector');
-                  const drAbove = avgRow?.dr != null && row.dr != null && row.isOwn ? row.dr >= avgRow.dr : null;
                   const etvAbove = avgRow?.etv != null && row.etv != null && row.isOwn ? row.etv >= avgRow.etv : null;
                   const kwAbove = avgRow?.kw10 != null && row.kw10 != null && row.isOwn ? row.kw10 >= avgRow.kw10 : null;
                   return (
                     <tr class={row.isOwn ? 'own-row' : row.label === 'Media sector' ? 'avg-row' : ''}>
                       <td style={row.isOwn ? 'color:#1A4B8C;font-weight:700;' : ''}>{row.label}</td>
-                      <td style={drAbove === true ? 'color:#16a34a;font-weight:600;' : drAbove === false ? 'color:#dc2626;font-weight:600;' : ''}>
-                        <div class="bar-wrap">
-                          <div class="bar-bg">
-                            <div class="bar-fill" style={`width:${Math.round(((row.dr || 0) / maxDR) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
-                          </div>
-                          <span style="font-size:0.8rem;width:2rem;text-align:right;">{row.dr ?? '—'}</span>
-                        </div>
-                      </td>
                       <td style={etvAbove === true ? 'color:#16a34a;font-weight:600;' : etvAbove === false ? 'color:#dc2626;font-weight:600;' : ''}>
                         <div class="bar-wrap">
                           <div class="bar-bg">
@@ -705,24 +751,25 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
                           <span style="font-size:0.8rem;width:3rem;text-align:right;">{fmt(row.kw10)}</span>
                         </div>
                       </td>
-                      <td style="font-size:0.8rem;color:#64748b;">{row.bl != null ? fmt(row.bl) : '—'}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          {benchRows.every(r => r.dr == null && r.etv == null && r.kw10 == null) ? (
-            <p style="font-size:0.8rem;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;padding:0.5rem 0.75rem;border-radius:0.375rem;margin-top:0.75rem;">
-              ⚠️ DataForSEO no dispone de datos de tráfico orgánico para estos dominios. Las métricas aparecerán en el próximo análisis con los parámetros actualizados.
-            </p>
-          ) : (
-            <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">
-              DR = Domain Rank (0-100). Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
-            </p>
-          )}
+          <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">
+            Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
+          </p>
         </>
-      )}
+      ) : ctItems.length > 0 ? (
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.625rem;padding:1.25rem 1.5rem;margin-top:0.5rem;">
+          <p style="font-weight:600;color:#475569;margin:0 0 0.375rem;font-size:0.9rem;">Datos de benchmarking no disponibles</p>
+          <p style="font-size:0.85rem;color:#64748b;margin:0;line-height:1.6;">
+            Identificamos competidores en tu sector pero DataForSEO no tiene métricas de tráfico orgánico para estos dominios.
+            Es habitual en sectores locales, nichos especializados o dominios recientes. Las métricas de tu propio dominio están disponibles en la sección anterior.
+          </p>
+        </div>
+      ) : null}
 
       <!-- Keyword gap -->
       {kg && (
@@ -871,25 +918,41 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
       <!-- 4.3 Tech Stack — diagnóstico narrativo -->
       {ts && (
         <div class="sub-section">
-          <h3>🛠️ Madurez del stack de marketing</h3>
-          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.875rem;">
-            <div style="position:relative;width:64px;height:64px;flex-shrink:0;">
-              <svg width="64" height="64" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
-                <circle cx="18" cy="18" r="15.9" fill="none"
-                  stroke={scoreColor(ts.maturityScore ?? 0)}
-                  stroke-width="3" stroke-linecap="round"
-                  stroke-dasharray={`${ts.maturityScore ?? 0}, 100`} />
-              </svg>
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-                <span style={`font-size:0.85rem;font-weight:800;color:${scoreColor(ts.maturityScore ?? 0)}`}>{ts.maturityScore ?? 0}</span>
+          <h3>🛠️ Herramientas detectadas en código público</h3>
+
+          {/* Gauge solo si maturityScore > 0; si es 0, mostrar info box */}
+          {(ts.maturityScore ?? 0) > 0 ? (
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.875rem;">
+              <div style="position:relative;width:64px;height:64px;flex-shrink:0;">
+                <svg width="64" height="64" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                  <circle cx="18" cy="18" r="15.9" fill="none"
+                    stroke={scoreColor(ts.maturityScore ?? 0)}
+                    stroke-width="3" stroke-linecap="round"
+                    stroke-dasharray={`${ts.maturityScore ?? 0}, 100`} />
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                  <span style={`font-size:0.85rem;font-weight:800;color:${scoreColor(ts.maturityScore ?? 0)}`}>{ts.maturityScore ?? 0}</span>
+                </div>
+              </div>
+              <div>
+                <p style="font-weight:700;color:#0f172a;margin:0;font-size:0.95rem;">{(ts.maturityScore ?? 0) >= 70 ? 'Stack maduro' : (ts.maturityScore ?? 0) >= 40 ? 'Configuración básica' : 'Carencias importantes'} — {ts.maturityScore ?? 0}/100</p>
+                {ts.cms && <p style="font-size:0.8rem;color:#64748b;margin:0.25rem 0 0;">CMS detectado: <strong>{ts.cms}</strong></p>}
               </div>
             </div>
-            <div>
-              <p style="font-weight:700;color:#0f172a;margin:0;font-size:0.95rem;">{(ts.maturityScore ?? 0) >= 70 ? 'Stack maduro' : (ts.maturityScore ?? 0) >= 40 ? 'Configuración básica' : 'Carencias importantes'} — {ts.maturityScore ?? 0}/100</p>
-              {ts.cms && <p style="font-size:0.8rem;color:#64748b;margin:0.25rem 0 0;">CMS detectado: <strong>{ts.cms}</strong></p>}
+          ) : (
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:0.5rem;padding:0.75rem 1rem;margin-bottom:0.875rem;">
+              {ts.cms && <p style="font-size:0.8rem;font-weight:600;color:#0369a1;margin:0 0 0.25rem;">CMS detectado: {ts.cms}</p>}
+              <p style="font-size:0.875rem;color:#0369a1;margin:0;line-height:1.6;">
+                No se detectaron herramientas de marketing en el HTML público. Es habitual en webs corporativas donde las herramientas se cargan dinámicamente (GTM, JavaScript asíncrono) o desde servidor. El análisis a continuación refleja lo visible en el código fuente.
+              </p>
             </div>
-          </div>
+          )}
+
+          {/* Caveat técnico */}
+          <p style="font-size:0.75rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.375rem;padding:0.5rem 0.75rem;margin-bottom:0.875rem;line-height:1.5;">
+            ℹ️ Análisis basado en código HTML público. Herramientas cargadas dinámicamente (GTM, JS async) o configuradas en servidor pueden no aparecer aquí.
+          </p>
 
           {/* ✅ Herramientas presentes */}
           {stackItems.filter(s => s.tools?.length > 0).length > 0 && (
@@ -906,14 +969,14 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
             </div>
           )}
 
-          {/* ⚠️ Herramientas que faltan + por qué importan */}
+          {/* ⚠️ Herramientas no detectadas en HTML público */}
           {stackItems.filter(s => !s.tools?.length).length > 0 && (
             <div>
-              <p style="font-size:0.775rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">⚠️ Lo que te falta</p>
+              <p style="font-size:0.775rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">⚠️ No detectado públicamente</p>
               <div style="display:flex;flex-direction:column;gap:0.5rem;">
                 {stackItems.filter(s => !s.tools?.length).map(s => (
                   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:0.375rem;padding:0.5rem 0.75rem;font-size:0.85rem;">
-                    <span style="font-weight:600;color:#92400e;">Sin {s.label}:</span>
+                    <span style="font-weight:600;color:#92400e;">{s.label} no detectado en HTML público:</span>
                     <span style="color:#78350f;"> {s.missingNote}</span>
                   </div>
                 ))}
