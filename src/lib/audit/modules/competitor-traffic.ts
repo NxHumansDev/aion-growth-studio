@@ -3,6 +3,69 @@ import type { CompetitorTrafficResult } from '../types';
 const DFS_LOGIN = import.meta.env.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
 const DFS_PASSWORD = import.meta.env.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
+function parseDFSItem(name: string, domain: string, url: string, task: any) {
+  if (!task) {
+    console.error(`[competitor-traffic] ${domain}: no task returned`);
+    return { name, domain, url, apiError: 'no_task' };
+  }
+  if (task.status_code !== 20000) {
+    console.error(`[competitor-traffic] ${domain}: status ${task.status_code} — ${task.status_message}`);
+    return { name, domain, url, apiError: `${task.status_code}: ${task.status_message}` };
+  }
+  if (!task.result_count) {
+    console.error(`[competitor-traffic] ${domain}: result_count=0 (domain not indexed or no data)`);
+    return { name, domain, url, apiError: 'no_data' };
+  }
+  const labsItem = task.result[0]?.items?.[0];
+  if (!labsItem) {
+    console.error(`[competitor-traffic] ${domain}: result present but items empty`);
+    return { name, domain, url, apiError: 'empty_items' };
+  }
+  const m = labsItem.metrics?.organic;
+  const mp = labsItem.metrics?.paid;
+  const kw10 = m ? (m.pos_1 ?? 0) + (m.pos_2_3 ?? 0) + (m.pos_4_10 ?? 0) : undefined;
+  console.log(`[competitor-traffic] ${domain}: etv=${m?.etv ?? 'n/a'} kw10=${kw10 ?? 'n/a'}`);
+  return {
+    name, domain, url,
+    organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
+    estimatedAdsCost: m?.estimated_paid_traffic_cost != null ? Math.round(m.estimated_paid_traffic_cost) : undefined,
+    keywordsTop10: kw10 || undefined,
+    paidKeywordsTotal: (mp?.count ?? 0) || undefined,
+    paidTrafficEstimate: mp?.etv != null ? Math.round(mp.etv) : undefined,
+    paidTrafficValue: mp?.estimated_paid_traffic_cost != null ? Math.round(mp.estimated_paid_traffic_cost) : undefined,
+  };
+}
+
+async function fetchDomainRank(
+  auth: string,
+  domains: Array<{ name: string; domain: string; url: string }>,
+  locationCode?: number,
+): Promise<any[]> {
+  const body = domains.map((item) => {
+    const req: any = { target: item.domain };
+    if (locationCode) { req.location_code = locationCode; req.language_code = 'es'; }
+    return req;
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data?.tasks || [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function runCompetitorTraffic(
   competitors: Array<{ name: string; url: string }>,
 ): Promise<CompetitorTrafficResult> {
@@ -23,50 +86,41 @@ export async function runCompetitorTraffic(
   });
 
   const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-      body: JSON.stringify(
-        items.map((item) => ({ target: item.domain, location_code: 2724, language_code: 'es' })),
-      ),
-    });
+    // First pass: batch request with Spain location
+    const tasks = await fetchDomainRank(auth, items, 2724);
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result: any[] = [];
+    const retryItems: Array<{ idx: number; item: typeof items[0] }> = [];
 
-    const data = await res.json();
-    const tasks: any[] = data?.tasks || [];
-
-    const result = items.map((item, i) => {
+    for (let i = 0; i < items.length; i++) {
       const task = tasks[i];
-      if (!task || task.status_code !== 20000 || !task.result_count) {
-        return { name: item.name, domain: item.domain, url: item.url };
+      const parsed = parseDFSItem(items[i].name, items[i].domain, items[i].url, task);
+      if (parsed.apiError && parsed.apiError !== 'no_task') {
+        retryItems.push({ idx: i, item: items[i] });
       }
-      const labsItem = task.result[0]?.items?.[0];
-      if (!labsItem) return { name: item.name, domain: item.domain, url: item.url };
-      const m = labsItem.metrics?.organic;
-      const mp = labsItem.metrics?.paid;
-      const kw10 = m ? (m.pos_1 ?? 0) + (m.pos_2_3 ?? 0) + (m.pos_4_10 ?? 0) : undefined;
-      return {
-        name: item.name, domain: item.domain, url: item.url,
-        organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
-        estimatedAdsCost: m?.estimated_paid_traffic_cost != null ? Math.round(m.estimated_paid_traffic_cost) : undefined,
-        keywordsTop10: kw10 || undefined,
-        paidKeywordsTotal: (mp?.count ?? 0) || undefined,
-        paidTrafficEstimate: mp?.etv != null ? Math.round(mp.etv) : undefined,
-        paidTrafficValue: mp?.estimated_paid_traffic_cost != null ? Math.round(mp.estimated_paid_traffic_cost) : undefined,
-      };
-    });
+      result.push(parsed);
+    }
+
+    // Second pass: retry failed domains without location_code (global index)
+    if (retryItems.length > 0) {
+      console.log(`[competitor-traffic] Retrying ${retryItems.length} domains without location filter`);
+      await sleep(1000);
+      const retryTasks = await fetchDomainRank(auth, retryItems.map(r => r.item));
+      for (let j = 0; j < retryItems.length; j++) {
+        const { idx, item } = retryItems[j];
+        const retryTask = retryTasks[j];
+        if (retryTask?.status_code === 20000 && retryTask.result_count > 0) {
+          result[idx] = parseDFSItem(item.name, item.domain, item.url, retryTask);
+        }
+      }
+    }
 
     return { items: result };
   } catch (err: any) {
     const msg = err.name === 'AbortError' ? 'DataForSEO timed out' : err.message?.slice(0, 100);
+    console.error(`[competitor-traffic] Fatal error: ${msg}`);
     return { skipped: true, reason: msg };
-  } finally {
-    clearTimeout(timer);
   }
 }

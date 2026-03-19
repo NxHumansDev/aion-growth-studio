@@ -122,6 +122,8 @@ export interface CrawlResult extends ModuleResult {
   linkedinUrl?: string;
   hreflangAlternates?: HreflangAlternate[];
   businessType?: BusinessType;
+  companyName?: string;     // Cleaned brand name (not generic titles like "Inicio")
+  locationHint?: string;    // City/region extracted from schema/HTML/domain
 }
 
 export interface SSLResult extends ModuleResult {

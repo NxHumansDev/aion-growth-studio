@@ -96,19 +96,25 @@ async function generateBuyerQueries(
   keywords: string,
   brandName: string,
   domain: string,
+  locationHint: string | undefined,
   askFn: (q: string, sys?: string) => Promise<string>,
 ): Promise<string[]> {
+  const locClause = locationHint
+    ? `- Ubicación detectada: ${locationHint} (usa esta ciudad/región en las consultas que lo requieran, NUNCA un placeholder como "[ciudad]")`
+    : '- No se detectó ubicación específica (omite referencias geográficas si no estás seguro)';
+
   const prompt =
     `Genera exactamente 3 consultas que un potencial cliente real escribiría en ChatGPT o Google buscando ${sector}.\n\n` +
-    `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 150)}\n- Servicios clave: ${keywords.slice(0, 100)}\n\n` +
+    `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 150)}\n- Servicios clave: ${keywords.slice(0, 100)}\n${locClause}\n\n` +
     `Reglas ESTRICTAS:\n` +
     `1. NO menciones ninguna empresa, marca ni dominio (ni "${brandName}" ni "${domain}").\n` +
     `2. Perspectiva del COMPRADOR con intención real de contratar/comprar.\n` +
-    `3. Primera consulta: necesidad general del sector (incluye ciudad/región si se desprende del contexto).\n` +
+    `3. Primera consulta: necesidad general del sector${locationHint ? ` en ${locationHint}` : ''}.\n` +
     `4. Segunda consulta: problema específico o servicio con intención de compra.\n` +
     `5. Tercera consulta: comparación o decisión ("¿cuál es mejor…?", "necesito elegir entre…").\n` +
     `6. Idioma: el mismo que los textos del negocio.\n` +
-    `7. Devuelve SOLO un JSON array de 3 strings, sin texto adicional.\n\n` +
+    `7. NUNCA uses placeholders como "[ciudad]", "[región]", "[sector]" — usa siempre términos reales.\n` +
+    `8. Devuelve SOLO un JSON array de 3 strings, sin texto adicional.\n\n` +
     `Ejemplo: ["consulta 1", "consulta 2", "consulta 3"]`;
 
   const raw = await askFn(prompt, 'Responde SOLO con JSON válido. Sin markdown. Sin texto adicional.');
@@ -129,7 +135,8 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
   }
 
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
-  const brandName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
+  const brandName = crawl.companyName || domain;
+  const locationHint = crawl.locationHint;
   const valueProposition = crawl.description?.slice(0, 120) || '';
   const keywords = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
 
@@ -169,7 +176,7 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
 
   // Generate buyer-intent Levels 1-3 dynamically; Level 4 stays as direct brand query
   const generatedQueries = await generateBuyerQueries(
-    sector, valueProposition, keywords, brandName, domain, askGPT,
+    sector, valueProposition, keywords, brandName, domain, locationHint, askGPT,
   );
 
   const queryTexts = [
