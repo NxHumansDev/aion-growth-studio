@@ -91,18 +91,19 @@ function cwvEmoji(metric: string, value: number): string {
 }
 
 // ── Competitor benchmark table data ──────────────────────────────
-interface BenchRow { label: string; etv: number | null; kw10: number | null; isOwn: boolean }
+interface BenchRow { label: string; etv: number | null; ads: number | null; kw10: number | null; isOwn: boolean }
 const benchRows: BenchRow[] = [];
 if (seo) {
   benchRows.push({
     label: `★ ${domain}`,
     etv: seo.organicTrafficEstimate ?? null,
+    ads: seo.estimatedAdsCost ?? null,
     kw10: seo.keywordsTop10 ?? null,
     isOwn: true,
   });
 }
 for (const c of ctItems) {
-  benchRows.push({ label: c.domain, etv: c.organicTrafficEstimate ?? null, kw10: c.keywordsTop10 ?? null, isOwn: false });
+  benchRows.push({ label: c.domain, etv: c.organicTrafficEstimate ?? null, ads: c.estimatedAdsCost ?? null, kw10: c.keywordsTop10 ?? null, isOwn: false });
 }
 // Sector average row
 if (benchRows.length > 1) {
@@ -114,6 +115,7 @@ if (benchRows.length > 1) {
   benchRows.push({
     label: 'Media sector',
     etv: avg(compRowsForAvg.map(r => r.etv)),
+    ads: avg(compRowsForAvg.map(r => r.ads)),
     kw10: avg(compRowsForAvg.map(r => r.kw10)),
     isOwn: false,
   });
@@ -128,7 +130,14 @@ const hasEnoughCompetitorData = compTableRows.some(rowHasData);
 
 // ── Max values for bar widths ─────────────────────────────────────
 const maxETV = Math.max(...benchRows.map(r => r.etv || 0), 1);
+const maxADS = Math.max(...benchRows.map(r => r.ads || 0), 1);
 const maxKW = Math.max(...benchRows.map(r => r.kw10 || 0), 1);
+
+// ── Trend alert ───────────────────────────────────────────────────
+const hasTrendAlert = seo != null
+  && seo.trendLost != null
+  && seo.trendUp != null
+  && seo.trendLost > (seo.trendUp ?? 0);
 
 // ── Channel bar data ──────────────────────────────────────────────
 const channelColors: Record<string, string> = {
@@ -455,13 +464,25 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
       <!-- 2.1 SEO -->
       <h3>🔗 Posicionamiento orgánico (SEO)</h3>
       <div class="diag-text">{diagSEO}</div>
+
+      {/* Trend alert — before the metrics if domain is losing visibility */}
+      {hasTrendAlert && (
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:0.5rem;padding:0.75rem 1rem;margin-bottom:0.875rem;">
+          <p style="color:#dc2626;font-weight:700;margin:0 0 0.25rem;font-size:0.9rem;">📉 Tendencia: pérdida de visibilidad orgánica activa</p>
+          <p style="color:#991b1b;font-size:0.85rem;margin:0;line-height:1.6;">
+            En el último período, el dominio ha <strong>perdido {fmt(seo!.trendLost)} keywords</strong> de posicionamiento frente a solo {fmt(seo!.trendUp)} ganadas.
+            Esta tendencia negativa, si no se corrige, se traduce en caída de tráfico orgánico y pérdida de cuota frente a competidores.
+          </p>
+        </div>
+      )}
+
       {seo ? (
         <>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:0.75rem;">
             {[
-              { label: 'Keywords en 1ª página', value: fmt(seo.keywordsTop10), color: '#0f172a', bench: sectorAvgKW != null ? `sector: ${fmt(sectorAvgKW)}` : null, above: sectorAvgKW != null && (seo.keywordsTop10 ?? 0) >= sectorAvgKW },
-              { label: 'Tráf. org. estimado/mes', value: fmt(seo.organicTrafficEstimate), color: '#0f172a', bench: avgETV > 0 ? `sector: ${fmt(Math.round(avgETV))}` : null, above: avgETV > 0 && ownETV >= avgETV },
-              { label: 'Total keywords indexadas', value: fmt(seo.organicKeywordsTotal), color: '#0f172a', bench: null, above: null },
+              { label: 'Keywords en 1ª página', value: fmt(seo.keywordsTop10), bench: sectorAvgKW != null ? `sector: ${fmt(sectorAvgKW)}` : null, above: sectorAvgKW != null ? (seo.keywordsTop10 ?? 0) >= sectorAvgKW : null },
+              { label: 'Tráf. org. estimado/mes', value: fmt(seo.organicTrafficEstimate), bench: avgETV > 0 ? `sector: ${fmt(Math.round(avgETV))}` : null, above: avgETV > 0 ? ownETV >= avgETV : null },
+              { label: 'Total keywords indexadas', value: fmt(seo.organicKeywordsTotal), bench: null, above: null },
             ].map((m) => (
               <div style={`border-radius:0.5rem;padding:0.75rem;text-align:center;border:1px solid ${m.above === true ? '#bbf7d0' : m.above === false ? '#fecaca' : '#e2e8f0'};background:${m.above === true ? '#f0fdf4' : m.above === false ? '#fef2f2' : '#f8fafc'};`}>
                 <div style={`font-size:1.25rem;font-weight:700;color:${m.above === true ? '#16a34a' : m.above === false ? '#dc2626' : '#0f172a'}`}>{m.value}</div>
@@ -470,6 +491,29 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
               </div>
             ))}
           </div>
+
+          {/* Ads equivalent value — key urgency driver */}
+          {seo.estimatedAdsCost != null && seo.estimatedAdsCost > 0 && (
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0.5rem;padding:0.625rem 0.875rem;margin-bottom:0.875rem;display:flex;align-items:center;gap:0.75rem;">
+              <span style="font-size:1.25rem;">💰</span>
+              <p style="margin:0;font-size:0.875rem;color:#15803d;line-height:1.5;">
+                <strong>Tráfico equivalente en Google Ads: ~{fmt(seo.estimatedAdsCost)}€/mes.</strong>
+                {' '}Ese es el valor real del tráfico orgánico que estás generando sin pagar por él.
+              </p>
+            </div>
+          )}
+
+          {/* Quick wins — pos 4-10 keywords */}
+          {(seo.keywordsPos4to10 ?? 0) > 0 && (
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:0.5rem;padding:0.625rem 0.875rem;margin-bottom:0.875rem;display:flex;align-items:center;gap:0.75rem;">
+              <span style="font-size:1.25rem;">⚡</span>
+              <p style="margin:0;font-size:0.875rem;color:#0369a1;line-height:1.5;">
+                <strong>Tienes {fmt(seo.keywordsPos4to10)} keywords en posiciones 4-10</strong> — a un empujón de la primera página.
+                {' '}Con optimización moderada de contenido, estas keywords pueden generar tráfico nuevo sin crear páginas desde cero.
+              </p>
+            </div>
+          )}
+
           {/* Context for keywords top 10 */}
           {seo.keywordsTop10 != null && (
             <p style="font-size:0.8rem;color:#475569;margin-bottom:0.875rem;line-height:1.6;">
@@ -724,6 +768,7 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
                 <tr>
                   <th>Marca</th>
                   <th>Tráfico org./mes</th>
+                  <th>Valor equiv. Ads/mes</th>
                   <th>Keywords top 10</th>
                 </tr>
               </thead>
@@ -731,6 +776,7 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
                 {benchRows.map((row) => {
                   const avgRow = benchRows.find(r => r.label === 'Media sector');
                   const etvAbove = avgRow?.etv != null && row.etv != null && row.isOwn ? row.etv >= avgRow.etv : null;
+                  const adsAbove = avgRow?.ads != null && row.ads != null && row.isOwn ? row.ads >= avgRow.ads : null;
                   const kwAbove = avgRow?.kw10 != null && row.kw10 != null && row.isOwn ? row.kw10 >= avgRow.kw10 : null;
                   return (
                     <tr class={row.isOwn ? 'own-row' : row.label === 'Media sector' ? 'avg-row' : ''}>
@@ -741,6 +787,14 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
                             <div class="bar-fill" style={`width:${Math.round(((row.etv || 0) / maxETV) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
                           </div>
                           <span style="font-size:0.8rem;width:3rem;text-align:right;">{fmt(row.etv)}</span>
+                        </div>
+                      </td>
+                      <td style={adsAbove === true ? 'color:#16a34a;font-weight:600;' : adsAbove === false ? 'color:#dc2626;font-weight:600;' : ''}>
+                        <div class="bar-wrap">
+                          <div class="bar-bg">
+                            <div class="bar-fill" style={`width:${Math.round(((row.ads || 0) / maxADS) * 100)}%;background:${row.isOwn ? '#1A4B8C' : '#94a3b8'}`}></div>
+                          </div>
+                          <span style="font-size:0.8rem;width:3.5rem;text-align:right;">{row.ads != null ? fmt(row.ads) + '€' : '—'}</span>
                         </div>
                       </td>
                       <td style={kwAbove === true ? 'color:#16a34a;font-weight:600;' : kwAbove === false ? 'color:#dc2626;font-weight:600;' : ''}>
@@ -758,7 +812,7 @@ const trafficGap = Math.max(0, Math.round(avgETV - ownETV));
             </table>
           </div>
           <p style="font-size:0.75rem;color:#94a3b8;margin-top:0.5rem;">
-            Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
+            "Valor equiv. Ads" = coste estimado de ese tráfico en Google Ads. Celdas en <span style="color:#16a34a;font-weight:600;">verde</span> = por encima de media sector · <span style="color:#dc2626;font-weight:600;">rojo</span> = por debajo. Estimaciones DataForSEO.
           </p>
         </>
       ) : ctItems.length > 0 ? (

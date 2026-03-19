@@ -53,6 +53,7 @@ export async function runCompetitorTraffic(
       return {
         name: item.name, domain: item.domain, url: item.url,
         organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
+        estimatedAdsCost: m?.estimated_paid_traffic_cost != null ? Math.round(m.estimated_paid_traffic_cost) : undefined,
         keywordsTop10: kw10 || undefined,
       };
     });

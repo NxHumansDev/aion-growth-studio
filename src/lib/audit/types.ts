@@ -242,6 +242,7 @@ export interface CompetitorTrafficItem {
   url: string;
   domainRank?: number;
   organicTrafficEstimate?: number;
+  estimatedAdsCost?: number;
   keywordsTop10?: number;
 }
 
@@ -337,9 +338,14 @@ export interface ConversionResult extends ModuleResult {
 export interface SEOResult extends ModuleResult {
   organicKeywordsTotal?: number;    // total keywords ranking
   keywordsTop3?: number;            // positions 1-3
+  keywordsPos4to10?: number;        // positions 4-10 (quick wins)
   keywordsTop10?: number;           // positions 1-10
   keywordsTop30?: number;           // positions 1-30
   organicTrafficEstimate?: number;  // estimated monthly organic visits
+  estimatedAdsCost?: number;        // Google Ads equivalent cost of organic traffic (€/mo)
+  trendUp?: number;                 // keywords gaining positions recently
+  trendDown?: number;               // keywords losing positions recently
+  trendLost?: number;               // keywords lost from top 100 recently
   topKeywords?: Array<{ keyword: string; position: number; volume: number }>; // top non-branded keywords
 }
 

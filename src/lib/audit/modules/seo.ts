@@ -44,15 +44,21 @@ export async function runSEO(url: string): Promise<SEOResult> {
 
     const m = item.metrics?.organic;
     const keywordsTop3 = (m?.pos_1 ?? 0) + (m?.pos_2_3 ?? 0);
-    const keywordsTop10 = keywordsTop3 + (m?.pos_4_10 ?? 0);
+    const keywordsPos4to10 = m?.pos_4_10 ?? 0;
+    const keywordsTop10 = keywordsTop3 + keywordsPos4to10;
     const keywordsTop30 = keywordsTop10 + (m?.pos_11_20 ?? 0) + (m?.pos_21_30 ?? 0);
 
     const baseResult: SEOResult = {
       organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
+      estimatedAdsCost: m?.estimated_paid_traffic_cost != null ? Math.round(m.estimated_paid_traffic_cost) : undefined,
       organicKeywordsTotal: m?.count,
       keywordsTop3: keywordsTop3 || undefined,
+      keywordsPos4to10: keywordsPos4to10 || undefined,
       keywordsTop10: keywordsTop10 || undefined,
       keywordsTop30: keywordsTop30 || undefined,
+      trendUp: m?.is_up ?? undefined,
+      trendDown: m?.is_down ?? undefined,
+      trendLost: m?.is_lost ?? undefined,
     };
 
     // ── Tier 2: top non-branded keywords (for GEO-SEO cross-analysis) ──
