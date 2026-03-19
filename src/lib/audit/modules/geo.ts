@@ -86,6 +86,43 @@ function hasDenialNearBrand(answer: string, domain: string, brandName: string): 
   return DENIAL_PHRASES.some((p) => context.includes(p));
 }
 
+/**
+ * Generate 3 buyer-intent queries via GPT — no brand names, real purchase intent.
+ * Returns [] on failure so callers can fall back to legacy templates.
+ */
+async function generateBuyerQueries(
+  sector: string,
+  valueProposition: string,
+  keywords: string,
+  brandName: string,
+  domain: string,
+  askFn: (q: string, sys?: string) => Promise<string>,
+): Promise<string[]> {
+  const prompt =
+    `Genera exactamente 3 consultas que un potencial cliente real escribiría en ChatGPT o Google buscando ${sector}.\n\n` +
+    `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 150)}\n- Servicios clave: ${keywords.slice(0, 100)}\n\n` +
+    `Reglas ESTRICTAS:\n` +
+    `1. NO menciones ninguna empresa, marca ni dominio (ni "${brandName}" ni "${domain}").\n` +
+    `2. Perspectiva del COMPRADOR con intención real de contratar/comprar.\n` +
+    `3. Primera consulta: necesidad general del sector (incluye ciudad/región si se desprende del contexto).\n` +
+    `4. Segunda consulta: problema específico o servicio con intención de compra.\n` +
+    `5. Tercera consulta: comparación o decisión ("¿cuál es mejor…?", "necesito elegir entre…").\n` +
+    `6. Idioma: el mismo que los textos del negocio.\n` +
+    `7. Devuelve SOLO un JSON array de 3 strings, sin texto adicional.\n\n` +
+    `Ejemplo: ["consulta 1", "consulta 2", "consulta 3"]`;
+
+  const raw = await askFn(prompt, 'Responde SOLO con JSON válido. Sin markdown. Sin texto adicional.');
+  try {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    const arr = JSON.parse(match[0]);
+    if (!Array.isArray(arr)) return [];
+    return (arr as unknown[])
+      .filter((q): q is string => typeof q === 'string' && q.length > 10)
+      .slice(0, 3);
+  } catch { return []; }
+}
+
 export async function runGEO(url: string, sector: string, crawl: CrawlResult): Promise<GeoResult> {
   if (!API_KEY) {
     return { skipped: true, reason: 'OPENAI_API_KEY not configured' };
@@ -96,23 +133,7 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
   const valueProposition = crawl.description?.slice(0, 120) || '';
   const keywords = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
 
-  const queryTexts = [
-    // Level 1 — Sector: broadest, no geographic restriction so global brands surface too
-    `¿Cuáles son las empresas líderes y referentes en ${sector}? Dame 5 ejemplos concretos con sus nombres, incluyendo operadores internacionales si los hay.`,
-
-    // Level 2 — Value proposition: does the AI recommend them for the specific problem?
-    valueProposition
-      ? `Necesito: "${valueProposition.slice(0, 100)}". ¿Qué empresas o proveedores especializados existen para esto? Dame nombres reales de líderes del sector.`
-      : `Necesito contratar servicios especializados de ${sector}. ¿Qué empresas o proveedores líderes recomiendas? Dame nombres concretos.`,
-
-    // Level 3 — Keywords: does the AI know them for specific capabilities?
-    `¿Qué empresas o marcas son referentes en "${keywords.slice(0, 80)}"? Dame nombres reales y conocidos.`,
-
-    // Level 4 — Direct brand: does the AI know the brand when explicitly asked?
-    `¿Qué sabes sobre la empresa "${brandName}" (${domain})? ¿Es un referente conocido en su sector? Descríbela brevemente.`,
-  ];
-
-  const askGPT = async (query: string): Promise<string> => {
+  const askGPT = async (query: string, systemOverride?: string): Promise<string> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 28000);
     try {
@@ -129,7 +150,7 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
           messages: [
             {
               role: 'system',
-              content:
+              content: systemOverride ??
                 'Eres un asistente experto. Responde en español de forma concisa. Cuando pregunten por empresas, menciona nombres reales y específicos incluyendo marcas internacionales relevantes.',
             },
             { role: 'user', content: query },
@@ -146,9 +167,32 @@ export async function runGEO(url: string, sector: string, crawl: CrawlResult): P
     }
   };
 
+  // Generate buyer-intent Levels 1-3 dynamically; Level 4 stays as direct brand query
+  const generatedQueries = await generateBuyerQueries(
+    sector, valueProposition, keywords, brandName, domain, askGPT,
+  );
+
+  const queryTexts = [
+    // Level 1 — Sector (buyer-intent, no brand)
+    generatedQueries[0] ??
+      `¿Cuáles son las empresas líderes y referentes en ${sector}? Dame 5 ejemplos concretos con sus nombres, incluyendo operadores internacionales si los hay.`,
+
+    // Level 2 — Value proposition (buyer-intent, no brand)
+    generatedQueries[1] ?? (valueProposition
+      ? `Necesito: "${valueProposition.slice(0, 100)}". ¿Qué empresas o proveedores especializados existen para esto? Dame nombres reales de líderes del sector.`
+      : `Necesito contratar servicios especializados de ${sector}. ¿Qué empresas o proveedores líderes recomiendas? Dame nombres concretos.`),
+
+    // Level 3 — Keywords (buyer-intent, no brand)
+    generatedQueries[2] ??
+      `¿Qué empresas o marcas son referentes en "${keywords.slice(0, 80)}"? Dame nombres reales y conocidos.`,
+
+    // Level 4 — Direct brand: unchanged (explicitly asks about the brand)
+    `¿Qué sabes sobre la empresa "${brandName}" (${domain})? ¿Es un referente conocido en su sector? Descríbela brevemente.`,
+  ];
+
   try {
     // Run each query independently — one failure doesn't kill the others
-    const answers = await Promise.all(queryTexts.map(askGPT));
+    const answers = await Promise.all(queryTexts.map((q) => askGPT(q)));
 
     // If every answer came back empty, the API is down/rate-limited
     if (answers.every((a) => a.length === 0)) {
