@@ -75,9 +75,9 @@ export function computeHealthScore(results: Record<string, any>): HealthScore {
 }
 
 export function scoreColor(score: number): string {
-  if (score >= 70) return '#22c55e';
-  if (score >= 40) return '#f59e0b';
-  return '#ef4444';
+  if (score >= 70) return '#10B981';
+  if (score >= 40) return '#F59E0B';
+  return '#EF4444';
 }
 
 export function scoreLabel(score: number): string {
