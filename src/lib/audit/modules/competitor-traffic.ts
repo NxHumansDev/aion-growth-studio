@@ -3,17 +3,6 @@ import type { CompetitorTrafficResult } from '../types';
 const DFS_LOGIN = import.meta.env.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
 const DFS_PASSWORD = import.meta.env.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
-async function dfsPost(auth: string, endpoint: string, body: any[], signal: AbortSignal) {
-  const res = await fetch(`https://api.dataforseo.com/v3/${endpoint}`, {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 export async function runCompetitorTraffic(
   competitors: Array<{ name: string; url: string }>,
 ): Promise<CompetitorTrafficResult> {
@@ -38,46 +27,35 @@ export async function runCompetitorTraffic(
   const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    // ── Tier 1: Spain domain_analytics (best relevance) ──────────────
-    const data = await dfsPost(auth, 'domain_analytics/overview/live',
-      items.map((item) => ({ target: item.domain, location_code: 2724, language_code: 'es' })),
-      controller.signal,
-    );
+    const res = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify(
+        items.map((item) => ({ target: item.domain, location_code: 2724, language_code: 'es' })),
+      ),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
     const tasks: any[] = data?.tasks || [];
 
     const result = items.map((item, i) => {
-      const tr = tasks[i]?.result?.[0];
-      if (!tr) return { name: item.name, domain: item.domain, url: item.url };
-      const m = tr.metrics?.organic;
+      const task = tasks[i];
+      if (!task || task.status_code !== 20000 || !task.result_count) {
+        return { name: item.name, domain: item.domain, url: item.url };
+      }
+      const labsItem = task.result[0]?.items?.[0];
+      if (!labsItem) return { name: item.name, domain: item.domain, url: item.url };
+      const m = labsItem.metrics?.organic;
       const kw10 = m ? (m.pos_1 ?? 0) + (m.pos_2_3 ?? 0) + (m.pos_4_10 ?? 0) : undefined;
       return {
         name: item.name, domain: item.domain, url: item.url,
-        domainRank: tr.domain_rank ?? undefined,
         organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
         keywordsTop10: kw10 || undefined,
       };
     });
-
-    // ── Tier 2: Backlinks summary fallback for items missing DR ──────
-    // (backlinks/summary has coverage even for very small sites)
-    const needFallback = result.filter((r) => r.domainRank == null);
-    if (needFallback.length > 0) {
-      try {
-        const blData = await dfsPost(auth, 'backlinks/summary/live',
-          needFallback.map((r) => ({ target: r.domain, include_subdomains: false })),
-          controller.signal,
-        );
-        const blTasks: any[] = blData?.tasks || [];
-        needFallback.forEach((item, i) => {
-          const blr = blTasks[i]?.result?.[0];
-          if (!blr) return;
-          // rank in backlinks/summary = DataForSEO domain rank
-          item.domainRank = blr.rank ?? undefined;
-          item.backlinksTotal = blr.backlinks ?? undefined;
-          item.referringDomains = blr.referring_domains ?? undefined;
-        });
-      } catch { /* backlinks fallback failure is non-fatal */ }
-    }
 
     return { items: result };
   } catch (err: any) {

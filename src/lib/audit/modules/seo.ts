@@ -16,8 +16,7 @@ export async function runSEO(url: string): Promise<SEOResult> {
   const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    // ── Tier 1: Spain domain_analytics ───────────────────────────────
-    const res = await fetch('https://api.dataforseo.com/v3/domain_analytics/overview/live', {
+    const res = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
       method: 'POST',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
@@ -31,43 +30,21 @@ export async function runSEO(url: string): Promise<SEOResult> {
     }
 
     const data = await res.json();
-    const item = data?.tasks?.[0]?.result?.[0];
+    const task = data?.tasks?.[0];
 
-    if (item) {
-      const m = item.metrics?.organic;
-      const bl = item.backlinks_info;
-      const keywordsTop3 = (m?.pos_1 ?? 0) + (m?.pos_2_3 ?? 0);
-      const keywordsTop10 = keywordsTop3 + (m?.pos_4_10 ?? 0);
-      const keywordsTop30 = keywordsTop10 + (m?.pos_11_20 ?? 0) + (m?.pos_21_30 ?? 0);
-      return {
-        domainRank: item.domain_rank,
-        organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
-        organicKeywordsTotal: m?.count,
-        keywordsTop3: keywordsTop3 || undefined,
-        keywordsTop10: keywordsTop10 || undefined,
-        keywordsTop30: keywordsTop30 || undefined,
-        referringDomains: bl?.referring_domains,
-        backlinksTotal: bl?.backlinks,
-      };
-    }
-
-    // ── Tier 2: Backlinks summary fallback (better coverage for small sites) ──
-    const blRes = await fetch('https://api.dataforseo.com/v3/backlinks/summary/live', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-      body: JSON.stringify([{ target: domain, include_subdomains: false }]),
-    });
-
-    if (blRes.ok) {
-      const blData = await blRes.json();
-      const blItem = blData?.tasks?.[0]?.result?.[0];
-      if (blItem) {
+    if (task?.status_code === 20000 && task?.result_count > 0) {
+      const item = task.result[0]?.items?.[0];
+      if (item) {
+        const m = item.metrics?.organic;
+        const keywordsTop3 = (m?.pos_1 ?? 0) + (m?.pos_2_3 ?? 0);
+        const keywordsTop10 = keywordsTop3 + (m?.pos_4_10 ?? 0);
+        const keywordsTop30 = keywordsTop10 + (m?.pos_11_20 ?? 0) + (m?.pos_21_30 ?? 0);
         return {
-          domainRank: blItem.rank ?? undefined,
-          referringDomains: blItem.referring_domains ?? undefined,
-          backlinksTotal: blItem.backlinks ?? undefined,
-          // No organic traffic from backlinks endpoint — genuinely not available
+          organicTrafficEstimate: m?.etv != null ? Math.round(m.etv) : undefined,
+          organicKeywordsTotal: m?.count,
+          keywordsTop3: keywordsTop3 || undefined,
+          keywordsTop10: keywordsTop10 || undefined,
+          keywordsTop30: keywordsTop30 || undefined,
         };
       }
     }

@@ -18,24 +18,25 @@ export const GET: APIRoute = async ({ request }) => {
   const auth = Buffer.from(`${login}:${password}`).toString('base64');
 
   try {
-    const res = await fetch('https://api.dataforseo.com/v3/domain_analytics/overview/live', {
+    const res = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-      body: JSON.stringify([{ target: domain }]),
+      body: JSON.stringify([{ target: domain, location_code: 2724, language_code: 'es' }]),
     });
 
     const data = await res.json();
     const task = data?.tasks?.[0];
-    const result = task?.result?.[0];
+    const item = task?.result?.[0]?.items?.[0];
+    const m = item?.metrics?.organic;
 
     return new Response(JSON.stringify({
       http_status: res.status,
       task_status_code: task?.status_code,
       task_status_message: task?.status_message,
       cost: task?.cost,
-      domain_rank: result?.domain_rank,
-      organic_etv: result?.metrics?.organic?.etv,
-      keywords_count: result?.metrics?.organic?.count,
+      organic_etv: m?.etv,
+      keywords_count: m?.count,
+      keywords_top10: (m?.pos_1 ?? 0) + (m?.pos_2_3 ?? 0) + (m?.pos_4_10 ?? 0),
       raw_task_summary: {
         id: task?.id,
         status_code: task?.status_code,

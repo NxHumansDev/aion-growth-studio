@@ -1,9 +1,9 @@
 export interface HealthScore {
-  total: number;          // 0-100 overall health
-  visibilidad: number;    // 0-100 — ¿te encuentran?
-  competitividad: number; // 0-100 — ¿cómo estás vs competencia?
-  experiencia: number;    // 0-100 — ¿qué pasa cuando llegan?
-  conversion: number;     // 0-100 — ¿convierten?
+  total: number;                // 0-100 overall health
+  visibilidad: number;          // 0-100 — ¿te encuentran?
+  competitividad: number | null; // 0-100 — null = sin datos comparativos
+  experiencia: number;          // 0-100 — ¿qué pasa cuando llegan?
+  conversion: number;           // 0-100 — ¿convierten?
 }
 
 export function computeHealthScore(results: Record<string, any>): HealthScore {
