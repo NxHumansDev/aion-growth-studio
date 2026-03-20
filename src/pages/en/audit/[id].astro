@@ -22,25 +22,25 @@ if (id) {
 const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
 
 const MODULES = [
-  { key: 'crawl',       label: 'Technical SEO Analysis' },
-  { key: 'ssl',         label: 'SSL/HTTPS Security' },
-  { key: 'pagespeed',   label: 'Web Performance (PageSpeed)' },
-  { key: 'sector',      label: 'Sector Detection' },
-  { key: 'content',     label: 'Content Analysis' },
-  { key: 'geo',         label: 'AI Visibility (GEO)' },
-  { key: 'gbp',         label: 'Google Business Profile' },
-  { key: 'traffic',     label: 'Estimated Traffic' },
-  { key: 'seo',         label: 'Organic SEO and Backlinks' },
-  { key: 'seo_pages',   label: 'Top Organic Pages' },
-  { key: 'competitors',        label: 'Competitor Analysis' },
-  { key: 'competitor_traffic', label: 'Competitor Traffic Analysis' },
-  { key: 'keyword_gap',        label: 'Keyword Gap vs Competitors' },
-  { key: 'instagram',          label: 'Instagram and Social Media' },
-  { key: 'linkedin',    label: 'LinkedIn Company Page' },
-  { key: 'techstack',   label: 'Tech Stack and Measurement' },
-  { key: 'conversion',  label: 'Conversion Capability' },
-  { key: 'score',       label: 'Final Score' },
-  { key: 'insights',    label: 'Executive Diagnosis' },
+  { key: 'crawl',              label: 'Technical SEO Analysis',        icon: 'code' },
+  { key: 'ssl',                label: 'SSL/HTTPS Security',             icon: 'lock' },
+  { key: 'pagespeed',          label: 'Web Performance',                icon: 'speed' },
+  { key: 'sector',             label: 'Sector Detection',               icon: 'category' },
+  { key: 'content',            label: 'Content Analysis',               icon: 'article' },
+  { key: 'geo',                label: 'AI Visibility (GEO)',             icon: 'smart_toy' },
+  { key: 'gbp',                label: 'Google Business Profile',        icon: 'storefront' },
+  { key: 'traffic',            label: 'Estimated Traffic',              icon: 'bar_chart' },
+  { key: 'seo',                label: 'Organic SEO & Backlinks',        icon: 'search' },
+  { key: 'seo_pages',          label: 'Top Organic Pages',              icon: 'web' },
+  { key: 'competitors',        label: 'Competitor Analysis',            icon: 'groups' },
+  { key: 'competitor_traffic', label: 'Competitor Traffic',             icon: 'leaderboard' },
+  { key: 'keyword_gap',        label: 'Keyword Gap',                    icon: 'key' },
+  { key: 'instagram',          label: 'Instagram / Social Media',       icon: 'photo_camera' },
+  { key: 'linkedin',           label: 'LinkedIn Company Page',          icon: 'work' },
+  { key: 'techstack',          label: 'Tech Stack',                     icon: 'settings' },
+  { key: 'conversion',         label: 'Conversion Capability',          icon: 'ads_click' },
+  { key: 'score',              label: 'Final Score',                    icon: 'grade' },
+  { key: 'insights',           label: 'Executive Diagnosis',            icon: 'lightbulb' },
 ];
 ---
 
@@ -52,203 +52,236 @@ const MODULES = [
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
 
 <style>
-  :root {
-    --surface: #f7f9ff;
-    --surface-low: #edf4ff;
-    --surface-high: #d8eaff;
-    --primary: #000e41;
-    --primary-cont: #001f70;
-    --on-surface: #001d32;
-    --on-surface-var: #43474d;
-    --tertiary-fixed: #69ff87;
-    --shadow: 0 12px 40px rgba(0,29,50,0.06);
-  }
   *, *::before, *::after { box-sizing: border-box; }
-  body { background: var(--surface) !important; color: var(--on-surface); font-family: 'Inter', system-ui, sans-serif; margin: 0; }
-
-  .audit-shell {
-    display: grid;
-    grid-template-columns: 260px 1fr;
+  body {
+    background: #000e41 !important;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
     min-height: 100vh;
-    background: var(--surface);
   }
-  .audit-sidebar {
-    background: var(--surface-low);
-    padding: 2rem 1.5rem;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+    user-select: none;
+    line-height: 1;
+  }
+
+  .module-card {
+    background: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1.125rem 1rem;
     display: flex;
     flex-direction: column;
+    gap: 0.625rem;
+    box-shadow: 0 2px 8px rgba(0,29,50,0.04);
+    transition: background 0.25s, box-shadow 0.25s;
+    position: relative;
+    overflow: hidden;
   }
-  .audit-main {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 3.5rem 3rem;
-    background: var(--surface);
+  .module-card.running {
+    background: #edf4ff;
+    box-shadow: 0 0 0 2px #000e41, 0 6px 20px rgba(0,14,65,0.12);
   }
-  .mod-nav-item {
+  .module-card.done { background: #f8fffa; }
+
+  .module-icon-wrap {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.25rem;
+    background: #edf4ff;
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    padding: 0.4375rem 0.625rem;
-    border-radius: 0.375rem;
-    color: var(--on-surface-var);
-    font-size: 0.8125rem;
-    transition: background 0.2s, color 0.2s;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.25s;
   }
-  .mod-nav-item.running {
-    background: var(--surface-high);
-    color: var(--primary);
+  .module-card.running .module-icon-wrap { background: #000e41; }
+  .module-card.done    .module-icon-wrap { background: #e6ffd4; }
+
+  .module-icon-wrap .material-symbols-outlined {
+    font-size: 16px;
+    color: #43474d;
+    transition: color 0.25s;
+  }
+  .module-card.running .module-icon-wrap .material-symbols-outlined { color: #69ff87; }
+  .module-card.done    .module-icon-wrap .material-symbols-outlined { color: #1a6b00; }
+
+  .module-name {
+    font-size: 0.75rem;
     font-weight: 600;
+    color: #43474d;
+    margin: 0;
+    line-height: 1.3;
+    transition: color 0.25s;
   }
-  .mod-nav-item.done { color: #1a6b00; }
-  .mod-nav-dot {
+  .module-card.running .module-name { color: #000e41; }
+  .module-card.done    .module-name { color: #1a6b00; }
+
+  .module-status-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(195,198,206,0.5);
+    background: rgba(195,198,206,0.4);
     flex-shrink: 0;
-    transition: background 0.2s;
+    margin-top: auto;
+    transition: background 0.25s;
   }
-  .mod-nav-item.running .mod-nav-dot { background: var(--primary); }
-  .mod-nav-item.done    .mod-nav-dot { background: #22c55e; }
-  .proc-card {
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: var(--shadow);
-    padding: 2.5rem;
-    width: 100%;
-    max-width: 540px;
+  .module-card.running .module-status-dot {
+    background: #000e41;
+    animation: pulse-dot 1.2s ease-in-out infinite;
   }
+  .module-card.done .module-status-dot { background: #22c55e; }
+
   .mod-spinner {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    border: 2px solid var(--surface-high);
-    border-top-color: var(--primary);
+    border: 2px solid rgba(105,255,135,0.2);
+    border-top-color: #69ff87;
     animation: spin 0.8s linear infinite;
     flex-shrink: 0;
   }
+
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse-dot {
     0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.5); opacity: 0.6; }
+    50% { transform: scale(1.7); opacity: 0.4; }
   }
-  @media (max-width: 768px) {
-    .audit-shell { grid-template-columns: 1fr; }
-    .audit-sidebar {
-      height: auto;
-      position: relative;
-      padding: 1rem 1.25rem;
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .sidebar-modules-nav { display: none !important; }
-    .sidebar-domain-block { margin-bottom: 0 !important; }
-    .audit-main { padding: 1.5rem 1.25rem; }
-    .proc-card { padding: 1.75rem 1.25rem; }
+
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.875rem;
+  }
+  @media (max-width: 1024px) { .modules-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 640px)  { .modules-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  @media (max-width: 640px) {
+    .hero-headline { font-size: 1.875rem !important; }
+    .hero-section-inner { padding: 1.5rem 1.25rem 2rem !important; }
+    .modules-section-inner { padding: 2rem 1.25rem !important; }
   }
 </style>
 
-  <div class="audit-shell">
+<!-- DARK HERO -->
+<section style="background:linear-gradient(135deg,#000e41 0%,#001260 60%,#000e41 100%);min-height:52vh;position:relative;">
 
-    <!-- ═══ LEFT SIDEBAR ═══ -->
-    <aside class="audit-sidebar">
-      <div class="sidebar-domain-block" style="margin-bottom:1.75rem;">
-        <a href="/en/" style="display:inline-block;margin-bottom:0.75rem;">
-          <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:1.75rem;width:auto;" />
-        </a>
-        <p style="font-size:0.6875rem;font-weight:600;color:var(--on-surface-var);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.25rem;">Analyzing</p>
-        <p style="font-size:0.875rem;font-weight:700;color:var(--primary);word-break:break-all;margin:0;">{domain || auditUrl || '—'}</p>
+  <nav style="padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:center;max-width:72rem;margin:0 auto;">
+    <a href="/en/" style="display:inline-flex;align-items:center;text-decoration:none;">
+      <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:2rem;width:auto;filter:brightness(10);" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+      <span style="display:none;font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">AION</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:8px;height:8px;border-radius:50%;background:#69ff87;animation:pulse-dot 1.4s ease-in-out infinite;"></div>
+      <span style="font-size:0.75rem;color:rgba(255,255,255,0.55);font-weight:500;letter-spacing:0.04em;">Analysis active</span>
+    </div>
+  </nav>
+
+  <div class="hero-section-inner" style="max-width:72rem;margin:0 auto;padding:1.5rem 2rem 4rem;">
+
+    <div id="proc-card">
+
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:1.75rem;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#3ce36a;animation:pulse-dot 1.2s ease-in-out infinite;display:inline-block;"></span>
+        Analysis in progress
       </div>
 
-      <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0 0 1rem;">
-        <span id="sidebar-count">0</span> / {MODULES.length} modules
-      </p>
+      <h1 class="hero-headline" style="font-size:clamp(2rem,4.5vw,3.25rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.1;margin:0 0 0.875rem;max-width:36rem;">
+        Analyzing your digital<br/>
+        <span style="color:#69ff87;">infrastructure.</span>
+      </h1>
 
-      <nav class="sidebar-modules-nav" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.0625rem;">
-        {MODULES.map(m => (
-          <div class="mod-nav-item" id={`nav-${m.key}`}>
-            <span class="mod-nav-dot"></span>
-            <span>{m.label}</span>
-          </div>
-        ))}
-      </nav>
+      {domain && (
+        <p style="font-size:0.9375rem;color:rgba(183,196,255,0.65);font-family:'Inter',monospace;margin:0 0 2.5rem;letter-spacing:0.01em;">{domain}</p>
+      )}
 
-      <div id="sidebar-cta" style="display:none;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid rgba(195,198,206,0.3);">
-        <a id="sidebar-report-link" href="#"
-          style="display:block;background:var(--tertiary-fixed);color:#001905;border-radius:0.375rem;padding:0.75rem 1rem;font-weight:700;font-size:0.875rem;text-align:center;text-decoration:none;">
-          View full report →
-        </a>
+      <div style="max-width:44rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.5rem;">
+          <p id="progress-narrative" style="font-size:0.875rem;color:rgba(255,255,255,0.55);margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity 0.3s;line-height:1.5;"></p>
+          <span id="progress-pct" style="font-size:0.875rem;color:#69ff87;font-weight:700;font-variant-numeric:tabular-nums;margin-left:1rem;flex-shrink:0;letter-spacing:0.02em;">0%</span>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:9999px;overflow:hidden;margin-bottom:2rem;">
+          <div id="progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,#69ff87,#3ce36a);transition:width 0.7s ease;border-radius:9999px;"></div>
+        </div>
+        <div id="current-module" style="display:inline-flex;align-items:center;gap:0.75rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.08);border-radius:9999px;padding:0.625rem 1.125rem;">
+          <span class="mod-spinner"></span>
+          <span id="current-module-label" style="font-size:0.8125rem;color:rgba(255,255,255,0.8);font-weight:500;">Starting…</span>
+        </div>
       </div>
-    </aside>
 
-    <!-- ═══ MAIN CONTENT ═══ -->
-    <main class="audit-main">
-      <div style="width:100%;max-width:540px;">
+    </div>
 
-        <!-- PROCESSING CARD -->
-        <div id="proc-card" class="proc-card">
-          <div style="margin-bottom:1.5rem;">
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-              <div style="width:8px;height:8px;border-radius:50%;background:var(--primary);animation:pulse-dot 1.2s ease-in-out infinite;flex-shrink:0;"></div>
-              <p style="font-size:0.6875rem;font-weight:600;color:var(--on-surface-var);text-transform:uppercase;letter-spacing:0.06em;margin:0;">Analysis in progress</p>
-            </div>
-            <h1 style="font-size:1.375rem;font-weight:800;color:var(--primary);margin:0 0 0.25rem;line-height:1.25;">Analyzing your digital presence</h1>
-            {domain && <p style="font-size:0.8125rem;color:var(--on-surface-var);font-family:monospace;margin:0;">{domain}</p>}
-          </div>
-
-          <div style="margin-bottom:1.5rem;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.375rem;">
-              <p id="progress-narrative" style="font-size:0.8125rem;color:var(--on-surface-var);margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity 0.3s;"></p>
-              <span id="progress-pct" style="font-size:0.8125rem;color:var(--primary);font-weight:600;font-variant-numeric:tabular-nums;margin-left:0.75rem;flex-shrink:0;">0%</span>
-            </div>
-            <div style="height:4px;background:var(--surface-low);border-radius:9999px;overflow:hidden;">
-              <div id="progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,var(--primary),#1a4bcc);transition:width 0.7s ease;border-radius:9999px;"></div>
-            </div>
-          </div>
-
-          <div id="current-module" style="display:flex;align-items:center;gap:0.625rem;background:var(--surface-low);border-radius:0.5rem;padding:0.75rem 1rem;">
-            <span class="mod-spinner"></span>
-            <span id="current-module-label" style="font-size:0.875rem;color:var(--primary);font-weight:500;">Starting…</span>
-          </div>
-        </div>
-
-        <!-- COMPLETION CARD -->
-        <div id="complete-card" style="display:none;background:#fff;border-radius:1rem;box-shadow:var(--shadow);padding:2.5rem;margin-top:1.25rem;text-align:center;">
-          <div style="width:3rem;height:3rem;border-radius:50%;background:#e6ffd4;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.25rem;font-weight:700;color:#1a6b00;">✓</div>
-          <p style="font-size:1.125rem;font-weight:700;color:var(--primary);margin:0 0 0.5rem;">Analysis complete!</p>
-          <p style="color:var(--on-surface-var);margin:0 0 1.5rem;font-size:0.9rem;">Your report is ready.</p>
-          <a id="report-btn" href="#"
-            style="display:inline-block;background:var(--tertiary-fixed);color:#001905;border-radius:0.375rem;padding:0.875rem 2rem;font-weight:700;text-decoration:none;font-size:0.9375rem;">
-            View full report →
-          </a>
-        </div>
-
-        <!-- ERROR STATE -->
-        <div id="error-state" style="display:none;text-align:center;padding:4rem 2rem;">
-          <div style="width:3.5rem;height:3.5rem;margin:0 auto 1rem;border-radius:50%;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);display:flex;align-items:center;justify-content:center;">
-            <svg width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-          </div>
-          <h2 style="font-size:1.125rem;font-weight:700;color:var(--primary);margin:0 0 0.5rem;">Analysis could not be completed</h2>
-          <p style="color:var(--on-surface-var);font-size:0.9rem;margin:0 0 1.5rem;">An error occurred while analyzing your website. Please try again.</p>
-          <a href="/en/diagnostic"
-            style="display:inline-block;background:var(--primary);color:#fff;border-radius:0.375rem;padding:0.75rem 1.5rem;font-weight:600;text-decoration:none;font-size:0.9rem;">
-            New analysis
-          </a>
-        </div>
-
+    <div id="complete-card" style="display:none;">
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:1.75rem;">
+        <span class="material-symbols-outlined" style="font-size:14px;color:#3ce36a;">check_circle</span>
+        Analysis complete
       </div>
-    </main>
+      <h2 style="font-size:clamp(2rem,4.5vw,3.25rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.1;margin:0 0 1rem;">
+        Your report is ready!
+      </h2>
+      <p style="font-size:1rem;color:rgba(221,225,255,0.55);margin:0 0 2rem;font-weight:300;">Redirecting to your full report…</p>
+      <a id="report-btn" href="#"
+        style="display:inline-flex;align-items:center;gap:0.5rem;background:#69ff87;color:#001905;border-radius:0.375rem;padding:0.875rem 1.75rem;font-weight:700;font-size:0.75rem;text-decoration:none;text-transform:uppercase;letter-spacing:0.1em;transition:filter 0.2s;"
+        onmouseover="this.style.filter='brightness(1.08)'" onmouseout="this.style.filter='none'">
+        View full report →
+      </a>
+    </div>
+
+    <div id="sidebar-cta" style="display:none;">
+      <a id="sidebar-report-link" href="#"></a>
+    </div>
+
   </div>
+</section>
+
+<!-- LIGHT MODULES SECTION -->
+<section style="background:#edf4ff;">
+  <div class="modules-section-inner" style="max-width:72rem;margin:0 auto;padding:3.5rem 2rem 4rem;">
+
+    <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:2.5rem;">
+      <span style="font-size:0.6875rem;font-weight:600;color:#43474d;text-transform:uppercase;letter-spacing:0.2em;">Analysis modules</span>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+        <h2 style="font-size:1.75rem;font-weight:800;color:#000e41;letter-spacing:-0.02em;margin:0;">19 diagnostic checkpoints</h2>
+        <p style="font-size:0.875rem;color:#43474d;margin:0;font-weight:500;">
+          <span id="sidebar-count" style="font-weight:800;color:#000e41;">0</span>
+          <span style="color:#43474d;"> / {MODULES.length} completed</span>
+        </p>
+      </div>
+      <p style="font-size:0.9rem;color:#43474d;margin:0;max-width:40rem;line-height:1.6;">Complete analysis of your digital presence: organic SEO, AI visibility, performance, social media and growth opportunities.</p>
+    </div>
+
+    <div class="modules-grid">
+      {MODULES.map(m => (
+        <div class="module-card" id={`card-${m.key}`}>
+          <div class="module-icon-wrap">
+            <span class="material-symbols-outlined">{m.icon}</span>
+          </div>
+          <p class="module-name">{m.label}</p>
+          <span class="module-status-dot"></span>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+<!-- ERROR STATE -->
+<div id="error-state" style="display:none;background:#000e41;padding:6rem 2rem;text-align:center;">
+  <div style="width:3.5rem;height:3.5rem;margin:0 auto 1.5rem;border-radius:50%;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;">
+    <svg width="24" height="24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+  </div>
+  <h2 style="font-size:1.25rem;font-weight:700;color:#fff;margin:0 0 0.5rem;">The analysis could not be completed</h2>
+  <p style="color:rgba(255,255,255,0.5);font-size:0.9rem;margin:0 0 2rem;max-width:28rem;margin-left:auto;margin-right:auto;">An error occurred while analyzing your website. Please try again.</p>
+  <a href="/en/diagnostic"
+    style="display:inline-block;background:#69ff87;color:#001905;border-radius:0.375rem;padding:0.75rem 1.75rem;font-weight:700;font-size:0.75rem;text-decoration:none;text-transform:uppercase;letter-spacing:0.1em;">
+    New analysis
+  </a>
+</div>
 
 </Layout>
 
@@ -264,17 +297,17 @@ const MODULES = [
     sector:              'Identifying sector and market positioning…',
     content:             'Analyzing value proposition and message clarity…',
     geo:                 'Testing visibility in ChatGPT, Perplexity and other AI engines…',
-    gbp:                 'Finding and auditing Google Business Profile…',
+    gbp:                 'Searching and auditing Google Business Profile…',
     traffic:             'Estimating traffic volume and annual trend…',
-    seo:                 'Counting keywords in Google top 10 and measuring domain authority…',
-    seo_pages:           'Identifying pages generating the most organic traffic…',
-    competitors:         'Mapping the competitive landscape…',
+    seo:                 'Counting top 10 keywords and measuring domain authority…',
+    seo_pages:           'Identifying pages that generate the most organic traffic…',
+    competitors:         'Mapping the competitive landscape of the sector…',
     competitor_traffic:  'Comparing your traffic and keywords with direct competitors…',
-    keyword_gap:         'Finding where competitors rank but you don\'t…',
+    keyword_gap:         'Finding where competitors rank and you do not appear…',
     instagram:           'Analyzing social media presence and engagement…',
     linkedin:            'Auditing professional authority on LinkedIn…',
     techstack:           'Detecting marketing, analytics and conversion tools…',
-    conversion:          'Evaluating lead capture and conversion funnel…',
+    conversion:          'Evaluating lead capture elements and conversion funnel…',
     score:               'Calculating digital health score…',
     insights:            'Generating personalized executive diagnosis…',
   };
@@ -301,21 +334,23 @@ const MODULES = [
   }
 
   function markModule(key, state) {
-    const navEl = document.getElementById(`nav-${key}`);
-    if (navEl) {
-      navEl.classList.remove('running', 'done');
-      if (state === 'done') navEl.classList.add('done');
-      else if (state === 'running') navEl.classList.add('running');
+    const cardEl = document.getElementById(`card-${key}`);
+    if (cardEl) {
+      cardEl.classList.remove('running', 'done');
+      if (state === 'done') cardEl.classList.add('done');
+      else if (state === 'running') cardEl.classList.add('running');
     }
+
+    if (state === 'running') {
+      document.querySelectorAll('.module-card.running').forEach(el => {
+        if (el.id !== `card-${key}`) el.classList.remove('running');
+      });
+    }
+
     if (state === 'done') {
-      const count = document.querySelectorAll('.mod-nav-item.done').length;
+      const count = document.querySelectorAll('.module-card.done').length;
       const countEl = document.getElementById('sidebar-count');
       if (countEl) countEl.textContent = count;
-    }
-    if (state === 'running') {
-      document.querySelectorAll('.mod-nav-item.running').forEach(el => {
-        if (el.id !== `nav-${key}`) el.classList.remove('running');
-      });
     }
   }
 

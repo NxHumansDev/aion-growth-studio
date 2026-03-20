@@ -4,376 +4,363 @@ import Layout from '../../layouts/Layout.astro';
 const lang = 'en';
 ---
 
-<Layout title="Free Digital Visibility Diagnostic — AION" description="Analyze your digital presence for free in 2 minutes. Get a full report with score, AI visibility and real growth opportunities." lang={lang}>
+<Layout title="Free Digital Visibility Audit — AION" description="Analyze your digital presence for free in 2 minutes. Get a full report with score, AI visibility and real growth opportunities." lang={lang}>
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
 
 <style>
-  :root {
-    --surface: #f7f9ff;
-    --surface-low: #edf4ff;
-    --surface-high: #d8eaff;
-    --primary: #000e41;
-    --primary-cont: #001f70;
-    --on-surface: #001d32;
-    --on-surface-var: #43474d;
-    --tertiary-fixed: #69ff87;
-    --shadow: 0 12px 40px rgba(0,29,50,0.06);
-  }
   *, *::before, *::after { box-sizing: border-box; }
-  body { background: var(--surface) !important; color: var(--on-surface); font-family: 'Inter', system-ui, sans-serif; margin: 0; }
+  body {
+    background: #000e41 !important;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+  }
   .hidden { display: none !important; }
 
-  .audit-shell {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    min-height: 100vh;
-    background: var(--surface);
-  }
-  .audit-sidebar {
-    background: var(--surface-low);
-    padding: 2rem 1.5rem;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  .audit-main {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 3.5rem 3rem;
-    background: var(--surface);
-  }
-  .step-card {
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: var(--shadow);
-    padding: 2.5rem;
-    width: 100%;
-    max-width: 540px;
-  }
-  .step-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
+  .glass-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 0.5rem;
-    margin-bottom: 0.375rem;
     transition: background 0.2s;
-    cursor: default;
   }
-  .step-nav-item.active { background: var(--surface-high); }
-  .step-nav-num {
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    flex-shrink: 0;
-    background: rgba(195,198,206,0.3);
-    color: var(--on-surface-var);
-    transition: background 0.2s, color 0.2s;
+  .glass-card-accent {
+    background: rgba(0,31,112,0.7);
+    border: 1px solid rgba(105,255,135,0.18);
+    border-radius: 0.5rem;
   }
-  .step-nav-item.active .step-nav-num {
-    background: linear-gradient(135deg, var(--primary), var(--primary-cont));
-    color: #fff;
-  }
-  .step-nav-item.done .step-nav-num { background: #e6ffd4; color: #1a6b00; }
-  .field-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--on-surface);
-    margin-bottom: 0.5rem;
-  }
+
   .field-input {
     width: 100%;
-    padding: 0.75rem 1rem;
-    background: var(--surface-low);
+    padding: 0.875rem 1.125rem;
+    background: rgba(255,255,255,0.1);
     border: none;
-    outline: none;
     border-radius: 0.375rem;
-    font-size: 0.9375rem;
-    color: var(--on-surface);
-    font-family: inherit;
-    transition: background 0.15s, box-shadow 0.15s;
-  }
-  .field-input:focus { background: #fff; box-shadow: 0 0 0 2px rgba(0,14,65,0.4); }
-  .field-input::placeholder { color: #9ca3af; }
-  .btn-primary {
-    display: block;
-    width: 100%;
-    padding: 0.875rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-cont) 100%);
     color: #fff;
-    font-weight: 600;
     font-size: 0.9375rem;
-    border: none;
-    border-radius: 0.375rem;
-    cursor: pointer;
     font-family: inherit;
-    transition: opacity 0.2s, transform 0.15s;
+    outline: none;
+    transition: background 0.2s, box-shadow 0.2s;
   }
-  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .btn-cta {
+  .field-input:focus {
+    background: rgba(255,255,255,0.16);
+    box-shadow: 0 0 0 2px rgba(105,255,135,0.45);
+  }
+  .field-input::placeholder { color: rgba(255,255,255,0.28); }
+
+  .field-label {
     display: block;
-    width: 100%;
-    padding: 0.875rem;
-    background: var(--tertiary-fixed);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgba(221,225,255,0.75);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-cta {
+    padding: 0.875rem 1.75rem;
+    background: #69ff87;
     color: #001905;
     font-weight: 700;
-    font-size: 0.9375rem;
+    font-size: 0.6875rem;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     border: none;
     border-radius: 0.375rem;
     cursor: pointer;
-    font-family: inherit;
-    transition: opacity 0.2s, transform 0.15s;
+    transition: filter 0.2s, transform 0.15s;
+    white-space: nowrap;
   }
-  .btn-cta:hover { opacity: 0.9; transform: translateY(-1px); }
-  .btn-cta:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-cta:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .btn-cta-full { display: block; width: 100%; text-align: center; }
+
   .btn-ghost {
     display: block;
     width: 100%;
     padding: 0.875rem;
     background: transparent;
-    color: var(--primary);
-    font-weight: 500;
-    font-size: 0.9375rem;
-    border: 1px solid rgba(195,198,206,0.5);
+    color: rgba(255,255,255,0.6);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    border: 1px solid rgba(255,255,255,0.14);
     border-radius: 0.375rem;
     cursor: pointer;
-    font-family: inherit;
-    transition: background 0.2s;
-  }
-  .btn-ghost:hover { background: var(--surface-low); }
-  .competitor-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: 0.5rem;
-    background: var(--surface-low);
-    cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
-    margin-bottom: 8px;
-  }
-  .competitor-card:hover { background: var(--surface-high); }
-  .competitor-card.selected { background: var(--surface-high); box-shadow: 0 0 0 2px var(--primary); }
-  .benefit-card {
-    padding: 1rem 0.75rem;
-    background: var(--surface-low);
-    border-radius: 0.5rem;
+    transition: background 0.2s, color 0.2s;
     text-align: center;
   }
+  .btn-ghost:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .step-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3125rem 0.875rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.28);
+    transition: background 0.3s, color 0.3s;
+  }
+  .step-chip.active { background: #00300e; color: #3ce36a; }
+  .step-chip.done { background: rgba(0,48,14,0.5); color: rgba(60,227,106,0.55); }
+
   .error-box {
     display: none;
-    margin-top: 1rem;
-    padding: 0.875rem 1rem;
-    background: rgba(239,68,68,0.07);
+    margin-top: 0.875rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239,68,68,0.1);
     border-left: 3px solid #ef4444;
     border-radius: 0 0.375rem 0.375rem 0;
     font-size: 0.875rem;
-    color: #b91c1c;
+    color: #fca5a5;
+    line-height: 1.5;
   }
-  @media (max-width: 768px) {
-    .audit-shell { grid-template-columns: 1fr; }
-    .audit-sidebar { height: auto; position: relative; padding: 1rem 1.25rem 0.75rem; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
-    .sidebar-steps-nav { display: flex !important; flex-direction: row; gap: 0.375rem; }
-    .sidebar-bottom-note { display: none; }
-    .sidebar-brand { margin-bottom: 0 !important; }
-    .audit-main { padding: 1.5rem 1.25rem; }
-    .step-card { padding: 1.75rem 1.25rem; }
+
+  .competitor-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.5rem;
+    background: rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    margin-bottom: 0.5rem;
+  }
+  .competitor-card:hover { background: rgba(255,255,255,0.09); }
+  .competitor-card.selected {
+    background: rgba(105,255,135,0.08);
+    box-shadow: 0 0 0 1.5px rgba(105,255,135,0.4);
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+    user-select: none;
+    line-height: 1;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.6); opacity: 0.5; }
+  }
+
+  @media (max-width: 600px) {
+    .url-input-row { flex-direction: column !important; }
+    .url-input-row .btn-cta { width: 100%; padding: 0.875rem; }
+    .benefit-grid { grid-template-columns: 1fr 1fr !important; }
   }
 </style>
 
-  <div class="audit-shell">
+<div style="min-height:100vh;background:linear-gradient(135deg,#000e41 0%,#001260 50%,#000e41 100%);">
 
-    <!-- ═══ LEFT SIDEBAR ═══ -->
-    <aside class="audit-sidebar">
-      <div class="sidebar-brand" style="margin-bottom:2.5rem;">
-        <a href="/en/" style="display:inline-block;margin-bottom:0.75rem;">
-          <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:1.75rem;width:auto;" />
-        </a>
-        <p style="font-size:0.6875rem;font-weight:600;color:var(--on-surface-var);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.125rem;">Digital Audit</p>
-        <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;">Free analysis · 2 min</p>
+  <!-- TOP NAV -->
+  <nav style="padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:center;max-width:72rem;margin:0 auto;">
+    <a href="/en/" style="display:inline-flex;align-items:center;text-decoration:none;">
+      <img src="/logo-aion-dark.png" alt="AION Growth Studio" style="height:2rem;width:auto;filter:brightness(10);" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+      <span style="display:none;font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">AION</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:1.5rem;">
+      <a href="/es/diagnostico" style="font-size:0.75rem;font-weight:400;color:rgba(255,255,255,0.3);letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;">ES</a>
+      <span style="color:rgba(255,255,255,0.2);font-size:0.75rem;">|</span>
+      <a href="/en/diagnostic" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;">EN</a>
+    </div>
+  </nav>
+
+  <div style="max-width:64rem;margin:0 auto;padding:1.5rem 2rem 5rem;">
+
+    <!-- STEP CHIPS -->
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:3.5rem;">
+      <div class="step-chip active" id="chip-1">
+        <span class="material-symbols-outlined" style="font-size:12px;">language</span>
+        01 — Your website
+      </div>
+      <div class="step-chip" id="chip-2">
+        <span class="material-symbols-outlined" style="font-size:12px;">person</span>
+        02 — Your details
+      </div>
+      <div class="step-chip" id="chip-3">
+        <span class="material-symbols-outlined" style="font-size:12px;">groups</span>
+        03 — Competitors
+      </div>
+    </div>
+
+    <!-- STEP 1: URL -->
+    <div id="step-1">
+
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:2rem;">
+        <span class="material-symbols-outlined" style="font-size:14px;color:#3ce36a;">bolt</span>
+        Free · No signup required · 2 minutes
       </div>
 
-      <nav id="step-nav" class="sidebar-steps-nav" style="display:flex;flex-direction:column;">
-        <div class="step-nav-item active" id="step-nav-1" data-n="1">
-          <div class="step-nav-num" id="step-nav-num-1">1</div>
-          <div>
-            <p style="font-size:0.875rem;font-weight:600;color:var(--on-surface);margin:0 0 0.1rem;">Your website</p>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;">The URL to analyze</p>
-          </div>
-        </div>
-        <div class="step-nav-item" id="step-nav-2" data-n="2">
-          <div class="step-nav-num" id="step-nav-num-2">2</div>
-          <div>
-            <p style="font-size:0.875rem;font-weight:600;color:var(--on-surface);margin:0 0 0.1rem;">Your details</p>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;">Name and email</p>
-          </div>
-        </div>
-        <div class="step-nav-item" id="step-nav-3" data-n="3">
-          <div class="step-nav-num" id="step-nav-num-3">3</div>
-          <div>
-            <p style="font-size:0.875rem;font-weight:600;color:var(--on-surface);margin:0 0 0.1rem;">Competitors</p>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;">Optional</p>
-          </div>
-        </div>
-      </nav>
+      <h1 style="font-size:clamp(2.25rem,5vw,3.75rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.08;margin:0 0 1.25rem;max-width:36rem;">
+        Analyze your digital presence.<br/>
+        <span style="color:#69ff87;">Get your score<br/>in minutes.</span>
+      </h1>
 
-      <div class="sidebar-bottom-note" style="margin-top:auto;padding-top:2rem;">
-        <p style="font-size:0.75rem;color:var(--on-surface-var);line-height:1.6;margin:0 0 1rem;">
-          No credit card.<br/>No spam.
-        </p>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-          <a href="/es/diagnostico" style="font-size:0.75rem;color:var(--on-surface-var);text-decoration:none;">ES</a>
-          <span style="color:var(--on-surface-var);font-size:0.75rem;">|</span>
-          <a href="/en/diagnostic" style="font-size:0.75rem;font-weight:700;color:var(--primary);text-decoration:none;">EN</a>
+      <p style="font-size:1.0625rem;color:rgba(221,225,255,0.6);line-height:1.75;max-width:36rem;margin:0 0 3rem;font-weight:300;">
+        Full report with digital health score, AI visibility in ChatGPT and Perplexity, web performance and real growth opportunities.
+      </p>
+
+      <!-- 2×2 Bento benefit cards -->
+      <div class="benefit-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.875rem;max-width:52rem;margin-bottom:2.75rem;">
+
+        <div class="glass-card" style="padding:1.375rem;">
+          <div style="width:2.5rem;height:2.5rem;background:rgba(105,255,135,0.1);border-radius:0.375rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+            <span class="material-symbols-outlined" style="color:#69ff87;font-size:20px;">analytics</span>
+          </div>
+          <p style="font-size:0.875rem;font-weight:700;color:#fff;margin:0 0 0.25rem;line-height:1.2;">Digital Score</p>
+          <p style="font-size:0.725rem;color:rgba(255,255,255,0.4);margin:0;line-height:1.4;">0–100 rating</p>
         </div>
+
+        <div class="glass-card-accent" style="padding:1.375rem;">
+          <div style="width:2.5rem;height:2.5rem;background:rgba(105,255,135,0.12);border-radius:0.375rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+            <span class="material-symbols-outlined" style="color:#69ff87;font-size:20px;">smart_toy</span>
+          </div>
+          <p style="font-size:0.875rem;font-weight:700;color:#fff;margin:0 0 0.25rem;line-height:1.2;">AI Visibility</p>
+          <p style="font-size:0.725rem;color:rgba(105,255,135,0.55);margin:0;line-height:1.4;">ChatGPT · Perplexity</p>
+        </div>
+
+        <div class="glass-card" style="padding:1.375rem;">
+          <div style="width:2.5rem;height:2.5rem;background:rgba(183,196,255,0.12);border-radius:0.375rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+            <span class="material-symbols-outlined" style="color:#b7c4ff;font-size:20px;">speed</span>
+          </div>
+          <p style="font-size:0.875rem;font-weight:700;color:#fff;margin:0 0 0.25rem;line-height:1.2;">Web Performance</p>
+          <p style="font-size:0.725rem;color:rgba(255,255,255,0.4);margin:0;line-height:1.4;">Core Web Vitals</p>
+        </div>
+
+        <div class="glass-card" style="padding:1.375rem;">
+          <div style="width:2.5rem;height:2.5rem;background:rgba(183,196,255,0.12);border-radius:0.375rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+            <span class="material-symbols-outlined" style="color:#b7c4ff;font-size:20px;">trending_up</span>
+          </div>
+          <p style="font-size:0.875rem;font-weight:700;color:#fff;margin:0 0 0.25rem;line-height:1.2;">Opportunities</p>
+          <p style="font-size:0.725rem;color:rgba(255,255,255,0.4);margin:0;line-height:1.4;">Action plan</p>
+        </div>
+
       </div>
-    </aside>
 
-    <!-- ═══ MAIN CONTENT ═══ -->
-    <main class="audit-main">
-
-      <!-- STEP 1: URL -->
-      <div id="step-1" class="step-card">
-        <div style="margin-bottom:1.75rem;">
-          <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.35rem 0.875rem;background:var(--surface-high);border-radius:9999px;font-size:0.6875rem;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem;">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--primary);display:inline-block;flex-shrink:0;"></span>
-            Free · No signup · 2 minutes
-          </div>
-          <h1 style="font-size:1.625rem;font-weight:800;color:var(--primary);margin:0 0 0.75rem;line-height:1.2;">Analyze your digital visibility</h1>
-          <p style="font-size:0.9rem;color:var(--on-surface-var);line-height:1.65;margin:0;">Get a full report with score, web performance, AI visibility and growth opportunities.</p>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.75rem;">
-          <div class="benefit-card">
-            <svg width="22" height="22" fill="none" stroke="var(--primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="margin:0 auto 0.5rem;display:block;"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;font-weight:500;">Digital Score</p>
-          </div>
-          <div class="benefit-card">
-            <svg width="22" height="22" fill="none" stroke="var(--primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="margin:0 auto 0.5rem;display:block;"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;font-weight:500;">AI Visibility</p>
-          </div>
-          <div class="benefit-card">
-            <svg width="22" height="22" fill="none" stroke="var(--primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="margin:0 auto 0.5rem;display:block;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;font-weight:500;">Web Performance</p>
-          </div>
-          <div class="benefit-card">
-            <svg width="22" height="22" fill="none" stroke="var(--primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="margin:0 auto 0.5rem;display:block;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;font-weight:500;">Opportunities</p>
-          </div>
-        </div>
-
-        <div style="margin-bottom:1.25rem;">
-          <label for="url" class="field-label">Your website *</label>
-          <div style="position:relative;">
-            <input type="text" id="url" name="url" required placeholder="example.com"
-              class="field-input"
-              inputmode="url" autocomplete="url" />
-            <span id="url-status" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);font-size:0.875rem;font-weight:600;"></span>
-          </div>
-          <p id="url-feedback" style="font-size:0.75rem;margin-top:0.375rem;display:none;"></p>
-        </div>
-
+      <div class="url-input-row" style="display:flex;gap:0.75rem;max-width:44rem;margin-bottom:0.875rem;align-items:stretch;">
+        <input type="text" id="url" name="url" required
+          placeholder="your-company.com"
+          class="field-input"
+          inputmode="url" autocomplete="url"
+          style="flex:1;font-size:1rem;" />
         <button id="btn-step1" type="button" class="btn-cta" aria-label="Analyze my website">
           Analyze my website →
         </button>
-
-        <div id="error-step1" class="error-box" role="alert"></div>
-
-        <p style="text-align:center;font-size:0.75rem;color:var(--on-surface-var);margin-top:1.25rem;">
-          By continuing you accept our <a href="/en/" style="color:var(--primary);text-decoration:underline;">privacy policy</a>
-        </p>
       </div>
 
-      <!-- STEP 2: Name + Email -->
-      <div id="step-2" class="step-card hidden">
-        <div style="margin-bottom:1.75rem;">
-          <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.35rem 0.875rem;background:#e6ffd4;border-radius:9999px;font-size:0.6875rem;font-weight:600;color:#1a6b00;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem;">
-            <svg width="12" height="12" fill="#1a6b00" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-            Your site is being analyzed
-          </div>
-          <h2 style="font-size:1.5rem;font-weight:800;color:var(--primary);margin:0 0 0.75rem;">Receive results by email</h2>
-          <p style="font-size:0.9rem;color:var(--on-surface-var);line-height:1.65;margin:0;">We'll send you a detailed report with personalized recommendations. What's your name?</p>
-        </div>
+      <div id="url-feedback-row" style="display:none;font-size:0.75rem;margin-bottom:0.5rem;max-width:44rem;"></div>
+      <div id="error-step1" class="error-box" style="max-width:44rem;"></div>
 
+      <p style="font-size:0.6875rem;color:rgba(255,255,255,0.2);margin-top:1.25rem;letter-spacing:0.02em;">
+        By continuing you accept our <a href="/en/" style="color:rgba(255,255,255,0.35);text-decoration:underline;">privacy policy</a>
+      </p>
+
+    </div>
+
+    <!-- STEP 2: Name + Email -->
+    <div id="step-2" class="hidden">
+
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:2rem;">
+        <span class="material-symbols-outlined" style="font-size:14px;color:#3ce36a;">check_circle</span>
+        Your website is being analyzed
+      </div>
+
+      <h2 style="font-size:clamp(1.875rem,4vw,3rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.1;margin:0 0 1.125rem;max-width:32rem;">
+        Receive the full report<br/>
+        <span style="color:#69ff87;">by email.</span>
+      </h2>
+
+      <p style="font-size:1rem;color:rgba(221,225,255,0.55);line-height:1.75;max-width:32rem;margin:0 0 2.5rem;font-weight:300;">
+        Detailed analysis with personalized recommendations. We only need your name and business email.
+      </p>
+
+      <div class="glass-card" style="max-width:36rem;padding:2rem;">
         <div style="margin-bottom:1.25rem;">
           <label for="name" class="field-label">Your name *</label>
           <input type="text" id="name" name="name" required placeholder="John Smith"
             class="field-input" autocomplete="name" />
         </div>
-        <div style="margin-bottom:1.5rem;">
-          <label for="email" class="field-label">Your email *</label>
+        <div style="margin-bottom:1.75rem;">
+          <label for="email" class="field-label">Business email *</label>
           <input type="email" id="email" name="email" required placeholder="john@company.com"
             class="field-input" autocomplete="email" />
-          <p id="email-feedback" style="font-size:0.75rem;margin-top:0.375rem;display:none;"></p>
+          <p id="email-feedback" style="font-size:0.75rem;margin-top:0.375rem;display:none;color:rgba(255,255,255,0.5);"></p>
         </div>
 
-        <button id="btn-step2" type="button" class="btn-primary" aria-label="Continue">
+        <button id="btn-step2" type="button" class="btn-cta btn-cta-full" aria-label="Continue">
           Continue →
         </button>
 
-        <div id="error-step2" class="error-box" role="alert"></div>
+        <div id="error-step2" class="error-box"></div>
 
-        <p style="text-align:center;font-size:0.75rem;color:var(--on-surface-var);margin-top:1.25rem;">
-          By continuing you accept our <a href="/en/" style="color:var(--primary);text-decoration:underline;">privacy policy</a>
+        <p style="text-align:center;font-size:0.6875rem;color:rgba(255,255,255,0.18);margin-top:1rem;">
+          By continuing you accept our <a href="/en/" style="color:rgba(255,255,255,0.32);text-decoration:underline;">privacy policy</a>
         </p>
       </div>
 
-      <!-- STEP 3: Competitors -->
-      <div id="step-3" class="step-card hidden">
-        <div style="margin-bottom:1.5rem;">
-          <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.35rem 0.875rem;background:#e6ffd4;border-radius:9999px;font-size:0.6875rem;font-weight:600;color:#1a6b00;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem;">
-            <svg width="12" height="12" fill="#1a6b00" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-            Details saved
-          </div>
-          <h2 style="font-size:1.5rem;font-weight:800;color:var(--primary);margin:0 0 0.75rem;">Who do you compete with?</h2>
-          <p style="font-size:0.9rem;color:var(--on-surface-var);line-height:1.65;margin:0;">Add 1-3 competitors to see how you compare in visibility, rankings and digital strategy. (Optional)</p>
-        </div>
+    </div>
 
-        <div id="competitor-list" style="margin-bottom:1.25rem;"></div>
+    <!-- STEP 3: Competitors -->
+    <div id="step-3" class="hidden">
 
-        <div style="margin-bottom:1.25rem;padding:1.25rem;background:var(--surface-low);border-radius:0.625rem;">
-          <label class="field-label">Add competitors manually</label>
-          <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
-            <input type="text" id="manual-competitor-input" placeholder="competitor.com"
-              class="field-input" style="flex:1;"
-              inputmode="url" />
-            <button id="btn-add-competitor" type="button"
-              style="padding:0.75rem 1rem;background:var(--primary);color:#fff;font-size:0.875rem;font-weight:600;border:none;border-radius:0.375rem;cursor:pointer;font-family:inherit;white-space:nowrap;"
-              aria-label="Add competitor">
-              + Add
-            </button>
-          </div>
-          <div id="manual-competitors-list" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:0.75rem;">
-          <button id="btn-start-audit" type="button" class="btn-cta" aria-label="Start analysis">
-            Start analysis →
-          </button>
-          <button id="btn-skip-step3" type="button" class="btn-ghost" aria-label="Skip comparison">
-            Skip for now
-          </button>
-        </div>
-
-        <div id="error-step3" class="error-box" role="alert"></div>
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:2rem;">
+        <span class="material-symbols-outlined" style="font-size:14px;color:#3ce36a;">check_circle</span>
+        Details saved
       </div>
 
-    </main>
+      <h2 style="font-size:clamp(1.875rem,4vw,3rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.1;margin:0 0 1rem;max-width:32rem;">
+        Who do you compete with?
+      </h2>
+
+      <p style="font-size:1rem;color:rgba(221,225,255,0.55);line-height:1.75;max-width:38rem;margin:0 0 2rem;font-weight:300;">
+        Add 1–3 competitors to compare visibility, rankings and digital strategy. Comparative analysis is more accurate with market references. (Optional)
+      </p>
+
+      <div id="competitor-list" style="max-width:44rem;margin-bottom:1.25rem;"></div>
+
+      <div class="glass-card" style="max-width:44rem;padding:1.375rem;margin-bottom:2rem;">
+        <p class="field-label" style="margin-bottom:0.875rem;">Add competitors manually</p>
+        <div style="display:flex;gap:0.625rem;margin-bottom:0.75rem;">
+          <input type="text" id="manual-competitor-input" placeholder="competitor.com"
+            class="field-input" style="flex:1;"
+            inputmode="url" />
+          <button id="btn-add-competitor" type="button"
+            style="padding:0.75rem 1rem;background:#69ff87;color:#001905;font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;border:none;border-radius:0.375rem;cursor:pointer;font-family:inherit;white-space:nowrap;transition:filter 0.2s;"
+            onmouseover="this.style.filter='brightness(1.08)'" onmouseout="this.style.filter='none'"
+            aria-label="Add competitor">
+            + Add
+          </button>
+        </div>
+        <div id="manual-competitors-list" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:44rem;">
+        <button id="btn-start-audit" type="button" class="btn-cta btn-cta-full" style="padding:1rem;" aria-label="Start analysis">
+          Start full analysis →
+        </button>
+        <button id="btn-skip-step3" type="button" class="btn-ghost" aria-label="Skip comparison">
+          Skip for now
+        </button>
+      </div>
+
+      <div id="error-step3" class="error-box" style="max-width:44rem;margin-top:1rem;"></div>
+
+    </div>
+
   </div>
+</div>
 
 </Layout>
 
@@ -388,9 +375,9 @@ const lang = 'en';
     const list = document.getElementById('manual-competitors-list');
     if (!list) return;
     list.innerHTML = manualCompetitors.map(url => `
-      <div style="display:flex;align-items:center;gap:0.375rem;padding:0.375rem 0.75rem;background:#fff;border:1px solid rgba(195,198,206,0.4);border-radius:0.375rem;">
-        <span style="font-size:0.75rem;color:#001d32;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</span>
-        <button onclick="removeManualCompetitor('${url}')" style="color:#9ca3af;background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;margin-left:0.125rem;padding:0;">×</button>
+      <div style="display:flex;align-items:center;gap:0.375rem;padding:0.375rem 0.75rem;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.14);border-radius:0.375rem;">
+        <span style="font-size:0.75rem;color:rgba(255,255,255,0.85);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</span>
+        <button onclick="removeManualCompetitor('${url}')" style="color:rgba(255,255,255,0.35);background:none;border:none;cursor:pointer;font-size:1.125rem;line-height:1;margin-left:0.125rem;padding:0;">×</button>
       </div>
     `).join('');
   }
@@ -416,13 +403,11 @@ const lang = 'en';
 
   function updateStepNav(current: number) {
     [1, 2, 3].forEach(n => {
-      const item = document.getElementById(`step-nav-${n}`);
-      const num = document.getElementById(`step-nav-num-${n}`);
-      if (!item || !num) return;
-      item.classList.remove('active', 'done');
-      if (n === current) { item.classList.add('active'); num.textContent = String(n); }
-      else if (n < current) { item.classList.add('done'); num.textContent = '✓'; }
-      else { num.textContent = String(n); }
+      const chip = document.getElementById(`chip-${n}`);
+      if (!chip) return;
+      chip.classList.remove('active', 'done');
+      if (n === current) chip.classList.add('active');
+      else if (n < current) chip.classList.add('done');
     });
   }
 
@@ -432,6 +417,7 @@ const lang = 'en';
       const el = document.getElementById(`step-${i}`);
       if (el) el.classList.toggle('hidden', i !== n);
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function showError(id: string, msg: string) {
@@ -453,20 +439,21 @@ const lang = 'en';
   if (urlInput) {
     urlInput.addEventListener('input', () => {
       const value = urlInput.value.trim();
-      const feedback = document.getElementById('url-feedback') as HTMLElement;
-      const status = document.getElementById('url-status') as HTMLElement;
+      const feedbackRow = document.getElementById('url-feedback-row') as HTMLElement;
       if (value.length > 0) {
         const isValid = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value.replace(/^https?:\/\//, '').replace(/\/$/, ''));
-        if (isValid) {
-          if (feedback) { feedback.textContent = '✓ Valid URL'; feedback.style.color = '#16a34a'; feedback.style.display = 'block'; }
-          if (status) { status.textContent = '✓'; status.style.color = '#16a34a'; }
-        } else {
-          if (feedback) { feedback.textContent = 'Incorrect format (e.g. example.com)'; feedback.style.color = '#dc2626'; feedback.style.display = 'block'; }
-          if (status) { status.textContent = '✗'; status.style.color = '#dc2626'; }
+        if (feedbackRow) {
+          feedbackRow.style.display = 'block';
+          if (isValid) {
+            feedbackRow.textContent = '✓ Valid URL';
+            feedbackRow.style.color = '#3ce36a';
+          } else {
+            feedbackRow.textContent = 'Incorrect format (eg: example.com)';
+            feedbackRow.style.color = '#fca5a5';
+          }
         }
       } else {
-        if (feedback) feedback.style.display = 'none';
-        if (status) status.textContent = '';
+        if (feedbackRow) feedbackRow.style.display = 'none';
       }
     });
   }
@@ -476,7 +463,7 @@ const lang = 'en';
     const url = (document.getElementById('url') as HTMLInputElement).value.trim();
     if (!url) return showError('error-step1', 'Please enter your website URL.');
     const isValid = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
-    if (!isValid) return showError('error-step1', 'Please enter a valid URL (e.g. example.com).');
+    if (!isValid) return showError('error-step1', 'Please enter a valid URL (eg: example.com).');
     userData = { ...userData, url };
     showStep(2);
   });
@@ -488,41 +475,39 @@ const lang = 'en';
     if (!name) return showError('error-step2', 'Please enter your name.');
     if (!email || !email.includes('@')) return showError('error-step2', 'Please enter a valid email.');
     userData = { ...userData, name, email };
-    setBtn('btn-step2', 'Looking for competitors…', true);
+    setBtn('btn-step2', 'Finding competitors…', true);
 
     const listEl = document.getElementById('competitor-list');
     if (listEl) {
       listEl.innerHTML = `
-        <div style="padding:1rem 0;">
-          <div style="display:flex;flex-direction:column;gap:0.5rem;">
-            <div id="step-analyze" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:var(--surface-low);">
-              <div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;">
-                <div style="width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse-dot 1s infinite;"></div>
-              </div>
-              <span style="font-size:0.875rem;color:var(--on-surface);">Analyzing your site...</span>
+        <div style="padding:0.75rem 0;display:flex;flex-direction:column;gap:0.375rem;">
+          <div id="step-analyze" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:rgba(255,255,255,0.05);">
+            <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(105,255,135,0.6);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#69ff87;animation:pulse-dot 1s infinite;"></div>
             </div>
-            <div id="step-sector" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:var(--surface-low);opacity:0.4;">
-              <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(195,198,206,0.5);"></div>
-              <span style="font-size:0.875rem;color:var(--on-surface-var);">Identifying your sector</span>
-            </div>
-            <div id="step-competitors-anim" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:var(--surface-low);opacity:0.4;">
-              <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(195,198,206,0.5);"></div>
-              <span style="font-size:0.875rem;color:var(--on-surface-var);">Searching for competitors</span>
-            </div>
+            <span style="font-size:0.875rem;color:rgba(255,255,255,0.7);">Analyzing your website...</span>
+          </div>
+          <div id="step-sector" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:rgba(255,255,255,0.05);opacity:0.35;">
+            <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></div>
+            <span style="font-size:0.875rem;color:rgba(255,255,255,0.5);">Identifying your sector</span>
+          </div>
+          <div id="step-competitors-anim" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;background:rgba(255,255,255,0.05);opacity:0.35;">
+            <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></div>
+            <span style="font-size:0.875rem;color:rgba(255,255,255,0.5);">Finding competitors</span>
           </div>
         </div>
       `;
       setTimeout(() => {
         const s1 = document.getElementById('step-analyze');
         const s2 = document.getElementById('step-sector');
-        if (s1) s1.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;background:#e6ffd4;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" fill="#1a6b00" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div><span style="font-size:0.875rem;color:#1a6b00;font-weight:500;">Site analyzed</span>';
-        if (s2) { s2.style.opacity = '1'; s2.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;"><div style="width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse-dot 1s infinite;"></div></div><span style="font-size:0.875rem;color:var(--on-surface);">Identifying your sector...</span>'; }
+        if (s1) s1.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;background:rgba(105,255,135,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="10" height="10" fill="#3ce36a" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div><span style="font-size:0.875rem;color:#3ce36a;font-weight:500;">Website analyzed ✓</span>';
+        if (s2) { s2.style.opacity = '1'; s2.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(105,255,135,0.6);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:6px;height:6px;border-radius:50%;background:#69ff87;animation:pulse-dot 1s infinite;"></div></div><span style="font-size:0.875rem;color:rgba(255,255,255,0.7);">Identifying your sector...</span>'; }
       }, 1200);
       setTimeout(() => {
         const s2 = document.getElementById('step-sector');
         const s3 = document.getElementById('step-competitors-anim');
-        if (s2) s2.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;background:#e6ffd4;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" fill="#1a6b00" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div><span style="font-size:0.875rem;color:#1a6b00;font-weight:500;">Sector identified</span>';
-        if (s3) { s3.style.opacity = '1'; s3.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;"><div style="width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse-dot 1s infinite;"></div></div><span style="font-size:0.875rem;color:var(--on-surface);">Searching for competitors...</span>'; }
+        if (s2) s2.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;background:rgba(105,255,135,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="10" height="10" fill="#3ce36a" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div><span style="font-size:0.875rem;color:#3ce36a;font-weight:500;">Sector identified ✓</span>';
+        if (s3) { s3.style.opacity = '1'; s3.innerHTML = '<div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(105,255,135,0.6);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:6px;height:6px;border-radius:50%;background:#69ff87;animation:pulse-dot 1s infinite;"></div></div><span style="font-size:0.875rem;color:rgba(255,255,255,0.7);">Finding competitors...</span>'; }
       }, 2400);
     }
 
@@ -545,18 +530,18 @@ const lang = 'en';
     selectedCompetitors = [];
     if (listEl) {
       if (competitors.length === 0) {
-        listEl.innerHTML = `<p style="font-size:0.8125rem;color:var(--on-surface-var);text-align:center;padding:1rem 0;">No competitors detected automatically. You can add one manually below.</p>`;
+        listEl.innerHTML = `<p style="font-size:0.8125rem;color:rgba(255,255,255,0.4);padding:0.75rem 0;">No competitors were automatically detected. You can add one manually below.</p>`;
       } else {
         listEl.innerHTML = competitors.map((c: any, i: number) => `
           <div class="competitor-card" data-url="${c.url}" data-idx="${i}" onclick="toggleCompetitor(this)">
-            <div style="width:18px;height:18px;border-radius:4px;border:2px solid rgba(195,198,206,0.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" class="check-icon">
-              <svg class="check-mark" width="10" height="10" fill="var(--primary)" viewBox="0 0 20 20" style="display:none;">
+            <div style="width:18px;height:18px;border-radius:4px;border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" class="check-icon">
+              <svg class="check-mark" width="10" height="10" fill="#001905" viewBox="0 0 20 20" style="display:none;">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
               </svg>
             </div>
             <div style="flex:1;min-width:0;">
-              <p style="font-size:0.875rem;font-weight:600;color:var(--on-surface);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</p>
-              <p style="font-size:0.75rem;color:var(--on-surface-var);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.url}</p>
+              <p style="font-size:0.875rem;font-weight:600;color:#fff;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</p>
+              <p style="font-size:0.75rem;color:rgba(255,255,255,0.38);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.url}</p>
             </div>
           </div>
         `).join('');
@@ -571,12 +556,12 @@ const lang = 'en';
     const checkMark = el.querySelector('.check-mark') as HTMLElement;
     if (isSelected) {
       el.classList.remove('selected');
-      if (checkIcon) { checkIcon.style.background = ''; checkIcon.style.borderColor = 'rgba(195,198,206,0.5)'; }
+      if (checkIcon) { checkIcon.style.background = ''; checkIcon.style.borderColor = 'rgba(255,255,255,0.2)'; }
       if (checkMark) checkMark.style.display = 'none';
       selectedCompetitors = selectedCompetitors.filter(u => u !== url);
     } else {
       el.classList.add('selected');
-      if (checkIcon) { checkIcon.style.background = 'var(--surface-high)'; checkIcon.style.borderColor = 'var(--primary)'; }
+      if (checkIcon) { checkIcon.style.background = '#69ff87'; checkIcon.style.borderColor = '#69ff87'; }
       if (checkMark) checkMark.style.display = 'block';
       if (!selectedCompetitors.includes(url)) selectedCompetitors.push(url);
     }
@@ -598,12 +583,12 @@ const lang = 'en';
         window.location.href = `/en/audit/${result.audit_id}`;
       } else {
         showError('error-step3', result.error || 'An error occurred. Please try again.');
-        setBtn('btn-start-audit', 'Start analysis →', false);
+        setBtn('btn-start-audit', 'Start full analysis →', false);
         setBtn('btn-skip-step3', 'Skip for now', false);
       }
     } catch {
       showError('error-step3', 'Connection error. Please try again.');
-      setBtn('btn-start-audit', 'Start analysis →', false);
+      setBtn('btn-start-audit', 'Start full analysis →', false);
       setBtn('btn-skip-step3', 'Skip for now', false);
     }
   }
