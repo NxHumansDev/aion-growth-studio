@@ -8,74 +8,80 @@
   }
 
   body {
-    @apply text-on-surface bg-surface;
+    color: #001d32;
+    background-color: #f7f9ff;
   }
 
   /* Typography scale - Editorial Authority */
   h1, h2, h3 {
-    @apply tracking-editorial;
+    letter-spacing: -0.02em;
   }
   
   /* Body text with high line-height for readability */
   p {
-    @apply leading-body;
+    line-height: 1.6;
   }
 }
 
 @layer components {
   /* Primary CTA Button with gradient */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 bg-aion-gradient text-on-primary font-semibold rounded-md transition-all duration-300;
-    @apply hover:scale-105 hover:shadow-ambient;
+    @apply inline-flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-md transition-all duration-300;
+    background: linear-gradient(135deg, #000e41 0%, #001f70 100%);
+    @apply hover:scale-105;
+    box-shadow: 0 12px 40px rgba(0, 29, 50, 0.06);
   }
 
   /* Secondary/Ghost Button */
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-6 py-3 bg-transparent text-primary font-semibold rounded-md transition-all duration-300;
-    @apply border border-outline-variant/20 hover:border-primary/40;
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-transparent text-aion-dark font-semibold rounded-md transition-all duration-300;
+    @apply border border-outline-variant/20 hover:border-aion-dark/40;
   }
 
   /* Growth CTA with teal-green gradient */
   .btn-growth {
-    @apply inline-flex items-center gap-2 px-6 py-3 bg-growth-gradient text-on-surface font-semibold rounded-md transition-all duration-300;
-    @apply hover:scale-105 hover:shadow-ambient;
+    @apply inline-flex items-center gap-2 px-6 py-3 text-on-surface font-semibold rounded-md transition-all duration-300;
+    background: linear-gradient(135deg, #00a5b5 0%, #4cd964 100%);
+    @apply hover:scale-105;
+    box-shadow: 0 12px 40px rgba(0, 29, 50, 0.06);
   }
 
   /* Card component following No-Line rule */
   .card {
-    @apply bg-surface-container-lowest rounded-lg p-8 transition-all duration-300;
-    @apply hover:-translate-y-1 hover:shadow-ambient;
+    @apply bg-white rounded-lg p-8 transition-all duration-300;
+    @apply hover:-translate-y-1;
+    box-shadow: 0 12px 40px rgba(0, 29, 50, 0.06);
   }
 
   /* Card on low-contrast surface */
   .card-elevated {
-    @apply bg-surface-container-low rounded-lg p-8;
+    @apply bg-blue-50 rounded-lg p-8;
   }
 
   /* Glass effect for floating elements */
   .glass {
-    @apply bg-surface-variant backdrop-blur-[20px];
+    @apply bg-white/60 backdrop-blur-[20px] rounded-lg;
   }
 
   /* Input field - minimalist, no bottom line */
   .input-field {
-    @apply w-full px-4 py-3 bg-surface-container-low rounded-md outline-none transition-all duration-200;
-    @apply focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/40;
+    @apply w-full px-4 py-3 bg-blue-50 rounded-md outline-none transition-all duration-200;
+    @apply focus:bg-white focus:ring-1 focus:ring-aion-primary/40;
   }
 
   /* Section label - uppercase tracking */
   .section-label {
-    @apply text-sm font-medium text-on-surface/60 tracking-label uppercase flex items-center gap-2.5;
+    @apply text-sm font-medium text-gray-600 tracking-widest uppercase flex items-center gap-2.5;
   }
 
   /* Display text for hero metrics */
   .display-text {
-    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-editorial leading-tight;
+    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight;
   }
 
   /* Headline text */
   .headline-text {
-    @apply text-2xl sm:text-3xl md:text-4xl font-bold tracking-editorial;
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight;
   }
 }
 
