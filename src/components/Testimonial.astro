@@ -10,21 +10,21 @@ const { lang } = Astro.props;
 const t = useTranslations(lang);
 ---
 
-<section class="py-24 md:py-32 bg-slate-50">
+<section class="py-24 md:py-32 bg-surface-container-low">
   <div class="max-w-7xl mx-auto px-6 md:px-8">
     <div class="max-w-4xl mx-auto fade-in">
 
-      <blockquote class="text-2xl sm:text-3xl md:text-4xl font-light text-slate-900 leading-relaxed mb-10 md:mb-12 italic">
+      <blockquote class="text-2xl sm:text-3xl md:text-4xl font-light text-on-surface leading-relaxed mb-10 md:mb-12 italic">
         &ldquo;{t('testimonial.quote')}&rdquo;
       </blockquote>
 
       <div class="flex items-center gap-4">
-        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-[#1A5490] to-[#0066FF] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+        <div class="w-14 h-14 rounded-md bg-growth-gradient flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
           AM
         </div>
         <div>
-          <p class="font-semibold text-slate-900">{t('testimonial.name')}</p>
-          <p class="text-slate-600 text-sm">{t('testimonial.role')}</p>
+          <p class="font-semibold text-on-surface">{t('testimonial.name')}</p>
+          <p class="text-on-surface/60 text-sm">{t('testimonial.role')}</p>
         </div>
       </div>
 

@@ -8,6 +8,85 @@
   }
 
   body {
-    @apply text-slate-900;
+    @apply text-on-surface bg-surface;
+  }
+
+  /* Typography scale - Editorial Authority */
+  h1, h2, h3 {
+    @apply tracking-editorial;
+  }
+  
+  /* Body text with high line-height for readability */
+  p {
+    @apply leading-body;
+  }
+}
+
+@layer components {
+  /* Primary CTA Button with gradient */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-aion-gradient text-on-primary font-semibold rounded-md transition-all duration-300;
+    @apply hover:scale-105 hover:shadow-ambient;
+  }
+
+  /* Secondary/Ghost Button */
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-transparent text-primary font-semibold rounded-md transition-all duration-300;
+    @apply border border-outline-variant/20 hover:border-primary/40;
+  }
+
+  /* Growth CTA with teal-green gradient */
+  .btn-growth {
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-growth-gradient text-on-surface font-semibold rounded-md transition-all duration-300;
+    @apply hover:scale-105 hover:shadow-ambient;
+  }
+
+  /* Card component following No-Line rule */
+  .card {
+    @apply bg-surface-container-lowest rounded-lg p-8 transition-all duration-300;
+    @apply hover:-translate-y-1 hover:shadow-ambient;
+  }
+
+  /* Card on low-contrast surface */
+  .card-elevated {
+    @apply bg-surface-container-low rounded-lg p-8;
+  }
+
+  /* Glass effect for floating elements */
+  .glass {
+    @apply bg-surface-variant backdrop-blur-[20px];
+  }
+
+  /* Input field - minimalist, no bottom line */
+  .input-field {
+    @apply w-full px-4 py-3 bg-surface-container-low rounded-md outline-none transition-all duration-200;
+    @apply focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/40;
+  }
+
+  /* Section label - uppercase tracking */
+  .section-label {
+    @apply text-sm font-medium text-on-surface/60 tracking-label uppercase flex items-center gap-2.5;
+  }
+
+  /* Display text for hero metrics */
+  .display-text {
+    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-editorial leading-tight;
+  }
+
+  /* Headline text */
+  .headline-text {
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold tracking-editorial;
+  }
+}
+
+@layer utilities {
+  /* Luxury gaps between unrelated content */
+  .luxury-gap {
+    @apply gap-12 md:gap-16 lg:gap-20;
+  }
+
+  /* Asymmetric editorial padding */
+  .editorial-padding {
+    @apply pl-6 pr-4 md:pl-16 md:pr-8;
   }
 }

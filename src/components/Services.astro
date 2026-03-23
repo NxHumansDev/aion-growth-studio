@@ -37,28 +37,28 @@ const services = [
 ];
 ---
 
-<section id="servicios" class="py-24 md:py-32 bg-slate-50/50">
+<section id="servicios" class="py-24 md:py-32 bg-surface-container-low">
   <div class="max-w-7xl mx-auto px-6 md:px-8">
     <div class="text-center mb-16 md:mb-24 fade-in">
-      <h2 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-editorial leading-[0.95]">
+      <h2 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-editorial leading-tight">
         {t('services.title.1')}<br />
-        <span class="text-slate-400">{t('services.title.2')}</span>
+        <span class="text-on-surface/40">{t('services.title.2')}</span>
       </h2>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
       {services.map((service) => (
-        <div class="fade-in group bg-white border border-slate-200 rounded-2xl md:rounded-3xl p-10 md:p-12 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:border-slate-300">
-          <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-8 group-hover:bg-aion-dark group-hover:text-white transition-colors duration-500">
+        <div class="fade-in group bg-surface-container-lowest rounded-lg p-10 md:p-12 transition-all duration-500 hover:-translate-y-2 hover:shadow-ambient-lg">
+          <div class="w-12 h-12 rounded-md bg-surface-container-low flex items-center justify-center mb-8 group-hover:bg-aion-gradient group-hover:text-white transition-colors duration-500">
             <svg viewBox="0 0 24 24" class="w-6 h-6 stroke-current fill-none" style="stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;" set:html={service.icon} />
           </div>
-          <h3 class="text-2xl font-bold text-slate-900 mb-4">
+          <h3 class="text-2xl font-bold text-on-surface mb-4">
             {t(service.titleKey)}
           </h3>
-          <p class="text-base text-slate-600 leading-relaxed mb-3">
+          <p class="text-base text-on-surface/70 leading-relaxed mb-3">
             {t(service.descKey)}
           </p>
-          <p class="text-base text-slate-500 leading-relaxed" set:html={t(service.desc2Key)} />
+          <p class="text-base text-on-surface/50 leading-relaxed" set:html={t(service.desc2Key)} />
         </div>
       ))}
     </div>
