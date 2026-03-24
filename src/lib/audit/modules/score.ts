@@ -34,27 +34,26 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
 
   // ── Pilar 2: Visibilidad orgánica (25%) ─────────────────────────
   let seoVisibility = 15; // baseline — site exists
-  if (!seo.skipped && seo.domainRank != null) {
-    // Domain rank 0-100 → up to 40 pts
-    seoVisibility += Math.round(seo.domainRank * 0.4);
-    // Keyword top-10 volume
+  if (!seo.skipped && (seo.keywordsTop10 != null || seo.organicTrafficEstimate != null)) {
+    // Keywords top 10 — up to 35 pts (primary signal of SEO strength)
     const top10 = seo.keywordsTop10 ?? 0;
-    if (top10 >= 100)   seoVisibility += 20;
+    if (top10 >= 1000) seoVisibility += 35;
+    else if (top10 >= 300) seoVisibility += 28;
+    else if (top10 >= 100) seoVisibility += 20;
     else if (top10 >= 20)  seoVisibility += 12;
     else if (top10 >= 5)   seoVisibility += 6;
     else if (top10 >= 1)   seoVisibility += 2;
-    // Organic traffic estimate
+    // Organic traffic estimate — up to 20 pts
     const etv = seo.organicTrafficEstimate ?? 0;
-    if (etv >= 10000)  seoVisibility += 20;
-    else if (etv >= 2000)  seoVisibility += 12;
-    else if (etv >= 500)   seoVisibility += 6;
-    else if (etv >= 50)    seoVisibility += 2;
-    // Referring domains (link authority proxy)
-    const rd = seo.referringDomains ?? 0;
-    if (rd >= 200)    seoVisibility += 20;
-    else if (rd >= 50)    seoVisibility += 12;
-    else if (rd >= 10)    seoVisibility += 6;
-    else if (rd >= 3)     seoVisibility += 2;
+    if (etv >= 10000)      seoVisibility += 20;
+    else if (etv >= 2000)  seoVisibility += 14;
+    else if (etv >= 500)   seoVisibility += 8;
+    else if (etv >= 50)    seoVisibility += 3;
+    // Keywords top 3 bonus (strong positioning) — up to 10 pts
+    const top3 = seo.keywordsTop3 ?? 0;
+    if (top3 >= 100)     seoVisibility += 10;
+    else if (top3 >= 20) seoVisibility += 6;
+    else if (top3 >= 5)  seoVisibility += 3;
   } else if (!traffic.skipped && traffic.visits) {
     // Fallback: Similarweb total visits (annual) as traffic proxy
     if (traffic.visits >= 240000) seoVisibility += 40;

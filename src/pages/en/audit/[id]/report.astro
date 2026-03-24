@@ -416,7 +416,7 @@ const heroStatus = statusStyle(ss(health.total));
           <!-- Header row -->
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:12px;">
-              <img src="/logo-aion-dark.png" height="24" alt="AION" style="height:24px;" />
+              <img src="/logo-aion-dark.png" height="48" alt="AION" style="height:48px;" />
               <div style="width:1px;height:20px;background:#E5E7EB;"></div>
               <div>
                 <div style="font-size:0.72rem;color:#5A6478;">Report generated on</div>
@@ -498,10 +498,11 @@ const heroStatus = statusStyle(ss(health.total));
           <div style="margin-bottom:4px;">
             <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Status by area</div>
             {statusByArea.map(area => {
-              const st = statusStyle(area.status);
+              const dotColor = area.status === 'good' ? '#1D9E75' : area.status === 'medium' ? '#BA7517' : '#E24B4A';
               return (
                 <div class="semaphore-row">
-                  <span class="status-badge" style={`background:${st.bg};color:${st.fg};min-width:80px;justify-content:center;`}>{st.label}</span>
+                  <span style={`width:12px;height:12px;border-radius:50%;background:${dotColor};flex-shrink:0;display:inline-block;`}></span>
+                  {area.status === 'bad' && <span style="font-size:0.72rem;font-weight:700;color:#E24B4A;white-space:nowrap;">⚠ Critical</span>}
                   <span class="semaphore-area">{area.area}</span>
                   <span class="semaphore-summary">{area.summary}</span>
                   <a href={area.anchor} class="semaphore-arrow">View detail &#8594;</a>
@@ -703,7 +704,7 @@ const heroStatus = statusStyle(ss(health.total));
                       </tr>
                     </thead>
                     <tbody>
-                      {geo.queries.slice(0,8).map((q: any) => (
+                      {geo.queries.slice(0,12).map((q: any) => (
                         <tr>
                           <td>
                             <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
@@ -870,7 +871,18 @@ const heroStatus = statusStyle(ss(health.total));
           <div class="block-subtitle">Your relative position against key competitors across 5 critical axes</div>
 
           {qaSuppressed.includes('competitor_benchmark') ? (
-            <div class="callout callout-amber">There is not enough competitor data to generate a reliable benchmark.</div>
+            <div>
+              <div class="callout callout-amber" style="margin-bottom:12px;">No SEO traffic data available for quantitative comparison. Competitors detected by AI:</div>
+              {competitors.length > 0 ? (
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                  {competitors.map((c: any) => (
+                    <span style="background:#EBF2FF;color:#1A4B8C;padding:4px 12px;border-radius:6px;font-size:0.82rem;font-weight:600;">{c.domain || c.name || c}</span>
+                  ))}
+                </div>
+              ) : (
+                <p style="font-size:0.82rem;color:#5A6478;">No competitors were detected in this analysis.</p>
+              )}
+            </div>
           ) : (
             <div>
 

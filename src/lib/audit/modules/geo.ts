@@ -155,15 +155,15 @@ function buildFallbackQueries(
     { stage: 'tofu', query: `¿Qué tendencias están marcando el futuro de ${sector} este año?` },
     { stage: 'tofu', query: `¿Cómo elegir un buen proveedor de ${sector}? ¿Qué criterios importan más?` },
     { stage: 'tofu', query: `Referentes y líderes del mercado en ${sector}${loc}. ¿Quiénes destacan?` },
-    // MOFU — 5 comparison / problem queries, NO brand
+    // MOFU — 4 comparison / problem queries, NO brand
     { stage: 'mofu', query: `Necesito "${vp}". ¿Qué empresa contrataría y por qué?` },
     { stage: 'mofu', query: `¿Cuál es la diferencia entre las principales empresas de ${sector}? Comparativa.` },
     { stage: 'mofu', query: `¿Qué alternativas existen en ${sector} para una empresa mediana en crecimiento?` },
     { stage: 'mofu', query: `Problema: necesito ${kw}. ¿Qué proveedor lo resuelve mejor y a qué precio?` },
-    { stage: 'mofu', query: `Pros y contras de los líderes de ${sector}. ¿A cuál contrataría primero?` },
-    // BOFU — 2 high-intent unbranded + 1 direct brand
+    // BOFU — 3 high-intent unbranded + 1 direct brand
     { stage: 'bofu', query: `Quiero contratar ${sector}${loc}. ¿Qué empresa ofrece mejor relación calidad-precio?` },
     { stage: 'bofu', query: `Busco proveedor de ${sector} de confianza para proyecto urgente. ¿Opciones top?` },
+    { stage: 'bofu', query: `Compara las mejores opciones de ${sector}${loc} para contratar este mes. ¿Cuál elegiría un experto?` },
     { stage: 'bofu', query: `¿Qué sabes sobre "${brandName}" (${domain})? ¿Es un referente conocido en ${sector}?`, isBrandQuery: true },
   ];
 }
@@ -192,18 +192,19 @@ async function generateQueries(
     `Genera exactamente 12 consultas que un potencial cliente real escribiría en ChatGPT o Perplexity buscando ${sector}.\n\n` +
     `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 120)}\n` +
     `- Servicios/keywords: ${keywords.slice(0, 80)}${loc}\n\n` +
-    `Estructura ESTRICTA (en este orden):\n` +
-    `- 4 consultas TOFU: consciencia del sector, descubrimiento, tendencias. SIN mencionar "${brandName}" ni "${domain}".\n` +
-    `- 5 consultas MOFU: comparativas, alternativas, problemas concretos. SIN mencionar "${brandName}" ni "${domain}".\n` +
-    `- 2 consultas BOFU: alta intención de compra/contratación. SIN nombre de marca.\n` +
-    `- 1 consulta BOFU_brand: pregunta directa sobre "${brandName}" (${domain}). DEBE mencionarlo explícitamente.\n\n` +
+    `Estructura ESTRICTA (exactamente en este orden, 4 de cada etapa):\n` +
+    `- 4 consultas TOFU (posiciones 1-4): consciencia del sector, descubrimiento, tendencias. SIN mencionar "${brandName}" ni "${domain}".\n` +
+    `- 4 consultas MOFU (posiciones 5-8): comparativas, alternativas, problemas concretos. SIN mencionar "${brandName}" ni "${domain}".\n` +
+    `- 3 consultas BOFU (posiciones 9-11): alta intención de compra/contratación. SIN nombre de marca.\n` +
+    `- 1 consulta BOFU_brand (posición 12): pregunta directa sobre "${brandName}" (${domain}). DEBE mencionarlo explícitamente.\n\n` +
     `Reglas:\n` +
     `1. Consultas TOFU y MOFU NUNCA incluyen "${brandName}" ni "${domain}".\n` +
-    `2. La última consulta (BOFU_brand) DEBE incluir "${brandName}" o "${domain}".\n` +
+    `2. La última consulta (posición 12, BOFU_brand) DEBE incluir "${brandName}" o "${domain}".\n` +
     `3. Idioma: el mismo que los textos del negocio.\n` +
-    `4. NUNCA uses placeholders entre corchetes. Usa siempre términos reales.\n\n` +
+    `4. NUNCA uses placeholders entre corchetes. Usa siempre términos reales.\n` +
+    `5. EXACTAMENTE 4 TOFU + 4 MOFU + 3 BOFU + 1 BOFU_brand = 12 total.\n\n` +
     `Devuelve SOLO un JSON array de 12 objetos:\n` +
-    `[{"stage":"tofu","query":"..."},{"stage":"mofu","query":"..."},{"stage":"bofu","query":"..."},{"stage":"bofu","query":"...","isBrandQuery":true}]\n` +
+    `[{"stage":"tofu","query":"..."},...,{"stage":"bofu","query":"...","isBrandQuery":true}]\n` +
     `Sin texto adicional, sin markdown.`;
 
   const controller = new AbortController();
