@@ -182,7 +182,12 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
 
     case 'competitors': {
       const sector = (results.sector as any)?.sector || 'business services';
-      return runCompetitors(url, sector, results.crawl || {}, audit.userCompetitors);
+      // Use DataForSEO organic competitors from SEO module when no user competitors were selected.
+      // These domains are guaranteed to have DataForSEO data → competitor_traffic won't fail.
+      const dfsOrganic = !audit.userCompetitors?.length
+        ? (results.seo as any)?.organicCompetitors
+        : undefined;
+      return runCompetitors(url, sector, results.crawl || {}, audit.userCompetitors, dfsOrganic);
     }
 
     case 'competitor_traffic': {

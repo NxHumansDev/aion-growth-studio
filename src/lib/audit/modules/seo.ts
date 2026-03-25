@@ -16,8 +16,8 @@ export async function runSEO(url: string): Promise<SEOResult> {
   const timer = setTimeout(() => controller.abort(), 45000);
 
   try {
-    // ── Tier 1 + Tier 2 + Backlinks in parallel ──────────────────────
-    const [overviewRes, kwRes, blRes] = await Promise.all([
+    // ── Tier 1 + Tier 2 + Backlinks + Organic Competitors in parallel ──
+    const [overviewRes, kwRes, blRes, compRes] = await Promise.all([
       fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
         method: 'POST',
         signal: controller.signal,
@@ -46,6 +46,20 @@ export async function runSEO(url: string): Promise<SEOResult> {
         headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
         body: JSON.stringify([{ target: domain, include_subdomains: true }]),
       }),
+      // Organic competitors — domains competing for the same keywords in Spain.
+      // These are guaranteed to have DataForSEO data (unlike LLM-guessed URLs).
+      fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/competitors_domain/live', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+        body: JSON.stringify([{
+          target: domain,
+          location_code: 2724,
+          language_code: 'es',
+          limit: 6,
+          order_by: ['intersections,desc'],
+        }]),
+      }),
     ]);
 
     if (!overviewRes.ok) {
@@ -54,10 +68,11 @@ export async function runSEO(url: string): Promise<SEOResult> {
       return { skipped: true, reason: `DataForSEO: ${msg}`.slice(0, 120) };
     }
 
-    const [data, kwData, blData] = await Promise.all([
+    const [data, kwData, blData, compData] = await Promise.all([
       overviewRes.json(),
       kwRes.ok ? kwRes.json() : Promise.resolve(null),
       blRes.ok ? blRes.json() : Promise.resolve(null),
+      compRes.ok ? compRes.json() : Promise.resolve(null),
     ]);
 
     const task = data?.tasks?.[0];
@@ -104,18 +119,53 @@ export async function runSEO(url: string): Promise<SEOResult> {
     };
 
     // ── Backlinks / Domain Authority (Tier 1 — already fetched above) ──
+    const _logParts: string[] = [`kw:${keywordsTop10} etv:${m?.etv != null ? Math.round(m.etv) : 0}`];
     try {
       const blTask = blData?.tasks?.[0];
-      if (blTask?.status_code === 20000 && blTask.result_count > 0) {
+      if (!blRes.ok) {
+        _logParts.push(`bl:http${blRes.status}`);
+      } else if (!blTask || blTask.status_code !== 20000) {
+        _logParts.push(`bl:err${blTask?.status_code ?? '?'}`);
+      } else if (!blTask.result_count) {
+        _logParts.push('bl:empty');
+      } else {
         const blItem = blTask.result?.[0];
         if (blItem) {
           if (blItem.referring_domains != null) baseResult.referringDomains = blItem.referring_domains;
           if (blItem.backlinks != null) baseResult.backlinksTotal = blItem.backlinks;
           if (blItem.rank != null) baseResult.domainRank = blItem.rank;
           if (blItem.spam_score != null) baseResult.spamScore = blItem.spam_score;
+          _logParts.push(`bl:ok dr=${blItem.rank ?? 0} rd=${blItem.referring_domains ?? 0}`);
+        } else {
+          _logParts.push('bl:no-item');
         }
       }
-    } catch { /* non-fatal */ }
+    } catch { _logParts.push('bl:except'); }
+
+    // ── Organic competitors from DataForSEO ───────────────────────────
+    try {
+      const compTask = compData?.tasks?.[0];
+      if (compTask?.status_code === 20000 && compTask.result_count > 0) {
+        const compItems: any[] = compTask.result[0]?.items || [];
+        const organicCompetitors = compItems
+          .filter((it: any) => it.domain && it.domain !== domain)
+          .slice(0, 5)
+          .map((it: any) => ({
+            domain: it.domain as string,
+            intersections: (it.intersections ?? 0) as number,
+          }));
+        if (organicCompetitors.length > 0) {
+          (baseResult as any).organicCompetitors = organicCompetitors;
+          _logParts.push(`comps:${organicCompetitors.length}(${organicCompetitors.map((c) => c.domain).join(',')})`);
+        } else {
+          _logParts.push('comps:0');
+        }
+      } else {
+        _logParts.push(`comps:skip(${compTask?.status_code ?? 'no-task'})`);
+      }
+    } catch { _logParts.push('comps:except'); }
+
+    baseResult._log = _logParts.join(' ');
 
     // ── Tier 2 result (already fetched in parallel above) ────────
     try {

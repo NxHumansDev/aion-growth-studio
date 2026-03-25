@@ -223,7 +223,22 @@ export async function runReputation(
   const domain = new URL(
     url.startsWith('http') ? url : `https://${url}`,
   ).hostname.replace(/^www\./, '');
-  const companyName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
+
+  // Prefer crawl.companyName (already cleaned by crawl module) over title splitting.
+  // crawl.title splitting often produces long subtitles like "GROUP Andbank: Gestión de patrimonio..."
+  // because the split regex /-|/ only catches hyphens and pipes, not colons.
+  const rawName =
+    crawl.companyName?.trim() ||
+    crawl.title?.split(/[-–—|·:]/)[0]?.trim() ||
+    domain;
+
+  // Strip common legal entity prefixes (GROUP, GRUPO) and suffixes (S.A., S.L., etc.)
+  // so Google News / GBP gets a clean brand name — e.g. "GROUP Andbank" → "Andbank"
+  const companyName = rawName
+    .replace(/^(grupo|group)\s+/gi, '')
+    .replace(/[\s,]+(s\.?a\.?|s\.?l\.?|bv|gmbh|ltd|llc|inc|plc)$/gi, '')
+    .trim() || rawName;
+
   const cityHint = extractCity(existingGbp?.address);
 
   // Run Places + Trustpilot + Google News in parallel
@@ -233,6 +248,8 @@ export async function runReputation(
     fetchNewsPresence(companyName),
   ]);
 
+  const _log = `query="${companyName}" news:${news.newsCount} gbp:${gbp.found ? 'ok' : 'miss'} tp:${tp.found ? 'ok' : 'miss'}`;
+
   if (!gbp.found && !tp.found) {
     return {
       gbpFound: false,
@@ -241,6 +258,7 @@ export async function runReputation(
       reputationLevel: 'no_data',
       newsCount: news.newsCount,
       ...(news.newsHeadlines.length > 0 && { newsHeadlines: news.newsHeadlines }),
+      _log,
     };
   }
 
@@ -281,5 +299,6 @@ export async function runReputation(
     reputationLevel,
     newsCount: news.newsCount,
     ...(news.newsHeadlines.length > 0 && { newsHeadlines: news.newsHeadlines }),
+    _log,
   };
 }

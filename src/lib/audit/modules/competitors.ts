@@ -51,6 +51,7 @@ export async function runCompetitors(
   sector: string,
   crawl: CrawlResult = {},
   userCompetitorUrls?: string[],
+  dfsOrganicCompetitors?: Array<{ domain: string; intersections: number }>,
 ): Promise<CompetitorsResult> {
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
 
@@ -76,6 +77,30 @@ export async function runCompetitors(
           return { name, url: compUrl, snippet: 'Competidor seleccionado' };
         } catch {
           return { name: compDomain, url: compUrl, snippet: 'Competidor seleccionado' };
+        }
+      }),
+    );
+    return { competitors };
+  }
+
+  // If DataForSEO organic competitors are available, use them — they're guaranteed
+  // to exist in DataForSEO's database, making competitor_traffic reliable.
+  if (dfsOrganicCompetitors && dfsOrganicCompetitors.length > 0) {
+    const competitors = await Promise.all(
+      dfsOrganicCompetitors.slice(0, 5).map(async (comp) => {
+        const normalized = `https://${comp.domain}`;
+        try {
+          const res = await axios.get(normalized, {
+            timeout: 6000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+            validateStatus: (s) => s < 500,
+          });
+          const $ = cheerio.load(res.data as string);
+          const rawTitle = $('title').first().text().split(/[-|·—]/)[0].trim().slice(0, 80);
+          const name = (rawTitle && !BAD_TITLE_RE.test(rawTitle)) ? rawTitle : comp.domain;
+          return { name, url: normalized, snippet: `${comp.intersections} shared keywords` };
+        } catch {
+          return { name: comp.domain, url: normalized, snippet: `${comp.intersections} shared keywords` };
         }
       }),
     );
