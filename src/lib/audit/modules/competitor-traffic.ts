@@ -36,23 +36,23 @@ function parseDFSItem(name: string, domain: string, url: string, task: any) {
   };
 }
 
-/** Fetch all domains in a single batched request — one HTTP call instead of N sequential */
-async function fetchBatch(
+/**
+ * Fetch a single domain — always sends exactly one task per HTTP request.
+ * DataForSEO /live endpoints reject batches of >1 task with error 40000.
+ */
+async function fetchSingle(
   auth: string,
-  items: Array<{ name: string; domain: string; url: string }>,
+  item: { name: string; domain: string; url: string },
   locationCode?: number,
-): Promise<any[] | null> {
-  const body = items.map((item) => {
-    const obj: any = { target: item.domain };
-    if (locationCode) {
-      obj.location_code = locationCode;
-      obj.language_code = 'es';
-    }
-    return obj;
-  });
+): Promise<ReturnType<typeof parseDFSItem>> {
+  const body: any = { target: item.domain };
+  if (locationCode) {
+    body.location_code = locationCode;
+    body.language_code = 'es';
+  }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 35000);
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
     const res = await fetch(
       'https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live',
@@ -60,15 +60,16 @@ async function fetchBatch(
         method: 'POST',
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-        body: JSON.stringify(body),
+        body: JSON.stringify([body]),
       },
     );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) return { name: item.name, domain: item.domain, url: item.url, apiError: `HTTP ${res.status}` };
     const data = await res.json();
-    return data?.tasks ?? null; // one task per item in the batch
+    const task = data?.tasks?.[0] ?? null;
+    return parseDFSItem(item.name, item.domain, item.url, task);
   } catch (err: any) {
-    console.error(`[competitor-traffic] batch request failed: ${err.message}`);
-    return null;
+    const msg = err.name === 'AbortError' ? 'timeout' : (err.message?.slice(0, 60) ?? 'error');
+    return { name: item.name, domain: item.domain, url: item.url, apiError: msg };
   } finally {
     clearTimeout(timer);
   }
@@ -95,33 +96,24 @@ export async function runCompetitorTraffic(
 
   const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
 
-  // Single batched request for Spain — replaces 5 sequential requests with 1.5s delays
-  console.log(`[competitor-traffic] Batch fetching ${items.length} domains (Spain)...`);
-  let tasks = await fetchBatch(auth, items, 2724);
+  // One request per domain in parallel — /live endpoints reject batches with >1 task (error 40000)
+  const results = await Promise.all(
+    items.map(async (item) => {
+      // Try Spain first
+      const spainResult = await fetchSingle(auth, item, 2724);
+      if (!(spainResult as any).apiError) return spainResult;
 
-  // If batch failed entirely, retry without location (global)
-  if (!tasks) {
-    console.log(`[competitor-traffic] Retrying batch (global)...`);
-    tasks = await fetchBatch(auth, items);
-  }
-
-  // Map each result; for any domain with no Spain data, try global individually
-  const results = await Promise.all(items.map(async (item, i) => {
-    const task = tasks?.[i] ?? null;
-    const parsed = parseDFSItem(item.name, item.domain, item.url, task);
-
-    // If Spain has no data for this domain, try global (no location filter)
-    if ((parsed as any).apiError === 'no_data' || (parsed as any).apiError === 'empty_items') {
-      console.log(`[competitor-traffic] ${item.domain}: Spain has no data, trying global...`);
-      const globalTasks = await fetchBatch(auth, [item]);
-      if (globalTasks) {
-        const globalParsed = parseDFSItem(item.name, item.domain, item.url, globalTasks[0] ?? null);
-        if (!(globalParsed as any).apiError) return globalParsed;
+      // No Spain data → try global (no location filter)
+      const err = (spainResult as any).apiError as string;
+      if (err === 'no_data' || err === 'empty_items' || err.startsWith('4')) {
+        console.log(`[competitor-traffic] ${item.domain}: Spain no data (${err}), trying global...`);
+        const globalResult = await fetchSingle(auth, item);
+        if (!(globalResult as any).apiError) return globalResult;
       }
-    }
 
-    return parsed;
-  }));
+      return spainResult;
+    }),
+  );
 
   return { items: results };
 }

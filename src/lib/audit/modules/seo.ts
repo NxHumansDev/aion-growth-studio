@@ -143,12 +143,23 @@ export async function runSEO(url: string): Promise<SEOResult> {
     } catch { _logParts.push('bl:except'); }
 
     // ── Organic competitors from DataForSEO ───────────────────────────
+    // Blocklist: generic/media domains that share informational keywords but aren't real competitors
+    const GENERIC_DOMAINS = new Set([
+      'youtube.com', 'wikipedia.org', 'facebook.com', 'instagram.com', 'twitter.com',
+      'x.com', 'linkedin.com', 'tiktok.com', 'pinterest.com', 'reddit.com', 'quora.com',
+      'amazon.com', 'amazon.es', 'google.com', 'bing.com',
+      'elpais.com', 'elmundo.es', 'abc.es', 'lavanguardia.com', 'expansion.com',
+      'eleconomista.es', 'cincodias.elpais.com', 'elconfidencial.com', 'eldiario.es',
+      'trustpilot.com', 'tripadvisor.com', 'glassdoor.com', 'yelp.com',
+      'gov.es', 'boe.es', 'aeat.es', 'administracion.gob.es',
+    ]);
+
     try {
       const compTask = compData?.tasks?.[0];
       if (compTask?.status_code === 20000 && compTask.result_count > 0) {
         const compItems: any[] = compTask.result[0]?.items || [];
         const organicCompetitors = compItems
-          .filter((it: any) => it.domain && it.domain !== domain)
+          .filter((it: any) => it.domain && it.domain !== domain && !GENERIC_DOMAINS.has(it.domain))
           .slice(0, 5)
           .map((it: any) => ({
             domain: it.domain as string,
