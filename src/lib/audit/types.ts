@@ -114,7 +114,8 @@ export interface CrawlResult extends ModuleResult {
   imageCount?: number;
   imagesWithAlt?: number;
   hasCanonical?: boolean;
-  hasRobots?: boolean;
+  hasRobots?: boolean;       // <meta name="robots"> tag detected in HTML
+  hasRobotsTxt?: boolean;    // /robots.txt file exists (direct HTTP check)
   hasSitemap?: boolean;
   hasSchemaMarkup?: boolean;
   schemaTypes?: string[];

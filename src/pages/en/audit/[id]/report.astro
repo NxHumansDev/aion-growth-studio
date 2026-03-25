@@ -100,7 +100,7 @@ function statusStyle(s: AreaStatus): { bg: string; fg: string; label: string } {
 const statusByArea: { area: string; status: AreaStatus; summary: string; anchor: string }[] = [
   { area: 'Organic SEO', status: ss(r.score?.breakdown?.seoVisibility ?? health.visibilidad ?? 0), summary: seo ? `${fmt(seo.keywordsTop10)} keywords top 10, ~${fmt(seo.organicTrafficEstimate)} visits/mo` : 'No SEO data', anchor: '#seo' },
   { area: 'AI Visibility', status: ss(geo?.mentionRate ?? 0), summary: geo ? `Mentioned in ${geo.mentionRate ?? 0}% of AI queries` : 'No GEO data', anchor: '#ia' },
-  { area: 'Domain Authority', status: ss(seo?.domainRank ?? 0), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} referring domains` : 'No authority data', anchor: '#autoridad' },
+  { area: 'Domain Authority', status: ss(brandAuthorityScoreEn), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} referring domains` : 'No backlinks data', anchor: '#autoridad' },
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competitors with data` : 'No competitor data', anchor: '#competidores' },
   { area: 'Web & Speed', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Mobile score: ${ps.mobile?.performance ?? '—'}/100` : 'No PageSpeed data', anchor: '#experiencia' },
   { area: 'Conversion', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'No conversion data', anchor: '#experiencia' },
@@ -918,7 +918,7 @@ const heroStatus = statusStyle(ss(health.total));
           {seo && (seo.domainRank != null || seo.referringDomains != null) && (
             <div class="grid-3" style="margin-bottom:14px;">
               <div class="metric-card">
-                <div class="metric-value" style={`color:${(seo.domainRank??0)>=50?'#1D9E75':(seo.domainRank??0)>=25?'#BA7517':'#E24B4A'};`}>{seo.domainRank ?? '—'}</div>
+                <div class="metric-value" style={`color:${seo.domainRank==null?'#9CA3AF':seo.domainRank>=50?'#1D9E75':seo.domainRank>=25?'#BA7517':'#E24B4A'};`}>{seo.domainRank ?? '—'}</div>
                 <div class="metric-label">Domain Rank</div>
                 <div class="metric-sub" style="margin-top:4px;">Domain authority score (0–100)</div>
               </div>
@@ -956,19 +956,24 @@ const heroStatus = statusStyle(ss(health.total));
           )}
 
           <!-- Contextual callout -->
-          {seo && (seo.domainRank ?? 0) < 20 && (
+          {seo && seo.domainRank != null && seo.domainRank < 20 && (
             <div class="callout callout-red">
-              Your domain rank is low ({seo.domainRank ?? 0}/100). Getting mentions in relevant media, publishing guest posts, and appearing in industry directories are priority actions.
+              Your domain rank is low ({seo.domainRank}/100). Getting mentions in relevant media, publishing guest posts, and appearing in industry directories are priority actions.
             </div>
           )}
-          {seo && (seo.domainRank ?? 0) >= 20 && (seo.domainRank ?? 0) < 50 && (
+          {seo && seo.domainRank != null && seo.domainRank >= 20 && seo.domainRank < 50 && (
             <div class="callout callout-amber">
-              Domain rank developing ({seo.domainRank ?? 0}/100). Increasing presence in specialist blogs and industry media can accelerate organic growth.
+              Domain rank developing ({seo.domainRank}/100). Increasing presence in specialist blogs and industry media can accelerate organic growth.
             </div>
           )}
-          {seo && (seo.domainRank ?? 0) >= 50 && (
+          {seo && seo.domainRank != null && seo.domainRank >= 50 && (
             <div class="callout callout-green">
-              Good domain authority ({seo.domainRank ?? 0}/100) with {fmt(seo.referringDomains)} referring domains.
+              Good domain authority ({seo.domainRank}/100) with {fmt(seo.referringDomains)} referring domains.
+            </div>
+          )}
+          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEn || newsCountEn > 0) && (
+            <div class="callout callout-amber">
+              No backlinks data available for this domain. Authority score is calculated from blog activity and press coverage.
             </div>
           )}
           {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEn && newsCountEn === 0 && (

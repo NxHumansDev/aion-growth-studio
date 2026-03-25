@@ -214,14 +214,18 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
     const bodyText = $('body').text().trim();
     const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
 
-    // Quick sitemap check
+    // Quick sitemap + robots.txt check in parallel (direct HTTP, independent of DataForSEO)
     let hasSitemap = false;
+    let hasRobotsTxt = false;
     try {
-      const sitemapUrl = new URL('/sitemap.xml', url).href;
-      const sitemapRes = await axios.head(sitemapUrl, { timeout: 3000, validateStatus: () => true });
+      const [sitemapRes, robotsRes] = await Promise.all([
+        axios.head(new URL('/sitemap.xml', url).href, { timeout: 3000, validateStatus: () => true }),
+        axios.head(new URL('/robots.txt', url).href, { timeout: 3000, validateStatus: () => true }),
+      ]);
       hasSitemap = sitemapRes.status < 400;
+      hasRobotsTxt = robotsRes.status < 400;
     } catch {
-      // no sitemap
+      // network error — leave both false
     }
 
     // Extract hreflang alternates (multi-domain detection)
@@ -308,6 +312,7 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       hasCanonical,
       hasRobots,
       hasSitemap,
+      hasRobotsTxt,
       hasSchemaMarkup,
       ...(uniqueSchemaTypes.length > 0 && { schemaTypes: uniqueSchemaTypes }),
       internalLinks,
