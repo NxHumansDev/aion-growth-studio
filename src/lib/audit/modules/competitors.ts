@@ -38,9 +38,13 @@ async function filterValidDomains(
     )
     .map((r) => r.value.comp);
 
-  // If all fail validation (network issue etc.), fall back to unvalidated list
-  return valid.length > 0 ? valid : competitors;
+  // Return only validated entries — never fall back to unvalidated list.
+  // Returning hallucinated competitors is worse than returning none.
+  return valid;
 }
+
+/** Reject company names that look like category descriptions rather than brand names */
+const GENERIC_NAME_RE = /^(mejores|principales|top\s|leading|empresas?\s+de|proveedor|distribuidor|importador|exportador|productores?\s+de|fabricante|mayorista|minorista|tienda\s+de|comercio\s+de|market|category|industry)/i;
 
 export async function runCompetitors(
   url: string,
@@ -86,7 +90,7 @@ export async function runCompetitors(
   const brandName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
   const description = crawl.description?.slice(0, 200) || '';
 
-  const prompt = `Identify 4-5 direct competitors for this business.
+  const prompt = `Identify 3-4 direct competitors for this business.
 
 Domain: ${domain}
 Brand: ${brandName}
@@ -94,13 +98,15 @@ Sector: ${sector}
 Description: ${description}
 
 Reply ONLY with a valid JSON object (no explanation, no markdown):
-{"competitors": [{"name": "Company Name", "url": "https://...", "snippet": "One sentence why they compete"}]}
+{"competitors": [{"name": "Company Name", "url": "https://exactdomain.com", "snippet": "One sentence why they compete"}]}
 
-Rules:
-- Only include real companies with active websites
-- Match the business scope (local vs global)
-- Do not include ${domain} itself
-- URL must be a real, valid domain you are confident exists`;
+CRITICAL RULES — read carefully:
+1. Only include companies whose EXACT website URL you know with 100% certainty from your training data
+2. If you are not completely sure the URL exists, DO NOT include that company
+3. The "name" field MUST be a real brand/company name (e.g. "Mercadona", "FrutaVerde S.L.") — NEVER a category description like "productores de frutas" or "mejores distribuidores"
+4. Match the business scope: local Spanish SME → prefer Spanish competitors of similar size
+5. Do not include ${domain} itself
+6. It is better to return 2 verified competitors than 4 guessed ones`;
 
   const validated = await callHaikuWithValidation('competitors', prompt, 15000, 2);
 
@@ -108,9 +114,10 @@ Rules:
     return { competitors: [], error: 'LLM failed to produce valid competitors' };
   }
 
-  // Filter and normalize
+  // Filter and normalize — reject generic description names
   const rawList = validated.competitors
     .filter((c) => !c.url.includes(domain))
+    .filter((c) => !GENERIC_NAME_RE.test(c.name.trim()))
     .slice(0, 5)
     .map((c) => ({
       name: c.name.slice(0, 80),

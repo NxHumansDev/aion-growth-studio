@@ -199,11 +199,17 @@ function truncateGeo(data: any): any {
   const result: any = { ...data };
 
   if (Array.isArray(data.queries)) {
-    // Keep 2 per stage + brand query — worst case ~10 items, each stored as
-    // {"query":"...","mentioned":true,"stage":"tofu"} ≈ 60 chars → ~600 total
-    const tofu  = data.queries.filter((q: any) => q.stage === 'tofu').slice(0, 2);
-    const mofu  = data.queries.filter((q: any) => q.stage === 'mofu').slice(0, 2);
-    const bofu  = data.queries.filter((q: any) => q.stage === 'bofu' && !q.isBrandQuery).slice(0, 2);
+    // Keep 2 per stage + brand query — always prioritize mentioned:true entries
+    // so the stored queries correctly reflect which ones were actually mentioned.
+    // (Without this, truncation can drop all positive matches while mentionRate
+    // still reflects the pre-truncation count → visual inconsistency in report.)
+    const mFirst = (arr: any[]) => [
+      ...arr.filter((q: any) => q.mentioned),
+      ...arr.filter((q: any) => !q.mentioned),
+    ];
+    const tofu  = mFirst(data.queries.filter((q: any) => q.stage === 'tofu')).slice(0, 2);
+    const mofu  = mFirst(data.queries.filter((q: any) => q.stage === 'mofu')).slice(0, 2);
+    const bofu  = mFirst(data.queries.filter((q: any) => q.stage === 'bofu' && !q.isBrandQuery)).slice(0, 2);
     const brand = data.queries.filter((q: any) => q.isBrandQuery).slice(0, 1);
     result.queries = [...tofu, ...mofu, ...bofu, ...brand];
   }

@@ -65,6 +65,31 @@ const _trafficCh    = (r.traffic?.channels || {}) as Record<string, any>;
 const _totalTraf    = Object.values(_trafficCh).reduce((s: number, c: any) => s + (c.visits || 0), 0);
 const _organicTraf  = _trafficCh.organic?.visits || 0;
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
+
+// Brand Authority score (0-100): referring domains + DR + blog + press
+const brandAuthorityScoreEs = (() => {
+  let ba = 0;
+  const rd = seo?.referringDomains ?? 0;
+  if (rd >= 500) ba += 35;
+  else if (rd >= 100) ba += 25;
+  else if (rd >= 20) ba += 15;
+  else if (rd >= 5) ba += 8;
+  else if (rd >= 1) ba += 3;
+  const dr = seo?.domainRank ?? 0;
+  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 25);
+  if (hasBlogEs) {
+    ba += 12;
+    if ((cc?.totalPosts ?? 0) >= 20) ba += 13;
+    else if ((cc?.totalPosts ?? 0) >= 5) ba += 7;
+  }
+  const nc = newsCountEs;
+  if (nc >= 10) ba += 15;
+  else if (nc >= 5) ba += 10;
+  else if (nc >= 2) ba += 6;
+  else if (nc >= 1) ba += 3;
+  return Math.min(100, ba);
+})();
+
 const visScore      = health.visibilidad;
 const visColor      = scoreColor(visScore);
 const visSummaryText = (insights as any)?.visibilitySummary || null;
@@ -600,7 +625,7 @@ const heroStatus = statusStyle(ss(health.total));
               {[
                 { label: 'SEO Orgánico', value: visSeoSub, weight: '75%' },
                 { label: 'Visibilidad IA (GEO)', value: visGeoSub, weight: '15%' },
-                { label: 'Mix tráfico orgánico', value: visTrafficSub, weight: '10%' },
+                { label: 'Autoridad de Marca', value: brandAuthorityScoreEs, weight: '10%' },
               ].map(sub => {
                 const c = sub.value >= 70 ? '#1D9E75' : sub.value >= 40 ? '#BA7517' : '#E24B4A';
                 return (
@@ -925,9 +950,27 @@ const heroStatus = statusStyle(ss(health.total));
           )}
 
           <!-- ── Layer 3: Autoridad de Marca ── -->
-          <div id="autoridad" class="sub-section-title">
-            <span style="width:3px;height:16px;background:#7c3aed;border-radius:2px;display:inline-block;margin-right:8px;vertical-align:middle;"></span>
-            Autoridad de Marca
+          <div id="autoridad" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:12px;margin-top:36px;padding-top:28px;border-top:1px solid #E5E7EB;">
+            <div style="font-size:0.88rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.06em;display:flex;align-items:center;gap:8px;">
+              <span style="width:3px;height:16px;background:#7c3aed;border-radius:2px;display:inline-block;"></span>
+              Autoridad de Marca
+            </div>
+            {(() => {
+              const s = brandAuthorityScoreEs;
+              const c = s >= 70 ? '#1D9E75' : s >= 40 ? '#BA7517' : '#E24B4A';
+              const bg = s >= 70 ? '#E1F5EE' : s >= 40 ? '#FAEEDA' : '#FCEBEB';
+              const lbl = s >= 70 ? 'Fuerte' : s >= 40 ? 'Moderado' : 'Débil';
+              return (
+                <div style={`display:flex;align-items:center;gap:10px;background:${bg};border-radius:10px;padding:8px 16px;`}>
+                  <div style="width:72px;height:6px;background:rgba(0,0,0,0.1);border-radius:4px;overflow:hidden;">
+                    <div style={`height:100%;width:${s}%;background:${c};border-radius:4px;`}></div>
+                  </div>
+                  <span style={`font-size:1rem;font-weight:800;color:${c};`}>{s}</span>
+                  <span style="font-size:0.65rem;color:#5A6478;">/100</span>
+                  <span style={`font-size:0.7rem;font-weight:700;color:${c};`}>{lbl}</span>
+                </div>
+              );
+            })()}
           </div>
           <div class="sub-section-subtitle">Blog propio, presencia en prensa y autoridad de enlazado externo</div>
 

@@ -48,9 +48,10 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
 
   const bm: SectorBenchmarks | undefined = sector.benchmarks;
 
-  // Competitor traffic items with real data
+  // Competitor traffic items with real data (require >0 values — zero-data fake
+  // competitors would inflate the client's score to 100 via scoreVsReference)
   const ctItems: any[] = ((results.competitor_traffic as any)?.items || []).filter(
-    (c: any) => !c.apiError && (c.organicTrafficEstimate != null || c.keywordsTop10 != null),
+    (c: any) => !c.apiError && ((c.organicTrafficEstimate ?? 0) > 0 || (c.keywordsTop10 ?? 0) > 0),
   );
   const hasCompetitors = ctItems.length > 0;
   const hasBenchmarks  = bm != null;
