@@ -787,7 +787,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
 
           <!-- ── Layer 2: GEO / IA ── -->
-          <div id="ia" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:12px;">
+          <div id="ia" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:12px;margin-top:36px;padding-top:28px;border-top:1px solid #E5E7EB;">
             <div style="font-size:0.88rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.06em;display:flex;align-items:center;gap:8px;">
               <span style="width:3px;height:16px;background:#7c3aed;border-radius:2px;display:inline-block;"></span>
               Visibilidad IA
@@ -896,39 +896,6 @@ const heroStatus = statusStyle(ss(health.total));
                             <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
                               {q.mentioned ? '✓' : '✗'}
                             </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Competitor mentions or opportunity callout */}
-              {allCompGeoZero ? (
-                <div class="callout callout-green" style="margin-bottom:14px;">
-                  Ninguno de tus competidores analizados aparece en respuestas de IA. Esta es una ventana de oportunidad: el primero que trabaje su visibilidad en IA capturará demanda sin competencia directa.
-                </div>
-              ) : (geo.competitorMentions?.length ?? 0) > 0 && (
-                <div style="margin-bottom:14px;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Menciones de la competencia en IA</div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Competidor</th>
-                        <th>Tasa de mención</th>
-                        <th>vs. Tú ({geo.mentionRate ?? 0}%)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
-                        <tr>
-                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
-                          <td>
-                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
-                          </td>
-                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
-                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= igual'}
                           </td>
                         </tr>
                       ))}
@@ -1197,6 +1164,39 @@ const heroStatus = statusStyle(ss(health.total));
               {ctItems.length === 0 && (
                 <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* Sin datos de tráfico SEO en DataForSEO para estos competidores. Se muestran los datos disponibles de velocidad web e IA.</div>
               )}
+
+              {/* Competitor GEO mentions */}
+              {geo && (allCompGeoZero ? (
+                <div class="callout callout-green" style="margin-top:14px;margin-bottom:0;">
+                  Ninguno de tus competidores analizados aparece en respuestas de IA. Esta es una ventana de oportunidad: el primero que trabaje su visibilidad en IA capturará demanda sin competencia directa.
+                </div>
+              ) : (geo.competitorMentions?.length ?? 0) > 0 && (
+                <div style="margin-top:14px;">
+                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Menciones de la competencia en IA</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Competidor</th>
+                        <th>Tasa de mención IA</th>
+                        <th>vs. {domain} ({geo.mentionRate ?? 0}%)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
+                        <tr>
+                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
+                          <td>
+                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
+                          </td>
+                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
+                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= igual'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           )}
 

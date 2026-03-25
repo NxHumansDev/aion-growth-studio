@@ -50,6 +50,9 @@ export async function runCompetitors(
 ): Promise<CompetitorsResult> {
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
 
+  // Titles that indicate the page wasn't the real site (Cloudflare challenge, 404, etc.)
+  const BAD_TITLE_RE = /^(just a moment|attention required|403|404|400|500|error|access denied|not found|forbidden|please wait|one moment|verifying|checking your browser|ddos protection|enable javascript|page not found|redirecting|site not found|domain for sale|coming soon|parked)/i;
+
   // If user selected competitors, fetch their names and use them directly
   if (userCompetitorUrls && userCompetitorUrls.length > 0) {
     const competitors = await Promise.all(
@@ -58,12 +61,14 @@ export async function runCompetitors(
         const compDomain = new URL(normalized).hostname.replace(/^www\./, '');
         try {
           const res = await axios.get(normalized, {
-            timeout: 5000,
+            timeout: 6000,
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
             validateStatus: (s) => s < 500,
           });
           const $ = cheerio.load(res.data as string);
-          const name = $('title').first().text().split(/[-|]/)[0].trim().slice(0, 80) || compDomain;
+          const rawTitle = $('title').first().text().split(/[-|·—]/)[0].trim().slice(0, 80);
+          // Reject generic error/challenge page titles — fall back to domain
+          const name = (rawTitle && !BAD_TITLE_RE.test(rawTitle)) ? rawTitle : compDomain;
           return { name, url: compUrl, snippet: 'Competidor seleccionado' };
         } catch {
           return { name: compDomain, url: compUrl, snippet: 'Competidor seleccionado' };

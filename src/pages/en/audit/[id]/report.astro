@@ -688,7 +688,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
 
           <!-- ── Layer 2: GEO / AI ── -->
-          <div id="ia" class="sub-section-title">
+          <div id="ia" class="sub-section-title" style="margin-top:36px;padding-top:28px;border-top:1px solid #E5E7EB;">
             <span style="width:3px;height:16px;background:#7c3aed;border-radius:2px;display:inline-block;margin-right:8px;vertical-align:middle;"></span>
             AI Visibility
           </div>
@@ -791,38 +791,6 @@ const heroStatus = statusStyle(ss(health.total));
                   <div class="callout callout-blue" style="font-size:12px;">
                     Improving your AI visibility for these terms is the highest-ROI GEO initiative: the demand already exists and you are already relevant on Google. You just need ChatGPT and Perplexity to know it.
                   </div>
-                </div>
-              )}
-
-              {allCompGeoZero ? (
-                <div class="callout callout-green" style="margin-bottom:14px;">
-                  None of your analyzed competitors appear in AI responses. This is a window of opportunity: the first to work on AI visibility will capture demand without direct competition.
-                </div>
-              ) : (geo.competitorMentions?.length ?? 0) > 0 && (
-                <div style="margin-bottom:14px;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Competitor AI mentions</div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Competitor</th>
-                        <th>Mention rate</th>
-                        <th>vs. You ({geo.mentionRate ?? 0}%)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
-                        <tr>
-                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
-                          <td>
-                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
-                          </td>
-                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
-                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= equal'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
               )}
 
@@ -1078,6 +1046,39 @@ const heroStatus = statusStyle(ss(health.total));
               {ctItems.length === 0 && (
                 <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* No SEO traffic data in DataForSEO for these competitors. Web speed and AI data shown where available.</div>
               )}
+
+              {/* Competitor GEO mentions */}
+              {geo && (allCompGeoZero ? (
+                <div class="callout callout-green" style="margin-top:14px;margin-bottom:0;">
+                  None of your analyzed competitors appear in AI responses. This is a window of opportunity: the first to work on AI visibility will capture demand without direct competition.
+                </div>
+              ) : (geo.competitorMentions?.length ?? 0) > 0 && (
+                <div style="margin-top:14px;">
+                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Competitor AI mentions</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Competitor</th>
+                        <th>AI mention rate</th>
+                        <th>vs. {domain} ({geo.mentionRate ?? 0}%)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
+                        <tr>
+                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
+                          <td>
+                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
+                          </td>
+                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
+                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= equal'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           )}
 

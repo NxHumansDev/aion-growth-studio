@@ -37,18 +37,18 @@ const DENIAL_PHRASES = [
 function detectMention(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
   if (lower.includes(domain.toLowerCase())) return true;
-  // Full brand name (only if >4 chars to avoid false positives)
-  if (brandName.length > 4 && lower.includes(brandName.toLowerCase())) return true;
+  // Full brand name (only if >=4 chars to avoid false positives like "el", "la", etc.)
+  if (brandName.length >= 4 && lower.includes(brandName.toLowerCase())) return true;
   // Domain base without TLD (e.g. "loom" from "loom.es")
   const domainBase = domain.replace(/\.[a-z]{2,6}$/i, '');
-  if (domainBase.length > 4 && lower.includes(domainBase.toLowerCase())) return true;
+  if (domainBase.length >= 4 && lower.includes(domainBase.toLowerCase())) return true;
   return false;
 }
 
 function hasDenialNearBrand(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
   let brandIdx = lower.indexOf(domain.toLowerCase());
-  if (brandIdx === -1 && brandName.length > 4) brandIdx = lower.indexOf(brandName.toLowerCase());
+  if (brandIdx === -1 && brandName.length >= 4) brandIdx = lower.indexOf(brandName.toLowerCase());
   if (brandIdx === -1) return false;
   const context = lower.slice(Math.max(0, brandIdx - 80), brandIdx + 40);
   return DENIAL_PHRASES.some((p) => context.includes(p));
