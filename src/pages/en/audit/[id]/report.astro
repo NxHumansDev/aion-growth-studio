@@ -1003,7 +1003,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
           {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEn || newsCountEn > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              DataForSEO has no backlinks data for this domain (common in banking, finance and domains with indexing restrictions).
+              No backlinks data could be retrieved for this domain (common in banking, finance and domains with indexing restrictions).
               The authority score reflects available signals:{' '}
               {geo?.mentionRate != null && <span>AI visibility ({geo.mentionRate}%), </span>}
               {newsCountEn > 0 && <span>press coverage ({newsCountEn} articles), </span>}
@@ -1115,7 +1115,7 @@ const heroStatus = statusStyle(ss(health.total));
             <div style="margin-bottom:20px;">
               <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
                 <div style="font-size:0.75rem;font-weight:600;color:#5A6478;">Comparative data</div>
-                <div style="font-size:0.68rem;color:#9CA3AF;font-style:italic;">* Traffic &amp; keywords reflect the full domain (DataForSEO limitation)</div>
+                <div style="font-size:0.68rem;color:#9CA3AF;font-style:italic;">* Traffic &amp; keywords measured at full domain level</div>
               </div>
               <table>
                 <thead>
@@ -1147,7 +1147,7 @@ const heroStatus = statusStyle(ss(health.total));
                 </tbody>
               </table>
               {ctItems.length === 0 && (
-                <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* No SEO traffic data in DataForSEO for these competitors. Web speed and AI data shown where available.</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* No SEO traffic data available for these competitors. Web speed and AI visibility data shown where available.</div>
               )}
 
               {/* Competitor GEO mentions */}

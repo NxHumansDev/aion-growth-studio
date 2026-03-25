@@ -1131,7 +1131,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
           {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              DataForSEO no dispone de datos de backlinks para este dominio (habitual en banca, finanzas y dominios con restricciones de indexación).
+              No se han podido obtener datos de backlinks para este dominio (habitual en banca, finanzas y dominios con restricciones de indexación).
               El score de autoridad refleja las señales disponibles:{' '}
               {geo?.mentionRate != null && <span>visibilidad en IA ({geo.mentionRate}%), </span>}
               {newsCountEs > 0 && <span>presencia en prensa ({newsCountEs} artículos), </span>}
@@ -1243,7 +1243,7 @@ const heroStatus = statusStyle(ss(health.total));
             <div style="margin-bottom:20px;">
               <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
                 <div style="font-size:0.75rem;font-weight:600;color:#5A6478;">Datos comparativos</div>
-                <div style="font-size:0.68rem;color:#9CA3AF;font-style:italic;">* Tráfico y keywords a nivel de dominio completo (limitación de DataForSEO)</div>
+                <div style="font-size:0.68rem;color:#9CA3AF;font-style:italic;">* Tráfico y keywords medidos a nivel de dominio completo</div>
               </div>
               <table>
                 <thead>
@@ -1275,7 +1275,7 @@ const heroStatus = statusStyle(ss(health.total));
                 </tbody>
               </table>
               {ctItems.length === 0 && (
-                <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* Sin datos de tráfico SEO en DataForSEO para estos competidores. Se muestran los datos disponibles de velocidad web e IA.</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* Sin datos de tráfico SEO disponibles para estos competidores. Se muestran los datos de velocidad web e IA.</div>
               )}
 
               {/* Competitor GEO mentions */}
