@@ -8,6 +8,9 @@
  *   npx tsx scripts/run-quality-engine.ts --domain andbank.com --sector banca_privada
  */
 
+import { config } from 'dotenv';
+config({ path: new URL('../.env', import.meta.url).pathname });
+
 import { runQualityEngine } from '../src/lib/qa-engine/quality-engine';
 import { selectDomains } from '../src/lib/qa-engine/domain-pool';
 import type { DomainSelection } from '../src/lib/qa-engine/types';

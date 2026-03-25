@@ -6,6 +6,9 @@
  *   npx tsx scripts/send-qa-email.ts
  */
 
+import { config } from 'dotenv';
+config({ path: new URL('../.env', import.meta.url).pathname });
+
 import { sendDailyReport } from '../src/lib/qa-engine/send-daily-report';
 
 async function main() {
