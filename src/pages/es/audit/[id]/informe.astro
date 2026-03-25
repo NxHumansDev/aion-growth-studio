@@ -72,6 +72,11 @@ const expScore = health.experiencia;
 const expColor = scoreColor(expScore);
 const expSummaryText = (insights as any)?.experienceSummary || null;
 
+// Giant competitor context callout
+const avgCompKWes = hasCompetitorData && seo ? ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 ?? 0), 0) / ctItems.length : 0;
+const showGiantCalloutEs = hasCompetitorData && seo && avgCompKWes > 0 && avgCompKWes >= (seo.keywordsTop10 ?? 0) * 5;
+const giantCompNamesEs = displayCompetitors.slice(0, 3).map((c: any) => c.name || c.domain).join(', ');
+
 // Helpers
 function fmt(n: number | undefined | null): string {
   if (n == null) return '—';
@@ -658,6 +663,12 @@ const heroStatus = statusStyle(ss(health.total));
                   <div class="metric-label">Keywords posición 4–10</div>
                 </div>
               </div>
+
+              {showGiantCalloutEs && (
+                <div class="callout callout-amber" style="margin-bottom:10px;">
+                  <strong>Contexto del score:</strong> tu visibilidad SEO se mide frente a {giantCompNamesEs} — competidores de referencia del sector con una media de {fmt(Math.round(avgCompKWes))} keywords en top 10. Con {fmt(seo?.keywordsTop10)} keywords y ~{fmt(seo?.organicTrafficEstimate)} visitas/mes, tu posición orgánica es <strong>sólida para tu tamaño</strong>. El score refleja la brecha real que existe en el mercado, no una valoración negativa de tu trabajo SEO.
+                </div>
+              )}
 
               {(seo.estimatedAdsCost ?? 0) > 0 && (
                 <div class="callout callout-blue" style="margin-bottom:10px;">

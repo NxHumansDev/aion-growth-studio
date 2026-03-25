@@ -262,6 +262,11 @@ function cwvStatus(metric: string, value: number): {color:string;label:string} {
   return value<=good ? {color:'#1D9E75',label:'Good'} : value<=poor ? {color:'#BA7517',label:'Needs Work'} : {color:'#E24B4A',label:'Slow'};
 }
 
+// Giant competitor context callout
+const avgCompKWen = hasCompetitorData && seo ? ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 ?? 0), 0) / ctItems.length : 0;
+const showGiantCalloutEn = hasCompetitorData && seo && avgCompKWen > 0 && avgCompKWen >= (seo.keywordsTop10 ?? 0) * 5;
+const giantCompNamesEn = displayCompetitors.slice(0, 3).map((c: any) => c.name || c.domain).join(', ');
+
 // Insights/Plan
 const quickWins: string[] = insights?.bullets?.slice(0,3)||[];
 const strategicActions: any[] = insights?.initiatives?.slice(0,4)||[];
@@ -576,6 +581,12 @@ const heroStatus = statusStyle(ss(health.total));
                   <div class="metric-label">Keywords positions 4–10</div>
                 </div>
               </div>
+
+              {showGiantCalloutEn && (
+                <div class="callout callout-amber" style="margin-bottom:10px;">
+                  <strong>Score context:</strong> your SEO visibility is measured against {giantCompNamesEn} — sector reference competitors averaging {fmt(Math.round(avgCompKWen))} keywords in top 10. With {fmt(seo?.keywordsTop10)} keywords and ~{fmt(seo?.organicTrafficEstimate)} visits/month, your organic presence is <strong>solid for your size</strong>. The score reflects the real gap that exists in the market, not a negative assessment of your SEO work.
+                </div>
+              )}
 
               {(seo.estimatedAdsCost ?? 0) > 0 && (
                 <div class="callout callout-blue" style="margin-bottom:10px;">

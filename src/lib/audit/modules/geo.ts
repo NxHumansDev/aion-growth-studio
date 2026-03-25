@@ -1,10 +1,10 @@
 import type { GeoResult, GeoQuery, GeoCompetitorMention, CrawlResult } from '../types';
 
-const OPENAI_KEY = import.meta.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+const OPENAI_KEY     = import.meta.env.OPENAI_API_KEY     || process.env.OPENAI_API_KEY;
 const PERPLEXITY_KEY = import.meta.env.PERPLEXITY_API_KEY || process.env.PERPLEXITY_API_KEY;
-const ANTHROPIC_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
-const GEMINI_KEY = import.meta.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-const DEEPSEEK_KEY = import.meta.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY;
+const ANTHROPIC_KEY  = import.meta.env.ANTHROPIC_API_KEY  || process.env.ANTHROPIC_API_KEY;
+const GEMINI_KEY     = import.meta.env.GEMINI_API_KEY     || process.env.GEMINI_API_KEY;
+const DEEPSEEK_KEY   = import.meta.env.DEEPSEEK_API_KEY   || process.env.DEEPSEEK_API_KEY;
 
 type Stage = 'tofu' | 'mofu' | 'bofu';
 type EngineType = 'openai_compat' | 'anthropic' | 'gemini';
@@ -13,7 +13,7 @@ interface Engine {
   name: string;
   apiKey: string;
   type: EngineType;
-  baseUrl?: string;  // for openai_compat engines
+  baseUrl?: string;
   model: string;
 }
 
@@ -37,16 +37,18 @@ const DENIAL_PHRASES = [
 function detectMention(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
   if (lower.includes(domain.toLowerCase())) return true;
-  if (brandName.length > 5 && lower.includes(brandName.toLowerCase())) return true;
+  // Full brand name (only if >4 chars to avoid false positives)
+  if (brandName.length > 4 && lower.includes(brandName.toLowerCase())) return true;
+  // Domain base without TLD (e.g. "loom" from "loom.es")
   const domainBase = domain.replace(/\.[a-z]{2,6}$/i, '');
-  if (domainBase.length > 5 && lower.includes(domainBase.toLowerCase())) return true;
+  if (domainBase.length > 4 && lower.includes(domainBase.toLowerCase())) return true;
   return false;
 }
 
 function hasDenialNearBrand(answer: string, domain: string, brandName: string): boolean {
   const lower = answer.toLowerCase();
   let brandIdx = lower.indexOf(domain.toLowerCase());
-  if (brandIdx === -1 && brandName.length > 5) brandIdx = lower.indexOf(brandName.toLowerCase());
+  if (brandIdx === -1 && brandName.length > 4) brandIdx = lower.indexOf(brandName.toLowerCase());
   if (brandIdx === -1) return false;
   const context = lower.slice(Math.max(0, brandIdx - 80), brandIdx + 40);
   return DENIAL_PHRASES.some((p) => context.includes(p));
@@ -54,8 +56,13 @@ function hasDenialNearBrand(answer: string, domain: string, brandName: string): 
 
 // ── Engine query ──────────────────────────────────────────────────
 
+// System prompt instructs models to name real, local brands — critical for
+// detecting smaller regional players that generic prompts miss.
 const SYSTEM_PROMPT =
-  'You are a helpful AI assistant. When asked about companies, products, or services, provide specific real brand names and concrete recommendations. Be concise and direct.';
+  'You are a helpful local market expert. When asked about companies, products or services, ' +
+  'always recommend specific real brand names including smaller regional or local players — ' +
+  'not just global giants. Be concise, list 4-6 options with brief reasons. ' +
+  'If the question is in Spanish, answer in Spanish.';
 
 async function askOpenAICompat(query: string, engine: Engine, signal: AbortSignal): Promise<string> {
   const res = await fetch((engine.baseUrl || 'https://api.openai.com/v1') + '/chat/completions', {
@@ -64,7 +71,7 @@ async function askOpenAICompat(query: string, engine: Engine, signal: AbortSigna
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${engine.apiKey}` },
     body: JSON.stringify({
       model: engine.model,
-      max_tokens: 250,
+      max_tokens: 500,   // was 250 — more space = more brands named
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: query },
@@ -87,7 +94,7 @@ async function askAnthropic(query: string, engine: Engine, signal: AbortSignal):
     },
     body: JSON.stringify({
       model: engine.model,
-      max_tokens: 250,
+      max_tokens: 500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: query }],
     }),
@@ -105,7 +112,7 @@ async function askGemini(query: string, engine: Engine, signal: AbortSignal): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${query}` }] }],
-      generationConfig: { maxOutputTokens: 250 },
+      generationConfig: { maxOutputTokens: 500 },
     }),
   });
   if (!res.ok) return '';
@@ -113,17 +120,14 @@ async function askGemini(query: string, engine: Engine, signal: AbortSignal): Pr
   return (data?.candidates?.[0]?.content?.parts?.[0]?.text || '') as string;
 }
 
-async function askEngine(query: string, engine: Engine, timeout = 12000): Promise<string> {
+async function askEngine(query: string, engine: Engine, timeout = 15000): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
     switch (engine.type) {
-      case 'anthropic':
-        return await askAnthropic(query, engine, controller.signal);
-      case 'gemini':
-        return await askGemini(query, engine, controller.signal);
-      default:
-        return await askOpenAICompat(query, engine, controller.signal);
+      case 'anthropic': return await askAnthropic(query, engine, controller.signal);
+      case 'gemini':    return await askGemini(query, engine, controller.signal);
+      default:          return await askOpenAICompat(query, engine, controller.signal);
     }
   } catch {
     return '';
@@ -135,8 +139,9 @@ async function askEngine(query: string, engine: Engine, timeout = 12000): Promis
 // ── Query generation ──────────────────────────────────────────────
 
 /**
- * Static fallback queries used when GPT generation fails.
- * Structure: 4 TOFU + 5 MOFU + 2 BOFU (unbranded) + 1 BOFU (branded) = 12 total
+ * Static fallback queries — 3 TOFU + 4 MOFU + 4 BOFU + 1 brand = 12.
+ * More MOFU/BOFU vs before (was 4/4/3/1) because smaller/local brands
+ * are much more likely to appear in comparison and purchase-intent queries.
  */
 function buildFallbackQueries(
   sector: string,
@@ -147,29 +152,32 @@ function buildFallbackQueries(
   locationHint: string | undefined,
 ): QuerySpec[] {
   const loc = locationHint ? ` en ${locationHint}` : '';
-  const vp = valueProposition.slice(0, 80) || sector;
-  const kw = keywords.slice(0, 60) || sector;
+  const locShort = locationHint ? ` ${locationHint}` : '';
+  const vp  = valueProposition.slice(0, 60) || sector;
+  const kw  = keywords.slice(0, 50) || sector;
   return [
-    // TOFU — 4 awareness queries, NO brand
-    { stage: 'tofu', query: `¿Cuáles son las mejores empresas de ${sector}${loc}? Dame nombres concretos.` },
-    { stage: 'tofu', query: `¿Qué tendencias están marcando el futuro de ${sector} este año?` },
-    { stage: 'tofu', query: `¿Cómo elegir un buen proveedor de ${sector}? ¿Qué criterios importan más?` },
-    { stage: 'tofu', query: `Referentes y líderes del mercado en ${sector}${loc}. ¿Quiénes destacan?` },
-    // MOFU — 4 comparison / problem queries, NO brand
-    { stage: 'mofu', query: `Necesito "${vp}". ¿Qué empresa contrataría y por qué?` },
-    { stage: 'mofu', query: `¿Cuál es la diferencia entre las principales empresas de ${sector}? Comparativa.` },
-    { stage: 'mofu', query: `¿Qué alternativas existen en ${sector} para una empresa mediana en crecimiento?` },
-    { stage: 'mofu', query: `Problema: necesito ${kw}. ¿Qué proveedor lo resuelve mejor y a qué precio?` },
-    // BOFU — 3 high-intent unbranded + 1 direct brand
-    { stage: 'bofu', query: `Quiero contratar ${sector}${loc}. ¿Qué empresa ofrece mejor relación calidad-precio?` },
-    { stage: 'bofu', query: `Busco proveedor de ${sector} de confianza para proyecto urgente. ¿Opciones top?` },
-    { stage: 'bofu', query: `Compara las mejores opciones de ${sector}${loc} para contratar este mes. ¿Cuál elegiría un experto?` },
-    { stage: 'bofu', query: `¿Qué sabes sobre "${brandName}" (${domain})? ¿Es un referente conocido en ${sector}?`, isBrandQuery: true },
+    // TOFU — 3 awareness queries (awareness, discovery, trends)
+    { stage: 'tofu', query: `Mejores empresas de ${sector}${loc} — dame nombres concretos` },
+    { stage: 'tofu', query: `¿Quién lidera el mercado de ${sector}${locShort}? Lista las opciones más recomendadas` },
+    { stage: 'tofu', query: `Alternativas en ${sector} para una empresa mediana. ¿Qué opciones existen?` },
+    // MOFU — 4 comparison / problem queries
+    { stage: 'mofu', query: `Necesito "${vp}"${loc}. ¿Qué empresa contrataría y por qué? Menciona opciones reales` },
+    { stage: 'mofu', query: `Comparativa de proveedores de ${sector}: calidad, precio y servicio. ¿Cuáles destacan${locShort}?` },
+    { stage: 'mofu', query: `Problemas con mi proveedor actual de ${kw}. ¿Qué alternativas locales me recomiendas?` },
+    { stage: 'mofu', query: `Diferencias entre las opciones de ${sector}${loc}. ¿Cuál tiene mejor relación calidad-precio?` },
+    // BOFU — 4 high-intent purchase queries
+    { stage: 'bofu', query: `Quiero contratar ${kw}${loc} esta semana. ¿Qué empresa llamas primero?` },
+    { stage: 'bofu', query: `Recomiéndame un proveedor de confianza de ${sector}${loc}. Necesito nombres concretos` },
+    { stage: 'bofu', query: `¿Cuál es la mejor opción de ${sector}${loc} para una empresa en crecimiento? Precio y calidad` },
+    { stage: 'bofu', query: `Top 5 empresas de ${sector}${loc} según expertos del sector. ¿Cuál contrataría hoy?` },
+    // BOFU_brand — direct brand query (always last)
+    { stage: 'bofu', query: `¿Conoces "${brandName}" (${domain})? ¿Es una opción recomendable en ${sector}?`, isBrandQuery: true },
   ];
 }
 
 /**
  * Generate 12 buyer-intent queries via GPT with TOFU/MOFU/BOFU structure.
+ * Uses conversational, natural language — not formal sector descriptions.
  * Falls back to static templates on any failure.
  */
 async function generateQueries(
@@ -185,27 +193,26 @@ async function generateQueries(
     sector, valueProposition, keywords, brandName, domain, locationHint,
   );
   const loc = locationHint
-    ? `\n- Ubicación: ${locationHint} (úsala en consultas geográficas, NUNCA uses "[ciudad]")`
+    ? `\n- Ubicación: ${locationHint} (úsala en las consultas geográficas cuando tenga sentido, NUNCA entre corchetes)`
     : '';
 
   const prompt =
     `Genera exactamente 12 consultas que un potencial cliente real escribiría en ChatGPT o Perplexity buscando ${sector}.\n\n` +
-    `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 120)}\n` +
-    `- Servicios/keywords: ${keywords.slice(0, 80)}${loc}\n\n` +
-    `Estructura ESTRICTA (exactamente en este orden, 4 de cada etapa):\n` +
-    `- 4 consultas TOFU (posiciones 1-4): consciencia del sector, descubrimiento, tendencias. SIN mencionar "${brandName}" ni "${domain}".\n` +
-    `- 4 consultas MOFU (posiciones 5-8): comparativas, alternativas, problemas concretos. SIN mencionar "${brandName}" ni "${domain}".\n` +
-    `- 3 consultas BOFU (posiciones 9-11): alta intención de compra/contratación. SIN nombre de marca.\n` +
-    `- 1 consulta BOFU_brand (posición 12): pregunta directa sobre "${brandName}" (${domain}). DEBE mencionarlo explícitamente.\n\n` +
-    `Reglas:\n` +
-    `1. Consultas TOFU y MOFU NUNCA incluyen "${brandName}" ni "${domain}".\n` +
-    `2. La última consulta (posición 12, BOFU_brand) DEBE incluir "${brandName}" o "${domain}".\n` +
-    `3. Idioma: el mismo que los textos del negocio.\n` +
-    `4. NUNCA uses placeholders entre corchetes. Usa siempre términos reales.\n` +
-    `5. EXACTAMENTE 4 TOFU + 4 MOFU + 3 BOFU + 1 BOFU_brand = 12 total.\n\n` +
-    `Devuelve SOLO un JSON array de 12 objetos:\n` +
-    `[{"stage":"tofu","query":"..."},...,{"stage":"bofu","query":"...","isBrandQuery":true}]\n` +
-    `Sin texto adicional, sin markdown.`;
+    `Contexto del negocio:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 100)}\n` +
+    `- Servicios clave: ${keywords.slice(0, 60)}${loc}\n\n` +
+    `REGLAS CRÍTICAS:\n` +
+    `1. Las consultas deben sonar NATURALES y conversacionales — como alguien que escribe en un chat, no como un formulario.\n` +
+    `2. Cortas y directas: máximo 12 palabras por consulta.\n` +
+    `3. Estructura EXACTA (en este orden):\n` +
+    `   - 3 consultas TOFU (posiciones 1-3): descubrimiento del sector, sin marca. Ej: "mejores coworkings Madrid recomendaciones"\n` +
+    `   - 4 consultas MOFU (posiciones 4-7): comparativas y problemas concretos, sin marca. Ej: "coworking vs oficina compartida diferencias precio"\n` +
+    `   - 4 consultas BOFU (posiciones 8-11): alta intención de compra, sin marca. Ej: "contratar espacio coworking flexible Barcelona"\n` +
+    `   - 1 consulta BOFU_brand (posición 12): pregunta directa sobre "${brandName}" mencionándolo explícitamente.\n` +
+    `4. NUNCA uses "${brandName}" ni "${domain}" en consultas TOFU/MOFU/BOFU (solo en la posición 12).\n` +
+    `5. NUNCA uses placeholders como [ciudad] o [empresa]. Usa nombres reales.\n` +
+    `6. Idioma: español.\n\n` +
+    `Devuelve SOLO un JSON array de 12 objetos. Sin markdown, sin texto adicional:\n` +
+    `[{"stage":"tofu","query":"..."},...,{"stage":"bofu","query":"...","isBrandQuery":true}]`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25000);
@@ -216,7 +223,7 @@ async function generateQueries(
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        max_tokens: 1000,
+        max_tokens: 1200,
         messages: [
           { role: 'system', content: 'Responde SOLO con JSON válido. Sin markdown. Sin texto adicional.' },
           { role: 'user', content: prompt },
@@ -231,7 +238,7 @@ async function generateQueries(
     const arr = JSON.parse(match[0]) as any[];
     if (!Array.isArray(arr) || arr.length < 10) return fallback;
     const specs: QuerySpec[] = arr
-      .filter((q: any) => q.stage && q.query && typeof q.query === 'string' && q.query.length > 10)
+      .filter((q: any) => q.stage && q.query && typeof q.query === 'string' && q.query.length > 8)
       .map((q: any) => ({
         stage: (q.stage as Stage) in { tofu: 1, mofu: 1, bofu: 1 } ? (q.stage as Stage) : 'mofu',
         query: q.query as string,
@@ -259,12 +266,13 @@ export async function runGEO(
   }
 
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
-  const brandName = crawl.companyName || domain;
-  const locationHint = crawl.locationHint;
+  const brandName      = crawl.companyName || domain;
+  const locationHint   = crawl.locationHint;
   const valueProposition = crawl.description?.slice(0, 120) || '';
-  const keywords = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
+  const keywords       = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
 
-  // Configure engines — add each available engine
+  // Configure engines
+  // Perplexity uses sonar (large, web search) — best for real-world brand recall
   const engines: Engine[] = [
     {
       name: 'ChatGPT',
@@ -279,7 +287,7 @@ export async function runGEO(
           apiKey: PERPLEXITY_KEY,
           type: 'openai_compat' as EngineType,
           baseUrl: 'https://api.perplexity.ai',
-          model: 'llama-3.1-sonar-small-128k-online',
+          model: 'sonar',   // upgraded from sonar-small: better web recall
         }]
       : []),
     ...(ANTHROPIC_KEY
@@ -316,7 +324,6 @@ export async function runGEO(
 
   try {
     // Run ALL queries × ALL engines in parallel
-    // Promise.allSettled: if one engine times out or errors, others still contribute
     const runResults = await Promise.all(
       querySpecs.map(async (spec) => {
         const settled = await Promise.allSettled(
@@ -329,13 +336,12 @@ export async function runGEO(
             return { engineName: engine.name, answer, mentioned };
           }),
         );
-        // Map settled results — failed engines contribute empty/false
         const engineOutputs = settled.map((s, i) =>
           s.status === 'fulfilled'
             ? s.value
             : { engineName: engines[i].name, answer: '', mentioned: false },
         );
-        // Union logic: mentioned if ANY engine mentions it
+        // Union: mentioned if ANY engine mentions it
         const mentioned = engineOutputs.some((e) => e.mentioned);
         return { spec, engineOutputs, mentioned };
       }),
@@ -354,45 +360,44 @@ export async function runGEO(
         brandScore: 0,
         sectorScore: 0,
         mentionRate: 0,
-        error: `Todas las APIs devolvieron respuesta vacía (timeout o rate-limit). Motores: ${engineSummary}`,
-        _log: `all_empty | engines:${engineSummary} | q:${querySpecs.length} | probable:rate_limit_or_timeout`,
+        error: `Todas las APIs devolvieron respuesta vacía. Motores: ${engineSummary}`,
+        _log: `all_empty | engines:${engineSummary} | q:${querySpecs.length}`,
       };
     }
 
-    // Compute competitor mentions from already-fetched AI answers (zero extra API calls)
+    // Competitor mentions from already-fetched answers (zero extra API calls)
     const competitorMentions: GeoCompetitorMention[] = (competitors || []).map((comp) => {
-      const compDomain = new URL(comp.url.startsWith('http') ? comp.url : `https://${comp.url}`)
-        .hostname.replace(/^www\./, '');
+      let compDomain = comp.url;
+      try {
+        compDomain = new URL(comp.url.startsWith('http') ? comp.url : `https://${comp.url}`)
+          .hostname.replace(/^www\./, '');
+      } catch {}
       let mentionCount = 0;
       for (const r of runResults) {
-        const isMentioned = r.engineOutputs.some((e) =>
-          detectMention(e.answer, compDomain, comp.name),
-        );
-        if (isMentioned) mentionCount++;
+        if (r.engineOutputs.some((e) => detectMention(e.answer, compDomain, comp.name))) {
+          mentionCount++;
+        }
       }
       return {
         name: comp.name,
         domain: compDomain,
         mentions: mentionCount,
         total: runResults.length,
-        mentionRate:
-          runResults.length > 0 ? Math.round((mentionCount / runResults.length) * 100) : 0,
+        mentionRate: runResults.length > 0 ? Math.round((mentionCount / runResults.length) * 100) : 0,
       };
     });
 
-    // Build GeoQuery objects — strip context/engines to fit Notion's 2000-char block limit
+    // Build GeoQuery objects — keep queries short to help Notion's 2000-char limit
     const queries: GeoQuery[] = runResults.map((r) => ({
-      query: r.spec.query.slice(0, 70),   // keep short — Notion has 2000-char limit
+      query: r.spec.query.slice(0, 80),
       mentioned: r.mentioned,
       stage: r.spec.stage,
       isBrandQuery: r.spec.isBrandQuery,
-      // Intentionally omit: context, answer, engines per-query
-      // Per-engine aggregate data is preserved in crossModel
     }));
 
-    const total = queries.length;
+    const total        = queries.length;
     const mentionCount = queries.filter((q) => q.mentioned).length;
-    const mentionRate = total > 0 ? Math.round((mentionCount / total) * 100) : 0;
+    const mentionRate  = total > 0 ? Math.round((mentionCount / total) * 100) : 0;
 
     // Funnel breakdown
     const tofuQ = queries.filter((q) => q.stage === 'tofu');
@@ -413,9 +418,9 @@ export async function runGEO(
       total,
     }));
 
-    // Weighted score: TOFU mentions are most valuable (organic, unprompted)
+    // Weighted score: TOFU unprompted mentions most valuable
     const STAGE_WEIGHTS: Record<Stage, number> = { tofu: 1.5, mofu: 1.0, bofu: 0.8 };
-    const BRAND_QUERY_WEIGHT = 0.3; // Direct brand query is the easiest to get
+    const BRAND_QUERY_WEIGHT = 0.3;
     let weightedMentioned = 0;
     let weightedTotal = 0;
     for (const r of runResults) {
@@ -425,11 +430,11 @@ export async function runGEO(
     }
     const overallScore = weightedTotal > 0 ? Math.round((weightedMentioned / weightedTotal) * 100) : 0;
 
-    // Legacy sub-scores (backward compat with report pages)
-    const sectorScore =
-      tofuQ.length > 0 ? Math.round((tofuQ.filter((q) => q.mentioned).length / tofuQ.length) * 100) : 0;
-    const brandScore =
-      bofuQ.length > 0 ? Math.round((bofuQ.filter((q) => q.mentioned).length / bofuQ.length) * 100) : 0;
+    // Legacy sub-scores (backward compat)
+    const sectorScore = tofuQ.length > 0
+      ? Math.round((tofuQ.filter((q) => q.mentioned).length / tofuQ.length) * 100) : 0;
+    const brandScore  = bofuQ.length > 0
+      ? Math.round((bofuQ.filter((q) => q.mentioned).length / bofuQ.length) * 100) : 0;
 
     const engineLog = crossModel.map((e) => `${e.name}:${e.mentioned}/${e.total}`).join(' ');
     return {
