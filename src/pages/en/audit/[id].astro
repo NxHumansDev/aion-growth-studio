@@ -20,28 +20,6 @@ if (id) {
 }
 
 const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
-
-const MODULES = [
-  { key: 'crawl',              label: 'Technical SEO Analysis',        icon: 'code' },
-  { key: 'ssl',                label: 'SSL/HTTPS Security',             icon: 'lock' },
-  { key: 'pagespeed',          label: 'Web Performance',                icon: 'speed' },
-  { key: 'sector',             label: 'Sector Detection',               icon: 'category' },
-  { key: 'content',            label: 'Content Analysis',               icon: 'article' },
-  { key: 'geo',                label: 'AI Visibility (GEO)',             icon: 'smart_toy' },
-  { key: 'gbp',                label: 'Google Business Profile',        icon: 'storefront' },
-  { key: 'traffic',            label: 'Estimated Traffic',              icon: 'bar_chart' },
-  { key: 'seo',                label: 'Organic SEO & Backlinks',        icon: 'search' },
-  { key: 'seo_pages',          label: 'Top Organic Pages',              icon: 'web' },
-  { key: 'competitors',        label: 'Competitor Analysis',            icon: 'groups' },
-  { key: 'competitor_traffic', label: 'Competitor Traffic',             icon: 'leaderboard' },
-  { key: 'keyword_gap',        label: 'Keyword Gap',                    icon: 'key' },
-  { key: 'instagram',          label: 'Instagram / Social Media',       icon: 'photo_camera' },
-  { key: 'linkedin',           label: 'LinkedIn Company Page',          icon: 'work' },
-  { key: 'techstack',          label: 'Tech Stack',                     icon: 'settings' },
-  { key: 'conversion',         label: 'Conversion Capability',          icon: 'ads_click' },
-  { key: 'score',              label: 'Final Score',                    icon: 'grade' },
-  { key: 'insights',           label: 'Executive Diagnosis',            icon: 'lightbulb' },
-];
 ---
 
 <Layout
@@ -64,85 +42,124 @@ const MODULES = [
     margin: 0;
     min-height: 100vh;
   }
-
   .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
     user-select: none;
     line-height: 1;
   }
 
-  .module-card {
-    background: #ffffff;
-    border-radius: 0.5rem;
-    padding: 1.125rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-    box-shadow: 0 2px 8px rgba(0,29,50,0.04);
-    transition: background 0.25s, box-shadow 0.25s;
-    position: relative;
+  .phase-card {
+    background: #fff;
+    border-radius: 0.75rem;
     overflow: hidden;
+    transition: box-shadow 0.25s;
   }
-  .module-card.running {
+  .phase-card.active {
+    box-shadow: 0 0 0 2px #000e41, 0 8px 24px rgba(0,14,65,0.14);
     background: #edf4ff;
-    box-shadow: 0 0 0 2px #000e41, 0 6px 20px rgba(0,14,65,0.12);
   }
-  .module-card.done { background: #f8fffa; }
+  .phase-card.done   { background: #f4fff7; }
+  .phase-card.pending { opacity: 0.6; }
 
-  .module-icon-wrap {
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+  }
+  .phase-icon {
     width: 2rem;
     height: 2rem;
-    border-radius: 0.25rem;
-    background: #edf4ff;
+    border-radius: 0.375rem;
+    background: #e8ecf4;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     transition: background 0.25s;
   }
-  .module-card.running .module-icon-wrap { background: #000e41; }
-  .module-card.done    .module-icon-wrap { background: #e6ffd4; }
-
-  .module-icon-wrap .material-symbols-outlined {
+  .phase-card.active .phase-icon { background: #000e41; }
+  .phase-card.done   .phase-icon { background: #e1f5ea; }
+  .phase-icon .material-symbols-outlined {
     font-size: 16px;
-    color: #43474d;
+    color: #8a8f9a;
     transition: color 0.25s;
   }
-  .module-card.running .module-icon-wrap .material-symbols-outlined { color: #69ff87; }
-  .module-card.done    .module-icon-wrap .material-symbols-outlined { color: #1a6b00; }
+  .phase-card.active .phase-icon .material-symbols-outlined { color: #69ff87; }
+  .phase-card.done   .phase-icon .material-symbols-outlined { color: #22c55e; }
 
-  .module-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #43474d;
-    margin: 0;
+  .phase-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    flex: 1;
     line-height: 1.3;
-    transition: color 0.25s;
   }
-  .module-card.running .module-name { color: #000e41; }
-  .module-card.done    .module-name { color: #1a6b00; }
+  .phase-card.pending .phase-title { color: #6b7280; }
+  .phase-card.active  .phase-title { color: #000e41; }
+  .phase-card.done    .phase-title { color: #166534; }
 
-  .module-status-dot {
+  .phase-meta {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .phase-card.active .phase-meta { color: #4b6baf; }
+  .phase-card.done   .phase-meta { color: #86efac; }
+
+  .phase-modules {
+    display: none;
+    padding: 0 1.125rem 1rem;
+    gap: 0.5rem;
+  }
+  .phase-card.active .phase-modules,
+  .phase-card.done   .phase-modules {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 480px) {
+    .phase-card.active .phase-modules,
+    .phase-card.done   .phase-modules { grid-template-columns: 1fr; }
+  }
+
+  .phase-module-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.7375rem;
+    color: #374151;
+    background: rgba(255,255,255,0.5);
+  }
+  .phase-card.active .phase-module-item { color: #1e3a5f; }
+  .phase-module-item .mod-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(195,198,206,0.4);
+    background: #d1d5db;
     flex-shrink: 0;
-    margin-top: auto;
-    transition: background 0.25s;
   }
-  .module-card.running .module-status-dot {
+  .phase-module-item.running .mod-dot {
     background: #000e41;
     animation: pulse-dot 1.2s ease-in-out infinite;
   }
-  .module-card.done .module-status-dot { background: #22c55e; }
+  .phase-module-item.done .mod-dot { background: #22c55e; }
 
   .mod-spinner {
-    width: 14px;
-    height: 14px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     border: 2px solid rgba(105,255,135,0.2);
     border-top-color: #69ff87;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  .phase-spinner {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,14,65,0.2);
+    border-top-color: #000e41;
     animation: spin 0.8s linear infinite;
     flex-shrink: 0;
   }
@@ -150,25 +167,19 @@ const MODULES = [
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse-dot {
     0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.7); opacity: 0.4; }
+    50%       { transform: scale(1.7); opacity: 0.4; }
   }
 
-  .modules-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.875rem;
-  }
-  @media (max-width: 1024px) { .modules-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 640px)  { .modules-grid { grid-template-columns: repeat(2, 1fr); } }
+  .phases-list { display: flex; flex-direction: column; gap: 0.625rem; }
 
   @media (max-width: 640px) {
     .hero-headline { font-size: 1.875rem !important; }
     .hero-section-inner { padding: 1.5rem 1.25rem 2rem !important; }
-    .modules-section-inner { padding: 2rem 1.25rem !important; }
+    .phases-section-inner { padding: 2rem 1.25rem !important; }
   }
 </style>
 
-<!-- DARK HERO -->
+<!-- ═══════════════════════════ DARK HERO SECTION ══════════════ -->
 <section style="background:linear-gradient(135deg,#000e41 0%,#001260 60%,#000e41 100%);min-height:52vh;position:relative;">
 
   <nav style="padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:center;max-width:72rem;margin:0 auto;">
@@ -185,21 +196,17 @@ const MODULES = [
   <div class="hero-section-inner" style="max-width:72rem;margin:0 auto;padding:1.5rem 2rem 4rem;">
 
     <div id="proc-card">
-
       <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.375rem 0.875rem;border-radius:9999px;background:#00300e;color:#3ce36a;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:1.75rem;">
         <span style="width:6px;height:6px;border-radius:50%;background:#3ce36a;animation:pulse-dot 1.2s ease-in-out infinite;display:inline-block;"></span>
         Analysis in progress
       </div>
-
       <h1 class="hero-headline" style="font-size:clamp(2rem,4.5vw,3.25rem);font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.1;margin:0 0 0.875rem;max-width:36rem;">
         Analyzing your digital<br/>
         <span style="color:#69ff87;">infrastructure.</span>
       </h1>
-
       {domain && (
         <p style="font-size:0.9375rem;color:rgba(183,196,255,0.65);font-family:'Inter',monospace;margin:0 0 2.5rem;letter-spacing:0.01em;">{domain}</p>
       )}
-
       <div style="max-width:44rem;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.5rem;">
           <p id="progress-narrative" style="font-size:0.875rem;color:rgba(255,255,255,0.55);margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity 0.3s;line-height:1.5;"></p>
@@ -208,12 +215,11 @@ const MODULES = [
         <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:9999px;overflow:hidden;margin-bottom:2rem;">
           <div id="progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,#69ff87,#3ce36a);transition:width 0.7s ease;border-radius:9999px;"></div>
         </div>
-        <div id="current-module" style="display:inline-flex;align-items:center;gap:0.75rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.08);border-radius:9999px;padding:0.625rem 1.125rem;">
+        <div id="current-phase-pill" style="display:inline-flex;align-items:center;gap:0.75rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.08);border-radius:9999px;padding:0.625rem 1.125rem;">
           <span class="mod-spinner"></span>
-          <span id="current-module-label" style="font-size:0.8125rem;color:rgba(255,255,255,0.8);font-weight:500;">Starting…</span>
+          <span id="current-phase-label" style="font-size:0.8125rem;color:rgba(255,255,255,0.8);font-weight:500;">Starting…</span>
         </div>
       </div>
-
     </div>
 
     <div id="complete-card" style="display:none;">
@@ -232,50 +238,113 @@ const MODULES = [
       </a>
     </div>
 
-    <div id="sidebar-cta" style="display:none;">
-      <a id="sidebar-report-link" href="#"></a>
-    </div>
+    <div id="sidebar-cta" style="display:none;"><a id="sidebar-report-link" href="#"></a></div>
 
   </div>
 </section>
 
-<!-- LIGHT MODULES SECTION -->
+<!-- ═══════════════════════ LIGHT PHASES SECTION ══════════════ -->
 <section style="background:#edf4ff;">
-  <div class="modules-section-inner" style="max-width:72rem;margin:0 auto;padding:3.5rem 2rem 4rem;">
+  <div class="phases-section-inner" style="max-width:72rem;margin:0 auto;padding:3.5rem 2rem 4rem;">
 
-    <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:2.5rem;">
-      <span style="font-size:0.6875rem;font-weight:600;color:#43474d;text-transform:uppercase;letter-spacing:0.2em;">Analysis modules</span>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:2rem;">
+      <span style="font-size:0.6875rem;font-weight:600;color:#43474d;text-transform:uppercase;letter-spacing:0.2em;">Analysis phases</span>
       <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
-        <h2 style="font-size:1.75rem;font-weight:800;color:#000e41;letter-spacing:-0.02em;margin:0;">19 diagnostic checkpoints</h2>
+        <h2 style="font-size:1.75rem;font-weight:800;color:#000e41;letter-spacing:-0.02em;margin:0;">Parallel analysis</h2>
         <p style="font-size:0.875rem;color:#43474d;margin:0;font-weight:500;">
-          <span id="sidebar-count" style="font-weight:800;color:#000e41;">0</span>
-          <span style="color:#43474d;"> / {MODULES.length} completed</span>
+          <span id="phases-done-count" style="font-weight:800;color:#000e41;">0</span>
+          <span style="color:#43474d;"> / 5 phases completed</span>
         </p>
       </div>
-      <p style="font-size:0.9rem;color:#43474d;margin:0;max-width:40rem;line-height:1.6;">Complete analysis of your digital presence: organic SEO, AI visibility, performance, social media and growth opportunities.</p>
+      <p style="font-size:0.9rem;color:#43474d;margin:0;max-width:40rem;line-height:1.6;">Each phase groups modules that run in parallel for maximum speed. Results are processed as a batch when each phase completes.</p>
     </div>
 
-    <div class="modules-grid">
-      {MODULES.map(m => (
-        <div class="module-card" id={`card-${m.key}`}>
-          <div class="module-icon-wrap">
-            <span class="material-symbols-outlined">{m.icon}</span>
-          </div>
-          <p class="module-name">{m.label}</p>
-          <span class="module-status-dot"></span>
+    <div class="phases-list">
+
+      <div class="phase-card pending" id="phase-crawl">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">travel_explore</span></div>
+          <div style="flex:1;"><div class="phase-title">Initial exploration</div></div>
+          <div class="phase-meta">1 module</div>
         </div>
-      ))}
-    </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-crawl"><span class="mod-dot"></span>Technical SEO analysis</div>
+        </div>
+      </div>
 
+      <div class="phase-card pending" id="phase-ssl">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">speed</span></div>
+          <div style="flex:1;"><div class="phase-title">Technical & SEO analysis</div></div>
+          <div class="phase-meta">8 modules · parallel</div>
+        </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-ssl"><span class="mod-dot"></span>SSL/HTTPS security</div>
+          <div class="phase-module-item" id="pm-pagespeed"><span class="mod-dot"></span>Web performance (PageSpeed)</div>
+          <div class="phase-module-item" id="pm-seo"><span class="mod-dot"></span>Organic SEO & backlinks</div>
+          <div class="phase-module-item" id="pm-seo_pages"><span class="mod-dot"></span>Top organic pages</div>
+          <div class="phase-module-item" id="pm-traffic"><span class="mod-dot"></span>Estimated traffic</div>
+          <div class="phase-module-item" id="pm-gbp"><span class="mod-dot"></span>Google Business Profile</div>
+          <div class="phase-module-item" id="pm-techstack"><span class="mod-dot"></span>Tech stack</div>
+          <div class="phase-module-item" id="pm-content_cadence"><span class="mod-dot"></span>Content cadence</div>
+        </div>
+      </div>
+
+      <div class="phase-card pending" id="phase-sector">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">category</span></div>
+          <div style="flex:1;"><div class="phase-title">Sector & online presence</div></div>
+          <div class="phase-meta">5 modules · parallel</div>
+        </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-sector"><span class="mod-dot"></span>Sector detection</div>
+          <div class="phase-module-item" id="pm-content"><span class="mod-dot"></span>Content analysis</div>
+          <div class="phase-module-item" id="pm-conversion"><span class="mod-dot"></span>Conversion capability</div>
+          <div class="phase-module-item" id="pm-reputation"><span class="mod-dot"></span>Online reputation</div>
+          <div class="phase-module-item" id="pm-competitors"><span class="mod-dot"></span>Competitor analysis</div>
+        </div>
+      </div>
+
+      <div class="phase-card pending" id="phase-competitor_traffic">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">leaderboard</span></div>
+          <div style="flex:1;"><div class="phase-title">Competitive data, social & AI</div></div>
+          <div class="phase-meta">7 modules · parallel</div>
+        </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-competitor_traffic"><span class="mod-dot"></span>Competitor traffic</div>
+          <div class="phase-module-item" id="pm-competitor_pagespeed"><span class="mod-dot"></span>Competitor performance</div>
+          <div class="phase-module-item" id="pm-keyword_gap"><span class="mod-dot"></span>Keyword gap</div>
+          <div class="phase-module-item" id="pm-geo"><span class="mod-dot"></span>AI visibility (GEO)</div>
+          <div class="phase-module-item" id="pm-instagram"><span class="mod-dot"></span>Instagram / Social media</div>
+          <div class="phase-module-item" id="pm-linkedin"><span class="mod-dot"></span>LinkedIn company page</div>
+          <div class="phase-module-item" id="pm-meta_ads"><span class="mod-dot"></span>Meta Ads</div>
+        </div>
+      </div>
+
+      <div class="phase-card pending" id="phase-score">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">grade</span></div>
+          <div style="flex:1;"><div class="phase-title">Final diagnosis & score</div></div>
+          <div class="phase-meta">3 steps · sequential</div>
+        </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-score"><span class="mod-dot"></span>Score calculation</div>
+          <div class="phase-module-item" id="pm-insights"><span class="mod-dot"></span>Executive diagnosis (AI)</div>
+          <div class="phase-module-item" id="pm-qa"><span class="mod-dot"></span>Quality control</div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </section>
 
-<!-- ERROR STATE -->
+<!-- ═══════════════════════ ERROR STATE ═══════════════════════ -->
 <div id="error-state" style="display:none;background:#000e41;padding:6rem 2rem;text-align:center;">
   <div style="width:3.5rem;height:3.5rem;margin:0 auto 1.5rem;border-radius:50%;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;">
     <svg width="24" height="24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
   </div>
-  <h2 style="font-size:1.25rem;font-weight:700;color:#fff;margin:0 0 0.5rem;">The analysis could not be completed</h2>
+  <h2 style="font-size:1.25rem;font-weight:700;color:#fff;margin:0 0 0.5rem;">Analysis could not be completed</h2>
   <p style="color:rgba(255,255,255,0.5);font-size:0.9rem;margin:0 0 2rem;max-width:28rem;margin-left:auto;margin-right:auto;">An error occurred while analyzing your website. Please try again.</p>
   <a href="/en/diagnostic"
     style="display:inline-block;background:#69ff87;color:#001905;border-radius:0.375rem;padding:0.75rem 1.75rem;font-weight:700;font-size:0.75rem;text-decoration:none;text-transform:uppercase;letter-spacing:0.1em;">
@@ -286,45 +355,58 @@ const MODULES = [
 </Layout>
 
 <script define:vars={{ auditId: id, initialStatus, domain }}>
-  const MODULES = [
-    'crawl', 'ssl', 'pagespeed', 'sector', 'content', 'geo', 'gbp', 'traffic', 'seo', 'seo_pages', 'competitors', 'competitor_traffic', 'keyword_gap', 'instagram', 'linkedin', 'techstack', 'conversion', 'score', 'insights'
+
+  const PHASES = [
+    {
+      id: 'crawl',
+      cardId: 'phase-crawl',
+      label: 'Initial exploration',
+      narrative: 'Scanning technical structure and content signals…',
+      entrySteps: ['crawl'],
+      modules: ['crawl'],
+    },
+    {
+      id: 'ssl',
+      cardId: 'phase-ssl',
+      label: 'Technical & SEO analysis',
+      narrative: 'Running 8 analyses in parallel: performance, SEO, traffic…',
+      entrySteps: ['ssl'],
+      modules: ['ssl', 'pagespeed', 'seo', 'seo_pages', 'traffic', 'gbp', 'techstack', 'content_cadence'],
+    },
+    {
+      id: 'sector',
+      cardId: 'phase-sector',
+      label: 'Sector & online presence',
+      narrative: 'Identifying sector, content quality and mapping competitors…',
+      entrySteps: ['sector'],
+      modules: ['sector', 'content', 'conversion', 'reputation', 'competitors'],
+    },
+    {
+      id: 'competitor_traffic',
+      cardId: 'phase-competitor_traffic',
+      label: 'Competitive data, social & AI',
+      narrative: 'Analyzing competitor traffic, AI visibility and social media…',
+      entrySteps: ['competitor_traffic'],
+      modules: ['competitor_traffic', 'competitor_pagespeed', 'keyword_gap', 'geo', 'instagram', 'linkedin', 'meta_ads'],
+    },
+    {
+      id: 'score',
+      cardId: 'phase-score',
+      label: 'Final diagnosis & score',
+      narrative: 'Calculating digital health score and generating executive diagnosis…',
+      entrySteps: ['score', 'insights', 'qa'],
+      modules: ['score', 'insights', 'qa'],
+    },
   ];
 
-  const MODULE_NARRATIVE = {
-    crawl:               'Scanning technical structure and content signals…',
-    ssl:                 'Verifying domain security certificate…',
-    pagespeed:           'Measuring load speed — every second matters for SEO…',
-    sector:              'Identifying sector and market positioning…',
-    content:             'Analyzing value proposition and message clarity…',
-    geo:                 'Testing visibility in ChatGPT, Perplexity and other AI engines…',
-    gbp:                 'Searching and auditing Google Business Profile…',
-    traffic:             'Estimating traffic volume and annual trend…',
-    seo:                 'Counting top 10 keywords and measuring domain authority…',
-    seo_pages:           'Identifying pages that generate the most organic traffic…',
-    competitors:         'Mapping the competitive landscape of the sector…',
-    competitor_traffic:  'Comparing your traffic and keywords with direct competitors…',
-    keyword_gap:         'Finding where competitors rank and you do not appear…',
-    instagram:           'Analyzing social media presence and engagement…',
-    linkedin:            'Auditing professional authority on LinkedIn…',
-    techstack:           'Detecting marketing, analytics and conversion tools…',
-    conversion:          'Evaluating lead capture elements and conversion funnel…',
-    score:               'Calculating digital health score…',
-    insights:            'Generating personalized executive diagnosis…',
-  };
-
-  function setNarrative(moduleKey) {
-    const el = document.getElementById('progress-narrative');
-    if (!el) return;
-    const text = MODULE_NARRATIVE[moduleKey];
-    if (!text) return;
-    el.style.opacity = '0';
-    setTimeout(() => { el.textContent = text; el.style.opacity = '1'; }, 200);
-    const label = document.getElementById('current-module-label');
-    if (label) label.textContent = text;
+  const stepToPhase = {};
+  for (const phase of PHASES) {
+    for (const m of phase.modules) stepToPhase[m] = phase;
+    for (const s of phase.entrySteps) stepToPhase[s] = phase;
   }
 
-  let completedModules = new Set();
-  let pollTimer = null;
+  const completedModules = new Set();
+  let activePhaseId = null;
 
   function setProgress(pct) {
     const bar = document.getElementById('progress-bar');
@@ -333,47 +415,91 @@ const MODULES = [
     if (label) label.textContent = `${pct}%`;
   }
 
-  function markModule(key, state) {
-    const cardEl = document.getElementById(`card-${key}`);
-    if (cardEl) {
-      cardEl.classList.remove('running', 'done');
-      if (state === 'done') cardEl.classList.add('done');
-      else if (state === 'running') cardEl.classList.add('running');
-    }
+  function setNarrative(text) {
+    const el = document.getElementById('progress-narrative');
+    if (!el || !text) return;
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = text; el.style.opacity = '1'; }, 200);
+  }
 
+  function setPhaseLabel(text) {
+    const el = document.getElementById('current-phase-label');
+    if (el) el.textContent = text;
+  }
+
+  function updatePhasesDoneCount() {
+    const done = document.querySelectorAll('.phase-card.done').length;
+    const el = document.getElementById('phases-done-count');
+    if (el) el.textContent = done;
+  }
+
+  function setModuleDot(moduleKey, state) {
+    const el = document.getElementById(`pm-${moduleKey}`);
+    if (!el) return;
+    el.classList.remove('running', 'done');
+    if (state) el.classList.add(state);
+    const dot = el.querySelector('.mod-dot');
+    const existingSpinner = el.querySelector('.phase-spinner');
     if (state === 'running') {
-      document.querySelectorAll('.module-card.running').forEach(el => {
-        if (el.id !== `card-${key}`) el.classList.remove('running');
-      });
-    }
-
-    if (state === 'done') {
-      const count = document.querySelectorAll('.module-card.done').length;
-      const countEl = document.getElementById('sidebar-count');
-      if (countEl) countEl.textContent = count;
+      if (!existingSpinner && dot) {
+        const spinner = document.createElement('span');
+        spinner.className = 'phase-spinner';
+        el.replaceChild(spinner, dot);
+      }
+    } else if (existingSpinner) {
+      const newDot = document.createElement('span');
+      newDot.className = 'mod-dot';
+      el.replaceChild(newDot, existingSpinner);
     }
   }
 
-  function showResults(data) {
+  function activatePhase(phase) {
+    if (!phase || activePhaseId === phase.id) return;
+    activePhaseId = phase.id;
+    const card = document.getElementById(phase.cardId);
+    if (card) {
+      card.classList.remove('pending', 'done');
+      card.classList.add('active');
+    }
+    for (const m of phase.modules) {
+      if (!completedModules.has(m)) setModuleDot(m, 'running');
+    }
+    setNarrative(phase.narrative);
+    setPhaseLabel(phase.label);
+  }
+
+  function completePhase(phase) {
+    if (!phase) return;
+    const card = document.getElementById(phase.cardId);
+    if (card) {
+      card.classList.remove('active', 'pending');
+      card.classList.add('done');
+      const iconEl = card.querySelector('.phase-icon .material-symbols-outlined');
+      if (iconEl) iconEl.textContent = 'check_circle';
+    }
+    for (const m of phase.modules) setModuleDot(m, 'done');
+    updatePhasesDoneCount();
+    if (activePhaseId === phase.id) activePhaseId = null;
+  }
+
+  function showResults() {
     const reportUrl = `/en/audit/${auditId}/report`;
-    const sidebarCta = document.getElementById('sidebar-cta');
-    if (sidebarCta) sidebarCta.style.display = 'block';
-    const reportLink = document.getElementById('sidebar-report-link');
-    if (reportLink) reportLink.href = reportUrl;
     const procCard = document.getElementById('proc-card');
     const completeCard = document.getElementById('complete-card');
     if (procCard) procCard.style.display = 'none';
     if (completeCard) completeCard.style.display = 'block';
     const reportBtn = document.getElementById('report-btn');
     if (reportBtn) reportBtn.href = reportUrl;
+    const sidebarCta = document.getElementById('sidebar-cta');
+    if (sidebarCta) sidebarCta.style.display = 'block';
+    const reportLink = document.getElementById('sidebar-report-link');
+    if (reportLink) reportLink.href = reportUrl;
     window.location.href = reportUrl;
   }
 
   function showError() {
-    const procCard = document.getElementById('proc-card');
-    const errorState = document.getElementById('error-state');
-    if (procCard) procCard.style.display = 'none';
-    if (errorState) errorState.style.display = 'block';
+    document.getElementById('proc-card')?.style.setProperty('display', 'none');
+    document.getElementById('error-state')?.style.setProperty('display', 'block');
   }
 
   async function poll() {
@@ -382,38 +508,41 @@ const MODULES = [
       if (!res.ok) { showError(); return; }
       const data = await res.json();
 
-      setProgress(data.progress || 0);
+      if (data.progress) setProgress(data.progress);
 
       if (data.module_completed) {
-        completedModules.add(data.module_completed);
-        MODULES.forEach((key, i) => {
-          if (completedModules.has(key)) {
-            markModule(key, 'done');
-          } else if (i === completedModules.size) {
-            markModule(key, 'running');
+        const keys = String(data.module_completed).split(',').map(k => k.trim()).filter(Boolean);
+        for (const key of keys) {
+          completedModules.add(key);
+          const phase = stepToPhase[key];
+          if (phase && phase.modules.every(m => completedModules.has(m))) {
+            completePhase(phase);
+          } else {
+            setModuleDot(key, 'done');
           }
-        });
+        }
       }
 
       if (data.status === 'completed') {
         setProgress(100);
-        MODULES.forEach(key => markModule(key, 'done'));
-        showResults(data);
+        for (const phase of PHASES) completePhase(phase);
+        showResults();
         return;
       }
 
       if (data.status === 'error') { showError(); return; }
 
-      const nextIdx = completedModules.size;
-      if (nextIdx < MODULES.length) {
-        markModule(MODULES[nextIdx], 'running');
-        setNarrative(MODULES[nextIdx]);
+      if (data.currentStep) {
+        const nextPhase = stepToPhase[data.currentStep];
+        if (nextPhase && !nextPhase.modules.every(m => completedModules.has(m))) {
+          activatePhase(nextPhase);
+        }
       }
 
-      pollTimer = setTimeout(poll, 2000);
+      setTimeout(poll, 2000);
     } catch (err) {
       console.error('Poll error:', err);
-      pollTimer = setTimeout(poll, 3000);
+      setTimeout(poll, 3000);
     }
   }
 
@@ -422,8 +551,7 @@ const MODULES = [
   } else if (initialStatus === 'error') {
     showError();
   } else {
-    markModule(MODULES[0], 'running');
-    setNarrative(MODULES[0]);
+    activatePhase(PHASES[0]);
     setProgress(2);
     setTimeout(poll, 1500);
   }
