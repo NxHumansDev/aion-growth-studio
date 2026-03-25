@@ -56,36 +56,58 @@ export async function runCompetitors(
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
 
   // Titles that indicate the page wasn't the real site (Cloudflare challenge, 404, etc.)
-  const BAD_TITLE_RE = /^(just a moment|attention required|403|404|400|500|error|access denied|not found|forbidden|please wait|one moment|verifying|checking your browser|ddos protection|enable javascript|page not found|redirecting|site not found|domain for sale|coming soon|parked)/i;
+  const BAD_TITLE_RE = /^(just a moment|attention required|403|404|400|500|error|access denied|not found|forbidden|please wait|one moment|verifying|checking your browser|ddos protection|enable javascript|page not found|redirecting|site not found|domain for sale|coming soon|parked|p[aá]gina\s+no\s+encontrada|no\s+encontrada|acceso\s+denegado|recurso\s+no\s+encontrado|seite\s+nicht\s+gefunden|page\s+introuvable)/i;
 
   // If user selected competitors, fetch their names and use them directly.
-  // Always fetch the ROOT DOMAIN homepage for brand name — users often paste subpage
-  // URLs (e.g. /es/banca-privada) whose titles are section descriptions, not brand names.
+  // Users can paste subpage URLs (e.g. bancsabadell.com/es/banca-privada) to scope
+  // the competitor to a specific division. We use the subpage title as the name so the
+  // context is preserved ("Banca privada · Banco Sabadell" → "Banca privada").
+  // NOTE: DataForSEO traffic/keyword data is always domain-level regardless of subpath.
   if (userCompetitorUrls && userCompetitorUrls.length > 0) {
     const competitors = await Promise.all(
       userCompetitorUrls.slice(0, 5).map(async (compUrl) => {
         const normalized = compUrl.startsWith('http') ? compUrl : `https://${compUrl}`;
         const parsed = new URL(normalized);
         const compDomain = parsed.hostname.replace(/^www\./, '');
-        // Use root URL for name extraction — subpage titles are often section labels, not brands
         const rootUrl = `${parsed.protocol}//${parsed.hostname}`;
+        const hasSubpath = parsed.pathname.length > 1;
+
+        // Helper: extract best name from a loaded cheerio page
+        const extractName = ($: ReturnType<typeof cheerio.load>) => {
+          const ogSite = $('meta[property="og:site_name"]').attr('content')?.trim();
+          if (ogSite && ogSite.length > 1 && !BAD_TITLE_RE.test(ogSite)) return ogSite;
+          const titleRaw = $('title').first().text().split(/[-–—|·:]/)[0].trim().slice(0, 80);
+          return (titleRaw && !BAD_TITLE_RE.test(titleRaw)) ? titleRaw : null;
+        };
+
         try {
-          const res = await axios.get(rootUrl, {
+          // Step 1: try the exact URL provided (captures section context when it's a subpage)
+          const res = await axios.get(normalized, {
             timeout: 6000,
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
             validateStatus: (s) => s < 500,
           });
-          const $ = cheerio.load(res.data as string);
-          // Try og:site_name first (most reliable brand name signal)
-          const ogSite = $('meta[property="og:site_name"]').attr('content')?.trim();
-          const titleRaw = $('title').first().text().split(/[-–—|·:]/)[0].trim().slice(0, 80);
-          const rawName = (ogSite && ogSite.length > 1) ? ogSite : titleRaw;
-          // Reject generic error/challenge page titles — fall back to domain
-          const name = (rawName && !BAD_TITLE_RE.test(rawName)) ? rawName : compDomain;
-          return { name, url: compUrl, snippet: 'Competidor seleccionado' };
-        } catch {
-          return { name: compDomain, url: compUrl, snippet: 'Competidor seleccionado' };
-        }
+          const $sub = cheerio.load(res.data as string);
+          const nameFromSubpage = extractName($sub);
+
+          if (nameFromSubpage) {
+            return { name: nameFromSubpage, url: compUrl, snippet: 'Competidor seleccionado' };
+          }
+
+          // Step 2: subpage returned error/challenge page — fall back to root domain
+          if (hasSubpath) {
+            const rootRes = await axios.get(rootUrl, {
+              timeout: 5000,
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+              validateStatus: (s) => s < 500,
+            });
+            const $root = cheerio.load(rootRes.data as string);
+            const nameFromRoot = extractName($root);
+            if (nameFromRoot) return { name: nameFromRoot, url: compUrl, snippet: 'Competidor seleccionado' };
+          }
+        } catch { /* fall through to domain fallback */ }
+
+        return { name: compDomain, url: compUrl, snippet: 'Competidor seleccionado' };
       }),
     );
     return { competitors };

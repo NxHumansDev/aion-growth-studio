@@ -1206,7 +1206,10 @@ const heroStatus = statusStyle(ss(health.total));
           <!-- Competitive data table -->
           {displayCompetitors.length > 0 && (
             <div style="margin-bottom:20px;">
-              <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Datos comparativos</div>
+              <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <div style="font-size:0.75rem;font-weight:600;color:#5A6478;">Datos comparativos</div>
+                <div style="font-size:0.68rem;color:#9CA3AF;font-style:italic;">* Tráfico y keywords a nivel de dominio completo (limitación de DataForSEO)</div>
+              </div>
               <table>
                 <thead>
                   <tr>
