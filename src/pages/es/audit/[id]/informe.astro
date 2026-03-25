@@ -843,17 +843,38 @@ const heroStatus = statusStyle(ss(health.total));
             <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">¿Qué es TOFU, MOFU y BOFU?</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
               <div style="background:#EBF2FF;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">TOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;">TOFU</div>
+                  {geo?.funnelBreakdown?.tofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#1A4B8C':'rgba(26,75,140,0.12)'};color:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#fff':'#1A4B8C'};`}>
+                      {geo.funnelBreakdown.tofu.mentioned ?? 0}/{geo.funnelBreakdown.tofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Top of Funnel · Descubrimiento</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">El usuario no te conoce. Busca información general sobre tu sector. Ejemplo: "mejores empresas de marketing digital".</div>
               </div>
               <div style="background:#FAEEDA;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">MOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;">MOFU</div>
+                  {geo?.funnelBreakdown?.mofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#BA7517':'rgba(186,117,23,0.12)'};color:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#fff':'#BA7517'};`}>
+                      {geo.funnelBreakdown.mofu.mentioned ?? 0}/{geo.funnelBreakdown.mofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Middle of Funnel · Consideración</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">El usuario evalúa opciones. Compara proveedores y busca soluciones a problemas concretos.</div>
               </div>
               <div style="background:#E1F5EE;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">BOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;">BOFU</div>
+                  {geo?.funnelBreakdown?.bofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#1D9E75':'rgba(29,158,117,0.12)'};color:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#fff':'#1D9E75'};`}>
+                      {geo.funnelBreakdown.bofu.mentioned ?? 0}/{geo.funnelBreakdown.bofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Bottom of Funnel · Decisión</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">Alta intención de compra. Busca directamente tu marca o comparativas finales antes de contratar.</div>
               </div>
@@ -896,38 +917,44 @@ const heroStatus = statusStyle(ss(health.total));
                 </div>
               )}
 
-              {/* Query table — simplified: Stage | Query | ✓/✗ */}
-              {(geo.queries?.length ?? 0) > 0 && (
-                <div style="margin-bottom:14px;overflow-x:auto;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Consultas analizadas — ¿apareces en la respuesta?</div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style="width:60px;">Etapa</th>
-                        <th>Consulta realizada a ChatGPT / Perplexity / Claude</th>
-                        <th style="text-align:center;width:70px;">Mención</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {geo.queries.slice(0,12).map((q: any) => (
+              {/* Query table — mentioned queries first so there's always a ✓ example */}
+              {(geo.queries?.length ?? 0) > 0 && (() => {
+                const mentioned = geo.queries.filter((q: any) => q.mentioned);
+                const notMentioned = geo.queries.filter((q: any) => !q.mentioned);
+                // Always show at least 1 ✓ and 1 ✗ (if both types exist); then fill up to 8
+                const sample = [...mentioned.slice(0, 3), ...notMentioned.slice(0, 5)].slice(0, 8);
+                return (
+                  <div style="margin-bottom:14px;overflow-x:auto;">
+                    <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Algunas consultas analizadas — ¿apareces en la respuesta?</div>
+                    <table>
+                      <thead>
                         <tr>
-                          <td>
-                            <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
-                              {q.stage?.toUpperCase() ?? '—'}
-                            </span>
-                          </td>
-                          <td style="font-size:11px;">{q.query}</td>
-                          <td style="text-align:center;">
-                            <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
-                              {q.mentioned ? '✓' : '✗'}
-                            </span>
-                          </td>
+                          <th style="width:60px;">Etapa</th>
+                          <th>Consulta realizada a ChatGPT / Perplexity / Claude</th>
+                          <th style="text-align:center;width:70px;">Mención</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {sample.map((q: any) => (
+                          <tr>
+                            <td>
+                              <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
+                                {q.stage?.toUpperCase() ?? '—'}
+                              </span>
+                            </td>
+                            <td style="font-size:11px;">{q.query}</td>
+                            <td style="text-align:center;">
+                              <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
+                                {q.mentioned ? '✓' : '✗'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
 
               {(geo.mentionRate ?? 0) < 30 && (
                 <div class="callout callout-amber">

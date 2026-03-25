@@ -723,17 +723,38 @@ const heroStatus = statusStyle(ss(health.total));
             <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">What is TOFU, MOFU and BOFU?</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
               <div style="background:#EBF2FF;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">TOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;">TOFU</div>
+                  {geo?.funnelBreakdown?.tofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#1A4B8C':'rgba(26,75,140,0.12)'};color:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#fff':'#1A4B8C'};`}>
+                      {geo.funnelBreakdown.tofu.mentioned ?? 0}/{geo.funnelBreakdown.tofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Top of Funnel · Awareness</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">The user doesn't know you yet. They search for general information about your sector. E.g. "best digital marketing agencies".</div>
               </div>
               <div style="background:#FAEEDA;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">MOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;">MOFU</div>
+                  {geo?.funnelBreakdown?.mofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#BA7517':'rgba(186,117,23,0.12)'};color:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#fff':'#BA7517'};`}>
+                      {geo.funnelBreakdown.mofu.mentioned ?? 0}/{geo.funnelBreakdown.mofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Middle of Funnel · Consideration</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">The user compares options and looks for solutions to specific problems.</div>
               </div>
               <div style="background:#E1F5EE;border-radius:6px;padding:12px;">
-                <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">BOFU</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;">BOFU</div>
+                  {geo?.funnelBreakdown?.bofu && (
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#1D9E75':'rgba(29,158,117,0.12)'};color:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#fff':'#1D9E75'};`}>
+                      {geo.funnelBreakdown.bofu.mentioned ?? 0}/{geo.funnelBreakdown.bofu.total ?? 0}
+                    </span>
+                  )}
+                </div>
                 <div style="font-size:0.72rem;font-weight:600;color:#1A1A2E;margin-bottom:4px;">Bottom of Funnel · Decision</div>
                 <div style="font-size:0.7rem;color:#5A6478;line-height:1.4;">High purchase intent. They search directly for your brand or make final comparisons before buying.</div>
               </div>
@@ -758,45 +779,42 @@ const heroStatus = statusStyle(ss(health.total));
                 </div>
               </div>
 
-              {(geo.queries?.length ?? 0) > 0 && (
-                <div style="margin-bottom:14px;overflow-x:auto;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">AI queries analyzed</div>
-                  <table style="min-width:500px;">
-                    <thead>
-                      <tr>
-                        <th style="width:60px;">Stage</th>
-                        <th>Query</th>
-                        {geoEngineNames.map((name: string) => (
-                          <th style="text-align:center;width:80px;">{name}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {geo.queries.slice(0,12).map((q: any) => (
+              {(geo.queries?.length ?? 0) > 0 && (() => {
+                const mentioned = geo.queries.filter((q: any) => q.mentioned);
+                const notMentioned = geo.queries.filter((q: any) => !q.mentioned);
+                const sample = [...mentioned.slice(0, 3), ...notMentioned.slice(0, 5)].slice(0, 8);
+                return (
+                  <div style="margin-bottom:14px;overflow-x:auto;">
+                    <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Some analyzed AI queries — are you mentioned in the response?</div>
+                    <table>
+                      <thead>
                         <tr>
-                          <td>
-                            <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
-                              {q.stage?.toUpperCase() ?? '—'}
-                            </span>
-                          </td>
-                          <td style="font-size:11px;">{q.query}</td>
-                          {geoEngineNames.map((name: string) => {
-                            const eng = q.engines?.find((e: any) => e.name === name);
-                            const mentioned = eng?.mentioned ?? false;
-                            return (
-                              <td style="text-align:center;">
-                                <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
-                                  {mentioned ? '✓' : '✗'}
-                                </span>
-                              </td>
-                            );
-                          })}
+                          <th style="width:60px;">Stage</th>
+                          <th>Query sent to ChatGPT / Perplexity / Claude</th>
+                          <th style="text-align:center;width:70px;">Mention</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {sample.map((q: any) => (
+                          <tr>
+                            <td>
+                              <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
+                                {q.stage?.toUpperCase() ?? '—'}
+                              </span>
+                            </td>
+                            <td style="font-size:11px;">{q.query}</td>
+                            <td style="text-align:center;">
+                              <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
+                                {q.mentioned ? '✓' : '✗'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
 
               {/* SEO → AI gap */}
               {seoToAiGap.length > 0 && (
