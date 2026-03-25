@@ -55,7 +55,7 @@ const blogUrlEn: string | undefined = cc?.blogUrl || crawl.blogUrl;
 const newsCountEn: number = repRaw.newsCount ?? 0;
 const newsHeadlinesEn: Array<{title:string;source:string;date?:string}> = repRaw.newsHeadlines || [];
 
-// Brand Authority score (0-100): referring domains + DR + blog + press
+// Brand Authority score (0-100): backlinks + blog + press + GEO visibility + LinkedIn
 const brandAuthorityScoreEn = (() => {
   let ba = 0;
   const rd = seo?.referringDomains ?? 0;
@@ -76,6 +76,16 @@ const brandAuthorityScoreEn = (() => {
   else if (nc >= 5) ba += 10;
   else if (nc >= 2) ba += 6;
   else if (nc >= 1) ba += 3;
+  // GEO: AI mentions as proxy for brand recognition (0–15 pts)
+  const geoMR = geo?.mentionRate ?? 0;
+  if (geoMR >= 70) ba += 15;
+  else if (geoMR >= 40) ba += 10;
+  else if (geoMR >= 15) ba += 5;
+  // LinkedIn: followers as professional authority signal (0–10 pts)
+  const liF = linkedin?.followers ?? 0;
+  if (liF >= 10000) ba += 10;
+  else if (liF >= 1000) ba += 6;
+  else if (liF >= 100) ba += 3;
   return Math.min(100, ba);
 })();
 
@@ -871,7 +881,7 @@ const heroStatus = statusStyle(ss(health.total));
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Own blog, press coverage and external link authority</div>
+          <div class="sub-section-subtitle">Blog, press coverage, AI visibility and external link signals</div>
 
           <!-- Blog + Press cards -->
           <div class="grid-2" style="margin-bottom:14px;">
@@ -913,6 +923,26 @@ const heroStatus = statusStyle(ss(health.total));
               )}
             </div>
           </div>
+
+          <!-- Alternative signals: GEO + LinkedIn (when no backlinks data) -->
+          {seo?.domainRank == null && (geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
+            <div class="grid-2" style="margin-bottom:14px;">
+              {geo?.mentionRate != null && (
+                <div class="metric-card" style={`border-left:3px solid ${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#9CA3AF'};`}>
+                  <div class="metric-value" style={`color:${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate}%</div>
+                  <div class="metric-label">AI Visibility</div>
+                  <div class="metric-sub" style="margin-top:4px;">Mentioned in {geo.mentionRate}% of queries across ChatGPT, Perplexity and other LLMs</div>
+                </div>
+              )}
+              {(linkedin?.followers ?? 0) > 0 && (
+                <div class="metric-card" style="border-left:3px solid #0077B5;">
+                  <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                  <div class="metric-label">LinkedIn Followers</div>
+                  <div class="metric-sub" style="margin-top:4px;">Indicator of professional authority and brand reach</div>
+                </div>
+              )}
+            </div>
+          )}
 
           <!-- Backlinks (only when available) -->
           {seo && (seo.domainRank != null || seo.referringDomains != null) && (
@@ -971,9 +1001,14 @@ const heroStatus = statusStyle(ss(health.total));
               Good domain authority ({seo.domainRank}/100) with {fmt(seo.referringDomains)} referring domains.
             </div>
           )}
-          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEn || newsCountEn > 0) && (
+          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEn || newsCountEn > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              No backlinks data available for this domain. Authority score is calculated from blog activity and press coverage.
+              DataForSEO has no backlinks data for this domain (common in banking, finance and domains with indexing restrictions).
+              The authority score reflects available signals:{' '}
+              {geo?.mentionRate != null && <span>AI visibility ({geo.mentionRate}%), </span>}
+              {newsCountEn > 0 && <span>press coverage ({newsCountEn} articles), </span>}
+              {hasBlogEn && <span>own blog, </span>}
+              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} followers)</span>}.
             </div>
           )}
           {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEn && newsCountEn === 0 && (

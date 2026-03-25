@@ -66,7 +66,7 @@ const _totalTraf    = Object.values(_trafficCh).reduce((s: number, c: any) => s 
 const _organicTraf  = _trafficCh.organic?.visits || 0;
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
 
-// Brand Authority score (0-100): referring domains + DR + blog + press
+// Brand Authority score (0-100): backlinks + blog + press + GEO visibility + LinkedIn
 const brandAuthorityScoreEs = (() => {
   let ba = 0;
   const rd = seo?.referringDomains ?? 0;
@@ -87,6 +87,16 @@ const brandAuthorityScoreEs = (() => {
   else if (nc >= 5) ba += 10;
   else if (nc >= 2) ba += 6;
   else if (nc >= 1) ba += 3;
+  // GEO: menciones en IA como proxy de reconocimiento de marca (0–15 pts)
+  const geoMR = geo?.mentionRate ?? 0;
+  if (geoMR >= 70) ba += 15;
+  else if (geoMR >= 40) ba += 10;
+  else if (geoMR >= 15) ba += 5;
+  // LinkedIn: followers como señal de autoridad profesional (0–10 pts)
+  const liF = linkedin?.followers ?? 0;
+  if (liF >= 10000) ba += 10;
+  else if (liF >= 1000) ba += 6;
+  else if (liF >= 100) ba += 3;
   return Math.min(100, ba);
 })();
 
@@ -999,7 +1009,7 @@ const heroStatus = statusStyle(ss(health.total));
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Blog propio, presencia en prensa y autoridad de enlazado externo</div>
+          <div class="sub-section-subtitle">Blog, presencia en prensa, visibilidad en IA y señales de enlazado externo</div>
 
           <!-- Blog + Prensa cards -->
           <div class="grid-2" style="margin-bottom:14px;">
@@ -1041,6 +1051,26 @@ const heroStatus = statusStyle(ss(health.total));
               )}
             </div>
           </div>
+
+          <!-- Señales alternativas: GEO + LinkedIn (when no backlinks data) -->
+          {seo?.domainRank == null && (geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
+            <div class="grid-2" style="margin-bottom:14px;">
+              {geo?.mentionRate != null && (
+                <div class="metric-card" style={`border-left:3px solid ${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#9CA3AF'};`}>
+                  <div class="metric-value" style={`color:${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate}%</div>
+                  <div class="metric-label">Visibilidad en IA</div>
+                  <div class="metric-sub" style="margin-top:4px;">Mencionado en {geo.mentionRate}% de consultas en ChatGPT, Perplexity y otros LLMs</div>
+                </div>
+              )}
+              {(linkedin?.followers ?? 0) > 0 && (
+                <div class="metric-card" style="border-left:3px solid #0077B5;">
+                  <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                  <div class="metric-label">Seguidores LinkedIn</div>
+                  <div class="metric-sub" style="margin-top:4px;">Indicador de autoridad y presencia profesional</div>
+                </div>
+              )}
+            </div>
+          )}
 
           <!-- Backlinks (only when available) -->
           {seo && (seo.domainRank != null || seo.referringDomains != null) && (
@@ -1099,9 +1129,14 @@ const heroStatus = statusStyle(ss(health.total));
               Buena autoridad de dominio ({seo.domainRank}/100) con {fmt(seo.referringDomains)} dominios enlazantes.
             </div>
           )}
-          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0) && (
+          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              No hay datos de backlinks disponibles para este dominio. El score de autoridad se calcula a partir del blog y la presencia en prensa.
+              DataForSEO no dispone de datos de backlinks para este dominio (habitual en banca, finanzas y dominios con restricciones de indexación).
+              El score de autoridad refleja las señales disponibles:{' '}
+              {geo?.mentionRate != null && <span>visibilidad en IA ({geo.mentionRate}%), </span>}
+              {newsCountEs > 0 && <span>presencia en prensa ({newsCountEs} artículos), </span>}
+              {hasBlogEs && <span>blog propio, </span>}
+              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores)</span>}.
             </div>
           )}
           {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEs && newsCountEs === 0 && (
