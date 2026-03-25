@@ -32,15 +32,20 @@ export function computeHealthScore(results: Record<string, any>): HealthScore {
   let competitividad: number | null = null;
 
   if (seo && !seo.skipped && ctItems.length > 0) {
-    const anyHasData = ctItems.some(
-      (c: any) => c.organicTrafficEstimate != null || c.keywordsTop10 != null
+    // Only use competitors with actual data — items without data skew the average up
+    const withData = ctItems.filter(
+      (c: any) => !c.apiError && (c.keywordsTop10 != null || c.organicTrafficEstimate != null)
     );
-    if (anyHasData) {
-      const avgETV = ctItems.reduce((s: number, c: any) => s + (c.organicTrafficEstimate || 0), 0) / ctItems.length;
-      const avgKW  = ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length;
+    if (withData.length > 0) {
+      const avgETV = withData.reduce((s: number, c: any) => s + (c.organicTrafficEstimate || 0), 0) / withData.length;
+      const avgKW  = withData.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / withData.length;
       const etvRatio = avgETV > 0 ? Math.min(2, (seo.organicTrafficEstimate || 0) / avgETV) : 0;
       const kwRatio  = avgKW  > 0 ? Math.min(2, (seo.keywordsTop10 || 0) / avgKW) : 0;
       competitividad = Math.min(100, Math.round(((etvRatio + kwRatio) / 2) * 50));
+      // Cap at 80 when client has <200 keywords — always room for improvement at this scale
+      if ((seo.keywordsTop10 ?? 0) < 200 && competitividad > 80) {
+        competitividad = 80;
+      }
     }
   }
 

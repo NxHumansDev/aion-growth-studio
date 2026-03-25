@@ -162,6 +162,33 @@ async function askEngine(query: string, engine: Engine, timeout = 15000): Promis
   }
 }
 
+// ── Query deduplication ───────────────────────────────────────────
+
+/**
+ * Remove near-duplicate queries based on normalized string + word overlap.
+ * Preserves brand queries (isBrandQuery=true) even if similar to others.
+ */
+function deduplicateQuerySpecs(specs: QuerySpec[]): QuerySpec[] {
+  const normalize = (s: string) => s.toLowerCase().replace(/[¿?¡!,]/g, '').trim();
+  const seen: string[] = [];
+  const result: QuerySpec[] = [];
+  for (const spec of specs) {
+    if (spec.isBrandQuery) { result.push(spec); continue; } // always keep brand query
+    const norm = normalize(spec.query);
+    const wordsA = norm.split(/\s+/).filter(w => w.length > 3);
+    const isDuplicate = seen.some((existing) => {
+      const wordsB = existing.split(/\s+/).filter(w => w.length > 3);
+      const common = wordsA.filter(w => wordsB.includes(w)).length;
+      return common / Math.max(wordsA.length, wordsB.length, 1) > 0.65;
+    });
+    if (!isDuplicate) {
+      seen.push(norm);
+      result.push(spec);
+    }
+  }
+  return result;
+}
+
 // ── Query generation ──────────────────────────────────────────────
 
 /**
@@ -292,7 +319,9 @@ export async function runGEO(
   }
 
   const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
-  const brandName      = crawl.companyName || domain;
+  const rawBrandName   = crawl.companyName || domain;
+  // Strip corporate prefixes (e.g. "GROUP Andbank" → "Andbank") for cleaner query generation
+  const brandName      = rawBrandName.replace(/^(group|grupo)\s+/i, '').trim();
   const locationHint   = crawl.locationHint;
   const valueProposition = crawl.description?.slice(0, 120) || '';
   const keywords       = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
@@ -343,10 +372,11 @@ export async function runGEO(
       : []),
   ];
 
-  // Generate structured 12-query set
-  const querySpecs = await generateQueries(
+  // Generate structured 12-query set, then deduplicate
+  const rawQuerySpecs = await generateQueries(
     sector, valueProposition, keywords, brandName, domain, locationHint, OPENAI_KEY,
   );
+  const querySpecs = deduplicateQuerySpecs(rawQuerySpecs);
 
   try {
     // Run ALL queries × ALL engines in parallel

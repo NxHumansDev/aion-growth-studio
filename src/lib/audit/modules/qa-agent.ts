@@ -131,6 +131,13 @@ REGLAS ADICIONALES DE CALIDAD DE INSIGHTS:
 
 17. SCORE vs DESCRIPCIÓN: Si geo_mention_rate > 60 y el informe describe la presencia en IA como "invisible" o "crítica", es una contradicción. Suaviza a "mejorable" o "parcial". Si el score total > 60 y un bullet usa "deficiente" o "crítico" para describir la situación global, corrígelo a "en desarrollo" o "mejorable".
 
+18. VALIDACIÓN DEL VEREDICTO: Revisa el primer bullet (veredicto ejecutivo). Si cumple ALGUNA de estas condiciones → approved: false y corrige en corrected_insights:
+    a) Menos de 3 datos numéricos concretos en el veredicto (puntos, keywords, segundos, porcentajes, posiciones, etc.)
+    b) No menciona el nombre del dominio o empresa analizada en ningún momento
+    c) No compara ningún dato con un competidor o benchmark concreto
+    - CORRECTO: "andbank.com logra 69 keywords en top 10 pero aparece en solo 2 de 12 respuestas IA (17%); Julius Baer supera los 300 keywords — hay una brecha de posicionamiento que atacar."
+    - INCORRECTO: "Tienes fundamentos pero pierdes terreno en visibilidad digital."
+
 Si aplicas correcciones a bullets o iniciativas, SIEMPRE incluye el objeto "corrected_insights" completo con los bullets e iniciativas corregidos.`;
 }
 

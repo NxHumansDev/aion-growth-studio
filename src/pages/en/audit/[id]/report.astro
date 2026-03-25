@@ -110,7 +110,7 @@ function statusStyle(s: AreaStatus): { bg: string; fg: string; label: string } {
 const statusByArea: { area: string; status: AreaStatus; summary: string; anchor: string }[] = [
   { area: 'Organic SEO', status: ss(r.score?.breakdown?.seo ?? r.score?.breakdown?.seoVisibility ?? health.visibilidad ?? 0), summary: seo ? `${fmt(seo.keywordsTop10)} keywords top 10, ~${fmt(seo.organicTrafficEstimate)} visits/mo` : 'No SEO data', anchor: '#seo' },
   { area: 'AI Visibility', status: ss(geo?.mentionRate ?? 0), summary: geo ? `Mentioned in ${geo.mentionRate ?? 0}% of AI queries` : 'No GEO data', anchor: '#ia' },
-  { area: 'Domain Authority', status: ss(brandAuthorityScoreEn), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} referring domains` : 'No backlinks data', anchor: '#autoridad' },
+  { area: 'Reputation', status: ss(brandAuthorityScoreEn), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} referring domains` : 'No authority data', anchor: '#autoridad' },
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competitors with data` : 'No competitor data', anchor: '#competidores' },
   { area: 'Web & Speed', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Mobile score: ${ps.mobile?.performance ?? '—'}/100` : 'No PageSpeed data', anchor: '#experiencia' },
   { area: 'Conversion', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'No conversion data', anchor: '#experiencia' },
@@ -223,12 +223,13 @@ function buildHorizontalBars(items: Array<{label:string;value:number;color:strin
   return `<svg width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}">${bars}</svg>`;
 }
 
-// displayCompetitors: all known competitors with best available data.
-// Primary: ctItemsRaw (DataForSEO data, even partial). Fallback: AI-detected names.
+// displayCompetitors: competitors with actual SEO data (no apiError).
+// Fallback: AI-detected competitor names (always populated).
 const displayCompetitors: any[] = (() => {
   const seen = new Set<string>();
   const out: any[] = [];
-  for (const c of ctItemsRaw) {
+  // Only include ctItems with actual data — hide "no data" rows from benchmark table
+  for (const c of ctItems) {
     if (c.domain && !seen.has(c.domain)) { seen.add(c.domain); out.push(c); }
   }
   for (const c of competitors) {
@@ -517,7 +518,7 @@ const heroStatus = statusStyle(ss(health.total));
                   <circle id="score-ring" cx="18" cy="18" r="15.9" fill="none" stroke={scoreColor(health.total)} stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0, 100"/>
                 </svg>
                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                  <span id="score-counter" style="font-size:1.75rem;font-weight:700;color:#1A1A2E;line-height:1;">0</span>
+                  <span id="score-counter" style="font-size:1.75rem;font-weight:700;color:#1A1A2E;line-height:1;">{health.total}</span>
                   <span style="font-size:0.6rem;color:#5A6478;">/100</span>
                 </div>
               </div>
@@ -594,7 +595,7 @@ const heroStatus = statusStyle(ss(health.total));
         ═══════════════════════════════════════════════════════════ -->
         <div id="seo" class="report-block reveal">
           <div class="block-title">Digital Visibility</div>
-          <div class="block-subtitle">Analysis of organic presence, AI visibility, and external link authority</div>
+          <div class="block-subtitle">Analysis of organic presence, AI visibility, and brand reputation</div>
 
           <!-- ── Layer 1: Organic SEO ── -->
           <div style="font-size:0.88rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
@@ -886,7 +887,7 @@ const heroStatus = statusStyle(ss(health.total));
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Blog, press coverage, AI visibility and external link signals</div>
+          <div class="sub-section-subtitle">Blog, press coverage and AI visibility</div>
 
           <!-- Blog + Press cards -->
           <div class="grid-2" style="margin-bottom:14px;">
@@ -964,7 +965,7 @@ const heroStatus = statusStyle(ss(health.total));
               </div>
               <div class="metric-card">
                 <div class="metric-value">{fmt(seo.backlinksTotal)}</div>
-                <div class="metric-label">Total Backlinks</div>
+                <div class="metric-label">Domains + links</div>
                 <div class="metric-sub" style="margin-top:4px;">Total inbound links</div>
               </div>
             </div>
@@ -1008,8 +1009,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
           {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEn || newsCountEn > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              No backlinks data could be retrieved for this domain (common in banking, finance and domains with indexing restrictions).
-              The authority score reflects available signals:{' '}
+              The reputation score reflects available presence signals:{' '}
               {geo?.mentionRate != null && <span>AI visibility ({geo.mentionRate}%), </span>}
               {newsCountEn > 0 && <span>press coverage ({newsCountEn} articles), </span>}
               {hasBlogEn && <span>own blog, </span>}
@@ -1021,7 +1021,7 @@ const heroStatus = statusStyle(ss(health.total));
           )}
           {(seo?.spamScore ?? 0) > 40 && (
             <div class="callout callout-red" style="margin-top:8px;">
-              <strong>Alert:</strong> Your backlink profile has a high spam score ({seo?.spamScore}%). Review and disavow toxic links via Google Search Console.
+              <strong>Alert:</strong> Your domain has a high spam score ({seo?.spamScore}%). Review and disavow toxic links via Google Search Console.
             </div>
           )}
         </div>
