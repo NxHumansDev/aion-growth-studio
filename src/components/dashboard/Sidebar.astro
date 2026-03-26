@@ -58,7 +58,7 @@ function isActive(href: string): boolean {
 }
 
 function activeStyle(): string {
-  return 'display:flex;align-items:center;gap:12px;padding:10px 16px;color:white;background:rgba(59,130,246,0.1);border-right:4px solid #3b82f6;font-weight:600;text-decoration:none;';
+  return 'display:flex;align-items:center;gap:12px;padding:10px 16px;color:white;background:rgba(105,255,135,0.1);border-right:4px solid #69ff87;font-weight:600;text-decoration:none;';
 }
 
 function defaultStyle(): string {
@@ -81,7 +81,7 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
 
 <aside
   id="sidebar"
-  style="width:256px;position:fixed;left:0;top:0;height:100vh;z-index:50;background:#1a1a2e;display:flex;flex-direction:column;padding-top:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);font-family:'Inter',sans-serif;font-size:14px;overflow:hidden;"
+  style="width:256px;position:fixed;left:0;top:0;height:100vh;z-index:50;background:#000e41;display:flex;flex-direction:column;padding-top:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);font-family:'Inter',sans-serif;font-size:14px;overflow:hidden;"
 >
   <!-- Logo -->
   <div style="padding:0 24px 32px;">
@@ -114,7 +114,7 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
         <span class="material-symbols-outlined" style="font-size:20px;flex-shrink:0;">{item.icon}</span>
         <span style="flex:1;">{item.label}</span>
         {item.locked && (
-          <span style="font-size:9px;background:#1e293b;color:#475569;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.05em;">SEÑALES</span>
+          <span style="font-size:9px;background:rgba(255,255,255,0.08);color:#475569;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.05em;">SEÑALES</span>
         )}
       </a>
     ))}
@@ -126,7 +126,7 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
         <span class="material-symbols-outlined" style="font-size:20px;flex-shrink:0;">{item.icon}</span>
         <span style="flex:1;">{item.label}</span>
         {item.locked && (
-          <span style="font-size:9px;background:#1e293b;color:#475569;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.05em;">PALANCAS</span>
+          <span style="font-size:9px;background:rgba(255,255,255,0.08);color:#475569;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.05em;">PALANCAS</span>
         )}
       </a>
     ))}
@@ -134,7 +134,7 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
   </nav>
 
   <!-- Account nav + user card -->
-  <div style="border-top:1px solid #1e293b;padding-top:8px;">
+  <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
     {accountNav.map(item => (
       <a href={item.href} style={itemStyle(item)}
         onmouseover={!isActive(item.href) ? "this.style.color='white';this.style.background='rgba(255,255,255,0.05)';" : undefined}
@@ -147,9 +147,9 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
 
     <!-- User card -->
     <div style="margin:12px 12px 16px;">
-      <div style="border-radius:12px;background:#0f172a;border:1px solid #1e293b;padding:12px 14px;">
+      <div style="border-radius:12px;background:#001f70;border:1px solid rgba(255,255,255,0.08);padding:12px 14px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:30px;height:30px;border-radius:50%;background:#1a4b8c;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">{initials}</div>
+          <div style="width:30px;height:30px;border-radius:50%;background:#001f70;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">{initials}</div>
           <div style="overflow:hidden;flex:1;">
             <p style="color:white;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;">{clientName}</p>
             <p style="color:#64748b;font-size:10px;margin:0;">Plan {tierLabels[tier]}</p>
@@ -168,7 +168,7 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
 <!-- Mobile hamburger -->
 <button
   id="hamburger-btn"
-  style="display:none;position:fixed;top:16px;left:16px;z-index:60;background:#1a4b8c;color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"
+  style="display:none;position:fixed;top:16px;left:16px;z-index:60;background:#001f70;color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"
   aria-label="Abrir menú"
 >
   <span class="material-symbols-outlined" style="font-size:20px;">menu</span>

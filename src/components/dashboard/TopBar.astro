@@ -11,16 +11,16 @@ export interface Props {
 const { clientName = 'Soluciones Verdes', domain = 'solucionesverdes.es', tier = 'señales', lastReportMonth = 'Mar 2026' } = Astro.props;
 
 const tierConfig: Record<Tier, { label: string; icon: string; bg: string; color: string }> = {
-  radar: { label: 'Radar', icon: 'radar', bg: '#e8e5ff', color: '#00346d' },
-  señales: { label: 'Señales', icon: 'bolt', bg: '#d7e3ff', color: '#001b3f' },
-  palancas: { label: 'Palancas', icon: 'rocket_launch', bg: '#1a4b8c', color: '#ffffff' },
+  radar: { label: 'Radar', icon: 'radar', bg: '#e3efff', color: '#000e41' },
+  señales: { label: 'Señales', icon: 'bolt', bg: '#e3efff', color: '#000e41' },
+  palancas: { label: 'Palancas', icon: 'rocket_launch', bg: '#000e41', color: '#69ff87' },
 };
 const t = tierConfig[tier];
 ---
 
 <header style="position:sticky;top:0;right:0;z-index:40;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;justify-content:space-between;align-items:center;height:64px;padding:0 32px;border-bottom:1px solid rgba(195,198,210,0.3);font-family:'Inter',sans-serif;font-size:14px;">
   <div style="display:flex;align-items:center;gap:16px;">
-    <h2 style="font-size:18px;font-weight:900;color:#1a1a2e;letter-spacing:-0.04em;">{clientName}</h2>
+    <h2 style="font-size:18px;font-weight:900;color:#001d32;letter-spacing:-0.04em;">{clientName}</h2>
     <div style="height:16px;width:1px;background:#c3c6d2;opacity:0.4;"></div>
     <span style="color:#64748b;font-weight:400;">{domain}</span>
   </div>
@@ -30,7 +30,7 @@ const t = tierConfig[tier];
       {t.label}
     </div>
     <div style="font-size:12px;color:#64748b;">
-      Último informe: <span style="font-weight:700;color:#1a1a2e;">{lastReportMonth}</span>
+      Último informe: <span style="font-weight:700;color:#001d32;">{lastReportMonth}</span>
     </div>
   </div>
 </header>

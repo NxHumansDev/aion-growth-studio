@@ -19,11 +19,11 @@ const error = Astro.url.searchParams.get('error');
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #fcf8ff; color: #1a1a2e; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    input { width: 100%; padding: 12px 16px; border: 1px solid #e2e0fc; border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
-    input:focus { border-color: #1a4b8c; }
-    button[type=submit] { width: 100%; padding: 14px; border-radius: 10px; background: #00346d; color: white; font-size: 15px; font-weight: 700; border: none; cursor: pointer; font-family: inherit; transition: background 0.15s; }
-    button[type=submit]:hover { background: #1a4b8c; }
+    body { font-family: 'Inter', sans-serif; background: #f7f9ff; color: #1a1a2e; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    input { width: 100%; padding: 12px 16px; border: 1px solid #c3c6ce; border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    input:focus { border-color: #001f70; }
+    button[type=submit] { width: 100%; padding: 14px; border-radius: 10px; background: #000e41; color: white; font-size: 15px; font-weight: 700; border: none; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+    button[type=submit]:hover { background: #001f70; }
   </style>
 </head>
 <body>
@@ -42,8 +42,8 @@ const error = Astro.url.searchParams.get('error');
     )}
 
     <!-- Google OAuth -->
-    <a href="/api/auth/google" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px;border-radius:10px;border:2px solid #e2e0fc;background:white;font-size:15px;font-weight:700;color:#1a1a2e;text-decoration:none;margin-bottom:20px;transition:border-color 0.15s;"
-      onmouseover="this.style.borderColor='#1a4b8c'" onmouseout="this.style.borderColor='#e2e0fc'">
+    <a href="/api/auth/google" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px;border-radius:10px;border:2px solid #c3c6ce;background:white;font-size:15px;font-weight:700;color:#1a1a2e;text-decoration:none;margin-bottom:20px;transition:border-color 0.15s;"
+      onmouseover="this.style.borderColor='#001f70'" onmouseout="this.style.borderColor='#c3c6ce'">
       <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -54,9 +54,9 @@ const error = Astro.url.searchParams.get('error');
     </a>
 
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-      <div style="flex:1;height:1px;background:#e2e0fc;"></div>
+      <div style="flex:1;height:1px;background:#c3c6ce;"></div>
       <span style="font-size:12px;color:#9ca3af;font-weight:600;">o con email</span>
-      <div style="flex:1;height:1px;background:#e2e0fc;"></div>
+      <div style="flex:1;height:1px;background:#c3c6ce;"></div>
     </div>
 
     <!-- Form -->
