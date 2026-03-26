@@ -531,32 +531,21 @@ const heroStatus = statusStyle(ss(health.total));
               </div>
             </div>
 
-            <!-- Verdict -->
+            <!-- Executive Summary -->
             <div>
-              <h1 style="font-size:1.3rem;font-weight:700;color:#1A1A2E;margin-bottom:10px;line-height:1.3;">
+              <h1 style="font-size:1.3rem;font-weight:700;color:#1A1A2E;margin-bottom:6px;line-height:1.3;">
                 {scoreLabel(health.total)} — {domain}
               </h1>
-              {healthSummaryText && (
-                <p style="font-size:0.875rem;color:#1A1A2E;line-height:1.65;margin-bottom:10px;font-weight:500;">{healthSummaryText}</p>
-              )}
-              <div style="display:flex;flex-direction:column;gap:6px;">
-                {visSummaryText && (
-                  <div style="display:flex;align-items:baseline;gap:8px;font-size:0.8rem;line-height:1.5;">
-                    <span style="flex-shrink:0;width:6px;height:6px;border-radius:50%;background:#1A4B8C;margin-top:6px;"></span>
-                    <span style="color:#3A4458;"><strong style="color:#1A1A2E;">Visibility:</strong> {visSummaryText}</span>
+              <div style="font-size:0.68rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Executive Summary</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                {(insights?.bullets || []).slice(0, 3).map((bullet: string, i: number) => (
+                  <div style="display:flex;align-items:baseline;gap:10px;font-size:0.82rem;line-height:1.55;">
+                    <span style={`flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${i === 0 ? '#1A4B8C' : i === 1 ? '#4A7FD4' : '#7BA3E0'};color:white;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;`}>{i + 1}</span>
+                    <span style="color:#3A4458;">{bullet}</span>
                   </div>
-                )}
-                {benchSummaryText && (
-                  <div style="display:flex;align-items:baseline;gap:8px;font-size:0.8rem;line-height:1.5;">
-                    <span style="flex-shrink:0;width:6px;height:6px;border-radius:50%;background:#1A4B8C;margin-top:6px;"></span>
-                    <span style="color:#3A4458;"><strong style="color:#1A1A2E;">Competitors:</strong> {benchSummaryText}</span>
-                  </div>
-                )}
-                {expSummaryText && (
-                  <div style="display:flex;align-items:baseline;gap:8px;font-size:0.8rem;line-height:1.5;">
-                    <span style="flex-shrink:0;width:6px;height:6px;border-radius:50%;background:#1A4B8C;margin-top:6px;"></span>
-                    <span style="color:#3A4458;"><strong style="color:#1A1A2E;">Experience:</strong> {expSummaryText}</span>
-                  </div>
+                ))}
+                {(!insights?.bullets || insights.bullets.length === 0) && healthSummaryText && (
+                  <p style="font-size:0.85rem;color:#5A6478;line-height:1.6;">{healthSummaryText}</p>
                 )}
               </div>
             </div>
