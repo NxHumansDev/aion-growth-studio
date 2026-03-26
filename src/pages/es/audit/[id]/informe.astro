@@ -390,9 +390,12 @@ const heroStatus = statusStyle(ss(health.total));
     .sidebar-logo{color:#fff;font-weight:700;font-size:1rem;margin-bottom:1.25rem}
     .sidebar-back{color:rgba(255,255,255,0.6);font-size:0.78rem;text-decoration:none;margin-bottom:1.75rem;display:block}
     .sidebar-back:hover{color:#fff}
-    .sidebar-nav{display:flex;flex-direction:column;gap:0.2rem;flex:1}
-    .sidebar-nav a{color:rgba(255,255,255,0.55);font-size:0.78rem;text-decoration:none;padding:0.4rem 0.6rem;border-radius:0.35rem;transition:background 0.15s,color 0.15s}
+    .sidebar-nav{display:flex;flex-direction:column;gap:0.15rem;flex:1}
+    .sidebar-nav a{color:rgba(255,255,255,0.5);font-size:0.78rem;text-decoration:none;padding:0.4rem 0.6rem;border-radius:0.35rem;transition:background 0.15s,color 0.15s,border-color 0.15s;border-left:2px solid transparent}
     .sidebar-nav a:hover{background:rgba(255,255,255,0.08);color:#fff}
+    .sidebar-nav a.nav-parent{font-weight:600;color:rgba(255,255,255,0.7);margin-top:0.5rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;pointer-events:none;padding-bottom:0.15rem}
+    .sidebar-nav a.nav-child{padding-left:1.1rem;font-size:0.75rem}
+    .sidebar-nav a.nav-active{color:#fff;background:rgba(105,255,135,0.1);border-left-color:#69ff87}
     .sidebar-footer{color:rgba(255,255,255,0.35);font-size:0.65rem;margin-top:auto;padding-top:1rem}
     .main-content{margin-left:200px;flex:1}
     .top-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:0.625rem 1.75rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
@@ -468,14 +471,15 @@ const heroStatus = statusStyle(ss(health.total));
     <aside class="sidebar no-print">
       <div class="sidebar-logo"><a href="/es/" style="display:inline-flex;align-items:center;height:3rem;overflow:hidden;"><img src="/images/aion-logo-dark.png" alt="AION Growth Studio" style="height:6rem;width:auto;" /></a></div>
       <a href={`/es/audit/${id}`} class="sidebar-back">&#8592; Volver al estado</a>
-      <nav class="sidebar-nav">
-        <a href="#hero">Diagnóstico</a>
-        <a href="#seo">SEO Orgánico</a>
-        <a href="#ia">Visibilidad IA</a>
-        <a href="#ads">Publicidad</a>
-        <a href="#competidores">Benchmark</a>
-        <a href="#experiencia">Web & Conversión</a>
-        <a href="#plan">Plan de Acción</a>
+      <nav class="sidebar-nav" id="report-nav">
+        <a href="#hero" data-section="hero" class="nav-active">Resumen Ejecutivo</a>
+        <a href="#seo" data-section="seo" class="nav-parent">Visibilidad Digital</a>
+        <a href="#seo" data-section="seo" class="nav-child">SEO Orgánico</a>
+        <a href="#ia" data-section="ia" class="nav-child">Visibilidad IA</a>
+        <a href="#autoridad" data-section="autoridad" class="nav-child">Auditoría de Marca</a>
+        <a href="#competidores" data-section="competidores">Benchmark Competitivo</a>
+        <a href="#experiencia" data-section="experiencia">Web & Conversión</a>
+        <a href="#plan" data-section="plan">Plan de Acción</a>
       </nav>
       <div class="sidebar-footer">
         <div>{domain}</div>
@@ -1963,6 +1967,46 @@ const heroStatus = statusStyle(ss(health.total));
       });
     }, { threshold: 0.15 });
     document.querySelectorAll('table').forEach(t => barObs.observe(t));
+
+    // Nav active state tracking
+    const navLinks = document.querySelectorAll('#report-nav a[data-section]');
+    const sections = ['hero', 'seo', 'ia', 'autoridad', 'competidores', 'experiencia', 'plan'];
+    const sectionEls = sections.map(id => document.getElementById(id)).filter(Boolean);
+
+    // Map child sections to their parent nav group
+    const sectionToNav = { hero: 'hero', seo: 'seo', ia: 'ia', autoridad: 'autoridad', competidores: 'competidores', experiencia: 'experiencia', plan: 'plan' };
+    // Sections that belong to "Visibilidad Digital" parent
+    const visGroup = new Set(['seo', 'ia', 'autoridad']);
+
+    let currentActive = 'hero';
+    function setActive(sectionId) {
+      if (sectionId === currentActive) return;
+      currentActive = sectionId;
+      navLinks.forEach(link => {
+        const linkSection = link.getAttribute('data-section');
+        const isParent = link.classList.contains('nav-parent');
+        // Parent "Visibilidad Digital" highlights when any child is active
+        if (isParent && linkSection === 'seo') {
+          link.classList.toggle('nav-active', visGroup.has(sectionId));
+        } else if (!isParent) {
+          link.classList.toggle('nav-active', linkSection === sectionId);
+        }
+      });
+    }
+
+    const navObs = new IntersectionObserver((entries) => {
+      let topmost = null;
+      let topmostTop = Infinity;
+      entries.forEach(e => {
+        if (e.isIntersecting && e.boundingClientRect.top < topmostTop) {
+          topmostTop = e.boundingClientRect.top;
+          topmost = e.target.id;
+        }
+      });
+      if (topmost) setActive(topmost);
+    }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+    sectionEls.forEach(el => navObs.observe(el));
   </script>
 </body>
 </html>
