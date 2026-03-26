@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { InstagramResult, InstagramCompetitor, CrawlResult } from '../types';
 
-const APIFY_TOKEN = import.meta.env.APIFY_TOKEN || process.env.APIFY_TOKEN;
+const APIFY_TOKEN = import.meta.env?.APIFY_TOKEN || process.env.APIFY_TOKEN;
 
 // Instagram internal web API headers
 const IG_HEADERS = {

@@ -1,6 +1,6 @@
 import type { GBPResult, CrawlResult } from '../types';
 
-const API_KEY = import.meta.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
+const API_KEY = import.meta.env?.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 
 export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult> {
   if (!API_KEY) {

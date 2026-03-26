@@ -1,6 +1,6 @@
 import type { ContentResult, CrawlResult } from '../types';
 
-const API_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 export async function runContent(url: string, crawl: CrawlResult): Promise<ContentResult> {
   if (!API_KEY) {

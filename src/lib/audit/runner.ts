@@ -26,7 +26,7 @@ import { NEXT_STEP } from './types';
 import type { AuditStep, AuditStepOrDone, ModuleResult, AuditPageData, CrawlResult } from './types';
 
 const APPS_SCRIPT_SOCIAL_WEBHOOK =
-  import.meta.env.APPS_SCRIPT_SOCIAL_WEBHOOK || process.env.APPS_SCRIPT_SOCIAL_WEBHOOK;
+  import.meta.env?.APPS_SCRIPT_SOCIAL_WEBHOOK || process.env.APPS_SCRIPT_SOCIAL_WEBHOOK;
 
 // ── Phase definitions ─────────────────────────────────────────────
 // 4 phases: crawl runs alone, then 3 parallel phases, then synthesis (sequential).

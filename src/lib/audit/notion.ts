@@ -1,8 +1,8 @@
 import { Client } from '@notionhq/client';
 import type { AuditStatus, AuditStepOrDone, ModuleResult, AuditPageData } from './types';
 
-const notion = new Client({ auth: import.meta.env.NOTION_TOKEN || process.env.NOTION_TOKEN });
-const AUDITS_DB_ID = import.meta.env.NOTION_AUDITS_DB_ID || process.env.NOTION_AUDITS_DB_ID;
+const notion = new Client({ auth: import.meta.env?.NOTION_TOKEN || process.env.NOTION_TOKEN });
+const AUDITS_DB_ID = import.meta.env?.NOTION_AUDITS_DB_ID || process.env.NOTION_AUDITS_DB_ID;
 
 export async function createAuditPage(
   url: string,

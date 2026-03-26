@@ -1,6 +1,6 @@
 import type { InsightsResult, ModuleResult } from '../types';
 
-const API_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 export async function runInsights(
   url: string,

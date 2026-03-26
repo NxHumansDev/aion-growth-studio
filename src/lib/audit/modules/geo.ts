@@ -1,10 +1,10 @@
 import type { GeoResult, GeoQuery, GeoCompetitorMention, CrawlResult } from '../types';
 
-const OPENAI_KEY     = import.meta.env.OPENAI_API_KEY     || process.env.OPENAI_API_KEY;
-const PERPLEXITY_KEY = import.meta.env.PERPLEXITY_API_KEY || process.env.PERPLEXITY_API_KEY;
-const ANTHROPIC_KEY  = import.meta.env.ANTHROPIC_API_KEY  || process.env.ANTHROPIC_API_KEY;
-const GEMINI_KEY     = import.meta.env.GEMINI_API_KEY     || process.env.GEMINI_API_KEY;
-const DEEPSEEK_KEY   = import.meta.env.DEEPSEEK_API_KEY   || process.env.DEEPSEEK_API_KEY;
+const OPENAI_KEY     = import.meta.env?.OPENAI_API_KEY     || process.env.OPENAI_API_KEY;
+const PERPLEXITY_KEY = import.meta.env?.PERPLEXITY_API_KEY || process.env.PERPLEXITY_API_KEY;
+const ANTHROPIC_KEY  = import.meta.env?.ANTHROPIC_API_KEY  || process.env.ANTHROPIC_API_KEY;
+const GEMINI_KEY     = import.meta.env?.GEMINI_API_KEY     || process.env.GEMINI_API_KEY;
+const DEEPSEEK_KEY   = import.meta.env?.DEEPSEEK_API_KEY   || process.env.DEEPSEEK_API_KEY;
 
 type Stage = 'tofu' | 'mofu' | 'bofu';
 type EngineType = 'openai_compat' | 'anthropic' | 'gemini';

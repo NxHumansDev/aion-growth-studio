@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 import type { CompetitorsResult, CrawlResult } from '../types';
 import { callHaikuWithValidation } from '../llm-utils';
 
-const ANTHROPIC_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 /** HEAD-check competitor domains in parallel — filter out invented/dead domains */
 async function filterValidDomains(

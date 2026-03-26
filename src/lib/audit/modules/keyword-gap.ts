@@ -1,7 +1,7 @@
 import type { KeywordGapResult, KeywordGapItem } from '../types';
 
-const DFS_LOGIN = import.meta.env.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
-const DFS_PASSWORD = import.meta.env.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
+const DFS_LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
+const DFS_PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
 const BASE_URL = 'https://api.dataforseo.com/v3/dataforseo_labs/google/keywords_for_site/live';
 

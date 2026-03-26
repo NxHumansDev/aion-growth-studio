@@ -1,7 +1,7 @@
 import type { TrafficResult } from '../types';
 
-const LOGIN = import.meta.env.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
-const PASSWORD = import.meta.env.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
+const LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
+const PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
 const BASE_URL = 'https://api.dataforseo.com/v3/traffic_analytics/summary/live';
 

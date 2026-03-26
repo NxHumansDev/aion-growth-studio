@@ -3,7 +3,7 @@
  * No external dependencies — manual schema validation.
  */
 
-const ANTHROPIC_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 // ── Schema validators ─────────────────────────────────────────────
 

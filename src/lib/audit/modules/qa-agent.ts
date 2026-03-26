@@ -1,7 +1,7 @@
 import type { QAResult } from '../types';
 
 const ANTHROPIC_API_KEY =
-  import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 function buildQAPrompt(results: Record<string, any>): string {
   // Extract key facts for the review

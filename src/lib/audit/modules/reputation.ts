@@ -1,11 +1,11 @@
 import type { ReputationResult, NewsHeadline, CrawlResult } from '../types';
 
 const PLACES_API_KEY =
-  import.meta.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
+  import.meta.env?.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 const DFS_LOGIN =
-  import.meta.env.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
+  import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
 const DFS_PASSWORD =
-  import.meta.env.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
+  import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
 // ── Google Places (new API v1) ────────────────────────────────────
 

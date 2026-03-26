@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { ConversionResult, CrawlResult } from '../types';
 
-const ANTHROPIC_API_KEY = import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 export async function runConversion(url: string, crawlData: CrawlResult): Promise<ConversionResult> {
   try {

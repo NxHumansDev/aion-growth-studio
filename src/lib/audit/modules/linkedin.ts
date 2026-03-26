@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { LinkedInResult, LinkedInCompetitor, CrawlResult } from '../types';
 
-const APIFY_TOKEN = import.meta.env.APIFY_TOKEN || process.env.APIFY_TOKEN;
+const APIFY_TOKEN = import.meta.env?.APIFY_TOKEN || process.env.APIFY_TOKEN;
 
 // LinkedIn serves HTML to Googlebot — enough to extract og: meta tags
 const HEADERS = {
