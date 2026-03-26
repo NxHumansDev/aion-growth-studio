@@ -46,6 +46,13 @@ async function filterValidDomains(
 /** Reject company names that look like category descriptions rather than brand names */
 const GENERIC_NAME_RE = /^(mejores|principales|top\s|leading|empresas?\s+de|proveedor|distribuidor|importador|exportador|productores?\s+de|fabricante|mayorista|minorista|tienda\s+de|comercio\s+de|market|category|industry)/i;
 
+/** Fallback competitors by sector when all detection methods fail */
+const SECTOR_DEFAULT_COMPETITORS: Record<string, Array<{ name: string; url: string; snippet: string }>> = {
+  'banca_privada':     [{ name: 'Andbank', url: 'https://andbank.es', snippet: 'Referencia del sector' }, { name: 'Banca March', url: 'https://bancamarch.es', snippet: 'Referencia del sector' }, { name: 'Singular Bank', url: 'https://singularbank.es', snippet: 'Referencia del sector' }, { name: 'Indosuez', url: 'https://ca-indosuez.com', snippet: 'Referencia del sector' }, { name: 'A&G Banca Privada', url: 'https://aygbancoprivado.es', snippet: 'Referencia del sector' }],
+  'banca privada':     [{ name: 'Andbank', url: 'https://andbank.es', snippet: 'Referencia del sector' }, { name: 'Banca March', url: 'https://bancamarch.es', snippet: 'Referencia del sector' }, { name: 'Singular Bank', url: 'https://singularbank.es', snippet: 'Referencia del sector' }, { name: 'Indosuez', url: 'https://ca-indosuez.com', snippet: 'Referencia del sector' }, { name: 'A&G Banca Privada', url: 'https://aygbancoprivado.es', snippet: 'Referencia del sector' }],
+  'wealth management': [{ name: 'Andbank', url: 'https://andbank.es', snippet: 'Referencia del sector' }, { name: 'Banca March', url: 'https://bancamarch.es', snippet: 'Referencia del sector' }, { name: 'Singular Bank', url: 'https://singularbank.es', snippet: 'Referencia del sector' }, { name: 'Indosuez', url: 'https://ca-indosuez.com', snippet: 'Referencia del sector' }, { name: 'A&G Banca Privada', url: 'https://aygbancoprivado.es', snippet: 'Referencia del sector' }],
+};
+
 export async function runCompetitors(
   url: string,
   sector: string,
@@ -141,6 +148,13 @@ export async function runCompetitors(
 
   // Otherwise: use Claude Haiku to detect competitors with structured validation
   if (!ANTHROPIC_KEY) {
+    // Try sector fallback before giving up
+    const sectorKey = sector.toLowerCase();
+    const fallback = SECTOR_DEFAULT_COMPETITORS[sectorKey]
+      || SECTOR_DEFAULT_COMPETITORS[Object.keys(SECTOR_DEFAULT_COMPETITORS).find(k => sectorKey.includes(k)) || ''];
+    if (fallback) {
+      return { competitors: fallback.map(c => ({ ...c, snippet: 'Benchmark de referencia del sector' })) };
+    }
     return { skipped: true, reason: 'No competitor URLs provided and ANTHROPIC_API_KEY not configured' };
   }
 
@@ -191,6 +205,16 @@ CRITICAL RULES — read carefully:
 
   // Validate that domains actually exist (eliminates hallucinated domains)
   const validList = await filterValidDomains(rawList);
+
+  // If all LLM competitors were invalid, try sector fallback
+  if (validList.length === 0) {
+    const sectorKey = sector.toLowerCase();
+    const fallback = SECTOR_DEFAULT_COMPETITORS[sectorKey]
+      || SECTOR_DEFAULT_COMPETITORS[Object.keys(SECTOR_DEFAULT_COMPETITORS).find(k => sectorKey.includes(k)) || ''];
+    if (fallback) {
+      return { competitors: fallback.slice(0, 4).map(c => ({ ...c, snippet: 'Benchmark de referencia del sector' })) };
+    }
+  }
 
   return { competitors: validList.slice(0, 4) };
 }

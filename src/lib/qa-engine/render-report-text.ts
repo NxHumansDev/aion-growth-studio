@@ -1,3 +1,21 @@
+/** Fallback competitors by sector when no real data is available */
+const SECTOR_DEFAULT_COMPETITORS: Record<string, string[]> = {
+  'banca_privada':     ['Andbank', 'Banca March', 'Singular Bank', 'Indosuez', 'A&G Banca Privada'],
+  'banca privada':     ['Andbank', 'Banca March', 'Singular Bank', 'Indosuez', 'A&G Banca Privada'],
+  'wealth management': ['Andbank', 'Banca March', 'Singular Bank', 'Indosuez', 'A&G Banca Privada'],
+  'seguros':           ['Mapfre', 'Axa', 'Zurich', 'Generali', 'Allianz'],
+  'ecommerce':         ['Amazon', 'Zalando', 'El Corte Inglés', 'Miravia', 'PC Componentes'],
+  'saas':              ['HubSpot', 'Salesforce', 'Mailchimp', 'ActiveCampaign', 'Zoho'],
+  'hostelería':        ['TheFork', 'TripAdvisor', 'El Tenedor', 'Booking', 'Airbnb'],
+  'inmobiliaria':      ['Idealista', 'Fotocasa', 'Habitaclia', 'pisos.com', 'Engel & Völkers'],
+  'consultoría':       ['McKinsey', 'BCG', 'Bain', 'Accenture', 'Deloitte'],
+  'legal':             ['Garrigues', 'Cuatrecasas', 'Uría Menéndez', 'Pérez-Llorca', 'Baker McKenzie'],
+  'salud':             ['Quirónsalud', 'Sanitas', 'HM Hospitales', 'Vithas', 'Ribera Salud'],
+  'educación':         ['IE University', 'ESADE', 'IESE', 'EAE', 'ISDI'],
+  'logística':         ['SEUR', 'MRW', 'DHL', 'Nacex', 'GLS'],
+  'tecnología':        ['Indra', 'Telefónica Tech', 'NTT Data', 'Capgemini', 'Sopra Steria'],
+};
+
 /**
  * Converts pipeline results into the plain-text equivalent of the HTML report.
  * Used as input for the Opus quality evaluator.
@@ -41,11 +59,15 @@ export function renderReportText(results: Record<string, any>, domain: string): 
 
   // ── SEO ───────────────────────────────────────────────────────────
   lines.push('【 SEO — VISIBILIDAD ORGÁNICA 】');
-  lines.push(`Keywords en top 10:   ${seo.keywordsTop10 ?? 'N/A'}`);
-  lines.push(`Keywords en top 3:    ${seo.keywordsTop3 ?? 'N/A'}`);
-  lines.push(`Keywords pos. 4-10:   ${seo.keywordsPos4to10 ?? 'N/A'}`);
-  lines.push(`Tráfico estimado:     ${fmtNum(seo.organicTrafficEstimate)} visitas/mes`);
-  lines.push(`Domain rank:          ${seo.domainRank ?? 'N/A'}`);
+  if (seo.skipped) {
+    lines.push(`Datos SEO: No disponibles — ${seo.reason || 'el dominio no aparece en los índices de tráfico orgánico, lo que indica una presencia orgánica muy baja o nula en Google.'}`);
+  } else {
+    lines.push(`Keywords en top 10:   ${seo.keywordsTop10 ?? 0}`);
+    lines.push(`Keywords en top 3:    ${seo.keywordsTop3 ?? 0}`);
+    lines.push(`Keywords pos. 4-10:   ${seo.keywordsPos4to10 ?? 0}`);
+    lines.push(`Tráfico estimado:     ${fmtNum(seo.organicTrafficEstimate)} visitas/mes`);
+    lines.push(`Domain rank:          ${seo.domainRank != null ? seo.domainRank : 'No indexado — el dominio no tiene suficiente autoridad para obtener un Domain Rank.'}`);
+  }
   if (seo.trendLost > 0 || seo.trendUp > 0) {
     lines.push(`Tendencia:            +${seo.trendUp ?? 0} subidas / -${seo.trendLost ?? 0} bajadas`);
   }
@@ -93,14 +115,30 @@ export function renderReportText(results: Record<string, any>, domain: string): 
       const tag = c.type === 'aspirational' ? ' [aspiracional]' : '';
       lines.push(`  ${c.name}${tag}: ${c.keywordsTop10 ?? 'N/A'} kw | ${fmtNum(c.organicTrafficEstimate)} vis/mes | DR ${c.domainRank ?? 'N/A'}`);
     });
-  } else {
-    lines.push('Sin datos de competidores disponibles.');
+  } else if (compList.length === 0) {
+    // Fallback: reference competitors by sector
+    const defaults = SECTOR_DEFAULT_COMPETITORS[sector.toLowerCase()] || SECTOR_DEFAULT_COMPETITORS[Object.keys(SECTOR_DEFAULT_COMPETITORS).find(k => sector.toLowerCase().includes(k)) || ''] || [];
+    if (defaults.length) {
+      lines.push(`Benchmark de referencia del sector: ${defaults.join(', ')}`);
+      lines.push('  (Datos de tráfico competitivo específicos disponibles en plan de monitorización)');
+    } else {
+      lines.push('Sin datos de competidores disponibles para este sector.');
+    }
   }
   lines.push('');
 
   // ── Rendimiento web ───────────────────────────────────────────────
   lines.push('【 RENDIMIENTO WEB 】');
-  lines.push(`Performance móvil:   ${mobile.performance ?? 'N/A'}/100`);
+  const ssl = results.ssl || {};
+  if (mobile.performance != null) {
+    lines.push(`Performance móvil:   ${mobile.performance}/100`);
+  } else if (ssl.valid === false) {
+    lines.push(`Performance móvil:   No medible — el certificado SSL inválido impide el análisis de rendimiento.`);
+  } else if (ps.skipped) {
+    lines.push(`Performance móvil:   No medible — ${ps.reason || 'la web no respondió al test de PageSpeed.'}`);
+  } else {
+    lines.push(`Performance móvil:   No disponible.`);
+  }
   if (mobile.lcp) {
     const lcpSec = (mobile.lcp / 1000).toFixed(1);
     const lcpLabel = mobile.lcp < 2500 ? 'bueno' : mobile.lcp < 4000 ? 'mejorable' : 'lento';
@@ -123,13 +161,22 @@ export function renderReportText(results: Record<string, any>, domain: string): 
   }
   if (rep.newsCount > 0) {
     lines.push(`Noticias de prensa: ${rep.newsCount}`);
-    rep.newsHeadlines?.slice(0, 3).forEach((h: string) => lines.push(`  • ${h}`));
+    rep.newsHeadlines?.slice(0, 3).forEach((h: any) => {
+      if (typeof h === 'string') {
+        lines.push(`  • ${h}`);
+      } else if (h && h.title) {
+        lines.push(`  • ${h.title}${h.source ? ' — ' + h.source : ''}${h.date ? ' (' + h.date + ')' : ''}`);
+      }
+    });
   }
   lines.push('');
 
   // ── Conversión ────────────────────────────────────────────────────
   lines.push('【 CONVERSIÓN 】');
-  lines.push(`Funnel score:          ${conv.funnelScore ?? 'N/A'}/100`);
+  const funnelVal = conv.funnelScore != null && conv.funnelScore !== undefined
+    ? `${conv.funnelScore}/100`
+    : 'No calculado';
+  lines.push(`Funnel score:          ${funnelVal}`);
   lines.push(`Formulario de contacto: ${conv.hasContactForm ? 'Sí' : 'No'}`);
   lines.push(`Tiene CTA:              ${conv.hasCTA ? 'Sí' : 'No'}`);
   lines.push(`Tiene testimonios:      ${conv.hasTestimonials ? 'Sí' : 'No'}`);
@@ -166,7 +213,7 @@ export function renderReportText(results: Record<string, any>, domain: string): 
   }
   lines.push('');
 
-  lines.push('【 PLAN DE ACCIÓN 】');
+  lines.push(`【 PLAN DE ACCIÓN 】 (Sector: ${sector})`);
   if (insights.initiatives?.length) {
     insights.initiatives.forEach((init: any) => {
       lines.push(`→ ${init.title}`);

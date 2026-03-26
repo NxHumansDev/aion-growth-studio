@@ -134,14 +134,17 @@ export function diagnosisPageSpeed(ps: any): string {
 // ── Funnel / Conversión ───────────────────────────────────────────
 export function diagnosisFunnel(cv: any): string {
   if (!cv || cv.skipped) return 'No se pudieron evaluar los elementos de conversión del sitio.';
-  const score = cv.funnelScore ?? 0;
+  const score = cv.funnelScore;
+  if (score == null || score === undefined) {
+    return 'No se pudo calcular el Funnel Score — la web no proporcionó suficientes elementos de conversión para evaluar.';
+  }
   if (score < 40) {
-    return 'Tu web está diseñada como escaparate, no como máquina de captación. No hay caminos claros hacia la conversión y los elementos de confianza son limitados.';
+    return `Tu web está diseñada como escaparate, no como máquina de captación (Funnel Score ${score}/100). No hay caminos claros hacia la conversión y los elementos de confianza son limitados.`;
   }
   if (score < 70) {
-    return 'Tienes elementos de conversión básicos pero el funnel no está optimizado. Hay fricción entre la llegada del usuario y la acción deseada que limita la tasa de conversión.';
+    return `Tienes elementos de conversión básicos pero el funnel no está optimizado (Funnel Score ${score}/100). Hay fricción entre la llegada del usuario y la acción deseada que limita la tasa de conversión.`;
   }
-  return 'Buen diseño de conversión. Los elementos clave (formularios, CTAs, prueba social) están presentes y bien estructurados.';
+  return `Buen diseño de conversión (Funnel Score ${score}/100). Los elementos clave (formularios, CTAs, prueba social) están presentes y bien estructurados.`;
 }
 
 // ── Tech Stack ────────────────────────────────────────────────────
