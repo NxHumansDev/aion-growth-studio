@@ -113,7 +113,22 @@ async function evaluateWithOpus(
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('Opus returned non-JSON response');
 
-  const parsed = JSON.parse(match[0]);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(match[0]);
+  } catch {
+    // Try to fix common JSON issues: trailing commas, unescaped quotes
+    let fixed = match[0]
+      .replace(/,\s*([\]}])/g, '$1')           // trailing commas
+      .replace(/\n/g, ' ')                       // collapse newlines
+      .replace(/([{,]\s*)"?(\w+)"?\s*:/g, '$1"$2":'); // unquoted keys
+    try {
+      parsed = JSON.parse(fixed);
+    } catch (e2) {
+      console.error('[QA:quality] JSON repair failed, raw length:', match[0].length);
+      throw new Error(`Opus JSON parse error: ${(e2 as Error).message}`);
+    }
+  }
   return {
     scores: parsed.scores,
     errors: parsed.errors || [],
