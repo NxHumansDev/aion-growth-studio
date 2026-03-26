@@ -358,6 +358,52 @@ const seoToAiGap: any[] = (seo?.topKeywords || []).slice(0, 5);
 
 // Health summary — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
+
+// Executive bullets — prefer AI-generated, fallback to data-driven
+const insightBullets: string[] = (insights?.bullets && insights.bullets.length >= 3) ? insights.bullets.slice(0, 3) : [];
+const executiveBullets: string[] = insightBullets.length >= 3 ? insightBullets : (() => {
+  const eb: string[] = [];
+  if (seo && !seo.skipped) {
+    const kwt = seo.keywordsTop10 ?? 0;
+    const etv = seo.organicTrafficEstimate ?? 0;
+    const geoMR = geo?.mentionRate ?? 0;
+    if (kwt > 0) {
+      eb.push(`Ranking for ${fmt(kwt)} keywords in Google's top 10 with ~${fmt(etv)} organic visits/mo${geoMR > 0 ? `, appearing in ${geoMR}% of AI queries about your sector` : ', but invisible to AI engines (ChatGPT, Perplexity)'}.`);
+    } else {
+      eb.push(`No keywords ranking in Google's top 10${geoMR === 0 ? ' and invisible to AI engines (ChatGPT, Perplexity)' : ''} — organic visibility is virtually zero.`);
+    }
+  } else {
+    eb.push('No organic presence detected in Google indexes — digital visibility starts from zero.');
+  }
+  const perfScore = ps?.mobile?.performance ?? null;
+  const funnelScore = cv?.funnelScore ?? null;
+  const lcpMs = ps?.mobile?.lcp;
+  if (perfScore !== null || funnelScore !== null) {
+    const perfPart = perfScore !== null ? `Mobile performance at ${perfScore}/100${lcpMs ? ` (${(lcpMs/1000).toFixed(1)}s load time)` : ''}` : null;
+    const funnelPart = funnelScore !== null ? `conversion funnel at ${funnelScore}/100` : null;
+    const parts = [perfPart, funnelPart].filter(Boolean).join(' and ');
+    const verdict = (perfScore !== null && perfScore < 50) || (funnelScore !== null && funnelScore < 40) ? ' — significant room for improvement with direct impact on lead capture.' : '.';
+    eb.push(`${parts}${verdict}`);
+  } else {
+    eb.push('Web speed and conversion elements could not be evaluated.');
+  }
+  if (hasCompetitorData && ctItems.length > 0) {
+    const avgKW = Math.round(ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length);
+    const ownKW = seo?.keywordsTop10 ?? 0;
+    const leader = ctItems.sort((a: any, b: any) => (b.keywordsTop10||0) - (a.keywordsTop10||0))[0];
+    if (avgKW > ownKW * 1.5) {
+      eb.push(`Competitors average ${fmt(avgKW)} keywords vs your ${fmt(ownKW)} — ${leader?.name || 'the leader'} leads with ${fmt(leader?.keywordsTop10 ?? 0)}. There's a visibility gap to close.`);
+    } else {
+      eb.push(`Competitive position is ${ownKW >= avgKW ? 'strong' : 'balanced'}: ${fmt(ownKW)} own keywords vs average of ${fmt(avgKW)} across competitors.`);
+    }
+  } else if (seo && (seo.keywordsPos4to10 ?? 0) > 0) {
+    eb.push(`You have ${fmt(seo.keywordsPos4to10)} keywords in positions 4-10 — the most direct opportunity: optimizing these can push them to top 3 without creating new content.`);
+  } else {
+    eb.push(`The immediate priority is building organic visibility from scratch: every day without Google presence means demand captured by others.`);
+  }
+  return eb;
+})();
+
 const heroStatus = statusStyle(ss(health.total));
 ---
 <!DOCTYPE html>
@@ -542,15 +588,12 @@ const heroStatus = statusStyle(ss(health.total));
               </h1>
               <div style="font-size:0.68rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Executive Summary</div>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                {(insights?.bullets || []).slice(0, 3).map((bullet: string, i: number) => (
+                {executiveBullets.map((bullet: string, i: number) => (
                   <div style="display:flex;align-items:baseline;gap:10px;font-size:0.82rem;line-height:1.55;">
                     <span style={`flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${i === 0 ? '#1A4B8C' : i === 1 ? '#4A7FD4' : '#7BA3E0'};color:white;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;`}>{i + 1}</span>
                     <span style="color:#3A4458;">{bullet}</span>
                   </div>
                 ))}
-                {(!insights?.bullets || insights.bullets.length === 0) && healthSummaryText && (
-                  <p style="font-size:0.85rem;color:#5A6478;line-height:1.6;">{healthSummaryText}</p>
-                )}
               </div>
             </div>
           </div>

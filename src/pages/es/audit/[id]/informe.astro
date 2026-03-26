@@ -368,6 +368,54 @@ const allCompGeoZero = (geo?.competitorMentions?.length ?? 0) > 0 && geo.competi
 // Health summary text — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
 
+// Executive bullets — prefer AI-generated, fallback to data-driven
+const insightBullets: string[] = (insights?.bullets && insights.bullets.length >= 3) ? insights.bullets.slice(0, 3) : [];
+const executiveBullets: string[] = insightBullets.length >= 3 ? insightBullets : (() => {
+  const eb: string[] = [];
+  // Bullet 1: Visibility (SEO + GEO)
+  if (seo && !seo.skipped) {
+    const kwt = seo.keywordsTop10 ?? 0;
+    const etv = seo.organicTrafficEstimate ?? 0;
+    const geoMR = geo?.mentionRate ?? 0;
+    if (kwt > 0) {
+      eb.push(`Posicionas ${fmt(kwt)} keywords en el top 10 de Google con ~${fmt(etv)} visitas orgánicas/mes${geoMR > 0 ? `, y apareces en el ${geoMR}% de consultas de IA sobre tu sector` : ', pero tu marca no aparece en ninguna respuesta de IA (ChatGPT, Perplexity)'}.`);
+    } else {
+      eb.push(`Tu dominio no tiene keywords posicionadas en el top 10 de Google${geoMR === 0 ? ' y es invisible para los motores de IA (ChatGPT, Perplexity)' : ''} — la visibilidad orgánica es prácticamente nula.`);
+    }
+  } else {
+    eb.push('No se detecta presencia orgánica en los índices de Google — el dominio parte de cero en visibilidad digital.');
+  }
+  // Bullet 2: Web experience (PageSpeed + Conversion)
+  const perfScore = ps?.mobile?.performance ?? null;
+  const funnelScore = cv?.funnelScore ?? null;
+  const lcpMs = ps?.mobile?.lcp;
+  if (perfScore !== null || funnelScore !== null) {
+    const perfPart = perfScore !== null ? `Rendimiento móvil de ${perfScore}/100${lcpMs ? ` (${(lcpMs/1000).toFixed(1)}s de carga)` : ''}` : null;
+    const funnelPart = funnelScore !== null ? `funnel de conversión en ${funnelScore}/100` : null;
+    const parts = [perfPart, funnelPart].filter(Boolean).join(' y ');
+    const verdict = (perfScore !== null && perfScore < 50) || (funnelScore !== null && funnelScore < 40) ? ' — hay margen de mejora con impacto directo en captación de leads.' : '.';
+    eb.push(`${parts}${verdict}`);
+  } else {
+    eb.push('No se pudieron evaluar la velocidad web ni los elementos de conversión del sitio.');
+  }
+  // Bullet 3: Competitive position or biggest opportunity
+  if (hasCompetitorData && ctItems.length > 0) {
+    const avgKW = Math.round(ctItems.reduce((s: number, c: any) => s + (c.keywordsTop10 || 0), 0) / ctItems.length);
+    const ownKW = seo?.keywordsTop10 ?? 0;
+    const leader = ctItems.sort((a: any, b: any) => (b.keywordsTop10||0) - (a.keywordsTop10||0))[0];
+    if (avgKW > ownKW * 1.5) {
+      eb.push(`Tus competidores posicionan una media de ${fmt(avgKW)} keywords vs tus ${fmt(ownKW)} — ${leader?.name || 'el líder'} lidera con ${fmt(leader?.keywordsTop10 ?? 0)}. Hay brecha de visibilidad que cerrar.`);
+    } else {
+      eb.push(`Tu posición competitiva es ${ownKW >= avgKW ? 'fuerte' : 'equilibrada'}: ${fmt(ownKW)} keywords propias vs media de ${fmt(avgKW)} en competidores.`);
+    }
+  } else if (seo && (seo.keywordsPos4to10 ?? 0) > 0) {
+    eb.push(`Tienes ${fmt(seo.keywordsPos4to10)} keywords en posición 4-10 que son la oportunidad más directa: optimizarlas puede llevarlas al top 3 sin crear contenido nuevo.`);
+  } else {
+    eb.push(`La prioridad inmediata es construir visibilidad orgánica desde cero: cada día sin presencia en Google es demanda que captan otros.`);
+  }
+  return eb;
+})();
+
 // Hero status
 const heroStatus = statusStyle(ss(health.total));
 ---
@@ -553,15 +601,12 @@ const heroStatus = statusStyle(ss(health.total));
               </h1>
               <div style="font-size:0.68rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Resumen ejecutivo</div>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                {(insights?.bullets || []).slice(0, 3).map((bullet: string, i: number) => (
+                {executiveBullets.map((bullet: string, i: number) => (
                   <div style="display:flex;align-items:baseline;gap:10px;font-size:0.82rem;line-height:1.55;">
                     <span style={`flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${i === 0 ? '#1A4B8C' : i === 1 ? '#4A7FD4' : '#7BA3E0'};color:white;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;`}>{i + 1}</span>
                     <span style="color:#3A4458;">{bullet}</span>
                   </div>
                 ))}
-                {(!insights?.bullets || insights.bullets.length === 0) && healthSummaryText && (
-                  <p style="font-size:0.85rem;color:#5A6478;line-height:1.6;">{healthSummaryText}</p>
-                )}
               </div>
             </div>
           </div>
