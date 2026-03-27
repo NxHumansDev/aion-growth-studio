@@ -34,7 +34,7 @@ const DATA_POINTS: DataPoint[] = [
   { id: 'techstack.maturity', label: 'Tech stack', critical: true, check: r => r.techstack && !r.techstack.skipped },
   { id: 'reputation.rating', label: 'Reputation rating', critical: false, check: r => r.reputation?.combinedRating != null || r.reputation?.gbpRating != null },
   { id: 'reputation.news', label: 'News coverage', critical: false, check: r => (r.reputation?.newsCount ?? 0) > 0 || r.reputation?.newsHeadlines?.length > 0 },
-  { id: 'geo.queries', label: 'AI visibility queries', critical: true, check: r => (r.geo?.queries?.length ?? 0) >= 10 },
+  { id: 'geo.queries', label: 'AI visibility queries', critical: true, check: r => (r.geo?.queries?.length ?? 0) >= 8 },
   { id: 'geo.mentionRate', label: 'AI mention rate', critical: true, check: r => r.geo?.mentionRate != null },
   { id: 'geo.categories', label: 'AI category breakdown', critical: false, check: r => Object.keys(r.geo?.categoryBreakdown ?? {}).length >= 3 },
   { id: 'geo.narrative', label: 'AI executive narrative', critical: false, check: r => !!r.geo?.executiveNarrative },

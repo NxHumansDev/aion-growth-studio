@@ -60,7 +60,7 @@ export const PHASE_ENTRY_STEPS = new Set(Object.keys(PHASE_STEPS));
 // ── Per-module timeouts (ms) ──────────────────────────────────────
 
 export const STEP_TIMEOUTS: Record<string, number> = {
-  geo: 75_000,
+  geo: 50_000,
   competitor_traffic: 45_000,
   seo: 30_000,
   pagespeed: 40_000,

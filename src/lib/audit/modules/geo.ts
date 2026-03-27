@@ -207,9 +207,8 @@ function deduplicateQuerySpecs(specs: QuerySpec[]): QuerySpec[] {
 // ── Query generation ──────────────────────────────────────────────
 
 /**
- * Static fallback queries — 5 per category × 6 categories = 30.
+ * Static fallback queries — ~3 per category × 6 categories + 2 marca = 20.
  * 6 intent categories: sector, problema, comparativa, decision, recomendacion, marca.
- * More queries = more stable statistical base for mention rate.
  */
 function buildFallbackQueries(
   sector: string,
@@ -224,41 +223,31 @@ function buildFallbackQueries(
   const vp  = valueProposition.slice(0, 60) || sector;
   const kw  = keywords.slice(0, 50) || sector;
   return [
-    // SECTOR (5) — generic discovery, who's who
+    // SECTOR (3)
     { stage: 'tofu', category: 'sector', query: `Mejores empresas de ${sector}${loc} — dame nombres concretos` },
-    { stage: 'tofu', category: 'sector', query: `¿Quién lidera el mercado de ${sector}${locS}? Lista las opciones más recomendadas` },
+    { stage: 'tofu', category: 'sector', query: `¿Quién lidera el mercado de ${sector}${locS}? Lista opciones recomendadas` },
     { stage: 'tofu', category: 'sector', query: `Principales actores de ${sector}${loc}. ¿Cuáles son los más conocidos?` },
-    { stage: 'tofu', category: 'sector', query: `Ranking de empresas de ${sector}${locS} por reputación y calidad` },
-    { stage: 'tofu', category: 'sector', query: `Empresas emergentes e innovadoras en ${sector}${loc}` },
-    // PROBLEMA (5) — pain-point queries
+    // PROBLEMA (3)
     { stage: 'mofu', category: 'problema', query: `Necesito "${vp}"${loc}. ¿Qué empresa me puede ayudar?` },
     { stage: 'mofu', category: 'problema', query: `Problemas con mi proveedor actual de ${kw}. ¿Qué alternativas existen?` },
-    { stage: 'mofu', category: 'problema', query: `¿Cómo elegir un buen proveedor de ${sector}? Criterios clave` },
-    { stage: 'mofu', category: 'problema', query: `No estoy satisfecho con mi ${kw}. ¿Qué opciones hay${locS}?` },
     { stage: 'mofu', category: 'problema', query: `Mi empresa necesita mejorar en ${kw}. ¿Quién lo hace bien${locS}?` },
-    // COMPARATIVA (5) — comparison queries
+    // COMPARATIVA (3)
     { stage: 'mofu', category: 'comparativa', query: `Comparativa de proveedores de ${sector}${loc}: calidad, precio y servicio` },
     { stage: 'mofu', category: 'comparativa', query: `Diferencias entre las opciones de ${sector}${loc}. ¿Cuál tiene mejor relación calidad-precio?` },
-    { stage: 'mofu', category: 'comparativa', query: `Alternativas en ${sector} para una empresa mediana. Pros y contras de cada una` },
-    { stage: 'mofu', category: 'comparativa', query: `Top 5 empresas de ${sector}${locS} comparadas. Ventajas e inconvenientes` },
-    { stage: 'mofu', category: 'comparativa', query: `¿Cuál es la diferencia entre los principales proveedores de ${kw}${locS}?` },
-    // DECISION (5) — high purchase intent
+    { stage: 'mofu', category: 'comparativa', query: `Alternativas en ${sector} para una empresa mediana. Pros y contras` },
+    // DECISION (4)
     { stage: 'bofu', category: 'decision', query: `Quiero contratar ${kw}${loc} esta semana. ¿A quién llamo primero?` },
     { stage: 'bofu', category: 'decision', query: `Necesito presupuesto para ${kw}${loc}. ¿Qué empresas contacto?` },
-    { stage: 'bofu', category: 'decision', query: `Voy a invertir en ${sector}. ¿Cuál es la opción más segura${locS}?` },
     { stage: 'bofu', category: 'decision', query: `¿Cuál es la mejor opción de ${sector}${loc} para una empresa en crecimiento?` },
-    { stage: 'bofu', category: 'decision', query: `Estoy decidiendo entre proveedores de ${kw}${loc}. ¿Cuál me recomiendas y por qué?` },
-    // RECOMENDACION (5) — trust/referral queries
+    { stage: 'bofu', category: 'decision', query: `Estoy decidiendo entre proveedores de ${kw}${loc}. ¿Cuál me recomiendas?` },
+    // RECOMENDACION (3)
     { stage: 'bofu', category: 'recomendacion', query: `Recomiéndame un proveedor de confianza de ${sector}${loc}` },
     { stage: 'bofu', category: 'recomendacion', query: `¿Qué empresa de ${sector}${locS} recomendarías a un amigo?` },
     { stage: 'bofu', category: 'recomendacion', query: `Opiniones de empresas de ${sector}${loc}. ¿Cuál tiene mejor reputación?` },
-    { stage: 'bofu', category: 'recomendacion', query: `Necesito ${kw} de calidad${loc}. ¿Cuáles son las más fiables?` },
-    { stage: 'bofu', category: 'recomendacion', query: `Según expertos del sector, ¿cuál es la mejor empresa de ${sector}${locS}?` },
-    // MARCA (5) — direct brand queries (biased, lower weight)
+    // MARCA (4) — direct brand queries
     { stage: 'bofu', category: 'marca', query: `¿Conoces "${brandName}" (${domain})? ¿Es recomendable en ${sector}?`, isBrandQuery: true },
     { stage: 'bofu', category: 'marca', query: `Opiniones sobre ${brandName}. ¿Merece la pena para ${kw}?`, isBrandQuery: true },
     { stage: 'bofu', category: 'marca', query: `${brandName} vs competidores de ${sector}${locS}. ¿Cómo se compara?`, isBrandQuery: true },
-    { stage: 'bofu', category: 'marca', query: `¿Recomendarías ${brandName} para ${kw}? ¿Qué alternativas hay?`, isBrandQuery: true },
     { stage: 'bofu', category: 'marca', query: `¿Qué tal es ${brandName}? Busco opiniones reales de ${sector}`, isBrandQuery: true },
   ];
 }
@@ -284,16 +273,16 @@ async function generateQueries(
     : '';
 
   const prompt =
-    `Genera exactamente 30 consultas que potenciales clientes escribirían en ChatGPT o Perplexity buscando ${sector}.\n\n` +
+    `Genera exactamente 20 consultas que potenciales clientes escribirían en ChatGPT o Perplexity buscando ${sector}.\n\n` +
     `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 100)}\n` +
     `- Servicios clave: ${keywords.slice(0, 60)}${loc}\n\n` +
-    `ESTRUCTURA EXACTA — 5 consultas por categoría, en este orden:\n` +
-    `1. "sector" (5): descubrimiento genérico del sector. Ej: "mejores empresas de X"\n` +
-    `2. "problema" (5): dolor o necesidad concreta. Ej: "cómo resolver Y"\n` +
-    `3. "comparativa" (5): comparar opciones. Ej: "diferencias entre X e Y"\n` +
-    `4. "decision" (5): alta intención de compra. Ej: "contratar X esta semana"\n` +
-    `5. "recomendacion" (5): pedir consejo/confianza. Ej: "recomiéndame un X de confianza"\n` +
-    `6. "marca" (5): preguntas directas sobre "${brandName}". Ej: "¿qué tal es ${brandName}?"\n\n` +
+    `ESTRUCTURA EXACTA — 20 consultas en 6 categorías:\n` +
+    `1. "sector" (3): descubrimiento genérico. Ej: "mejores empresas de X"\n` +
+    `2. "problema" (3): dolor o necesidad. Ej: "cómo resolver Y"\n` +
+    `3. "comparativa" (3): comparar opciones. Ej: "diferencias entre X e Y"\n` +
+    `4. "decision" (4): alta intención de compra. Ej: "contratar X esta semana"\n` +
+    `5. "recomendacion" (3): pedir consejo. Ej: "recomiéndame un X de confianza"\n` +
+    `6. "marca" (4): preguntas sobre "${brandName}". Ej: "¿qué tal es ${brandName}?"\n\n` +
     `REGLAS:\n` +
     `- Naturales y conversacionales, máximo 15 palabras por consulta\n` +
     `- Solo en categoría "marca" se usa "${brandName}"\n` +
@@ -311,7 +300,7 @@ async function generateQueries(
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        max_tokens: 3000,
+        max_tokens: 2000,
         messages: [
           { role: 'system', content: 'Responde SOLO con JSON válido. Sin markdown.' },
           { role: 'user', content: prompt },
@@ -324,7 +313,7 @@ async function generateQueries(
     const match = raw.match(/\[[\s\S]*\]/);
     if (!match) return fallback;
     const arr = JSON.parse(match[0]) as any[];
-    if (!Array.isArray(arr) || arr.length < 20) return fallback;
+    if (!Array.isArray(arr) || arr.length < 15) return fallback;
     const validCategories = new Set(['sector','problema','comparativa','decision','recomendacion','marca']);
     const specs: QuerySpec[] = arr
       .filter((q: any) => q.category && q.query && typeof q.query === 'string' && q.query.length > 8)
@@ -337,8 +326,8 @@ async function generateQueries(
           isBrandQuery: cat === 'marca' || !!q.isBrandQuery,
         };
       })
-      .slice(0, 30);
-    return specs.length >= 20 ? specs : fallback;
+      .slice(0, 20);
+    return specs.length >= 15 ? specs : fallback;
   } catch {
     return fallback;
   } finally {
