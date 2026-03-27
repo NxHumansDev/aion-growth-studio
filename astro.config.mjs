@@ -6,6 +6,6 @@ export default defineConfig({
   integrations: [tailwind()],
   output: 'hybrid',
   adapter: vercel({
-    maxDuration: 120,
+    maxDuration: 60,
   }),
 });

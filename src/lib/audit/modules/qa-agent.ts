@@ -208,7 +208,7 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90_000);
+  const timer = setTimeout(() => controller.abort(), 30_000);
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -220,7 +220,7 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-6',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         temperature: 0,
         messages: [{ role: 'user', content: buildQAPrompt(results) }],
@@ -281,7 +281,7 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
 
     return result;
   } catch (err: any) {
-    const reason = err.name === 'AbortError' ? 'QA agent timed out (90s)' : err.message?.slice(0, 100);
+    const reason = err.name === 'AbortError' ? 'QA agent timed out (30s)' : err.message?.slice(0, 100);
     console.error(`[qa-agent] ${reason}`);
     return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: reason || 'QA failed' };
   } finally {
