@@ -69,7 +69,7 @@ export const STEP_TIMEOUTS: Record<string, number> = {
   linkedin: 15_000,
   reputation: 20_000,
   insights: 65_000,
-  qa: 40_000,
+  qa: 65_000,
   score: 10_000,
   competitors: 20_000,
 };

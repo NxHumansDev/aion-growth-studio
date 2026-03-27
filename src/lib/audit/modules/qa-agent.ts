@@ -4,141 +4,196 @@ const ANTHROPIC_API_KEY =
   import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
 function buildQAPrompt(results: Record<string, any>): string {
-  // Extract key facts for the review
   const seo = results.seo || {};
   const geo = results.geo || {};
   const rep = results.reputation || {};
   const ts = results.techstack || {};
+  const cv = results.conversion || {};
   const sector = results.sector?.sector || 'unknown';
   const crawl = results.crawl || {};
-  const ctItems: any[] = results.competitor_traffic?.items || [];
-  const ctItemsWithData = ctItems.filter(
-    (c: any) => c.organicTrafficEstimate != null || c.keywordsTop10 != null,
+  const insights = results.insights || {};
+  const ctItems: any[] = (results.competitor_traffic?.items || []).filter(
+    (c: any) => !c.apiError && (c.organicTrafficEstimate != null || c.keywordsTop10 != null),
   );
-  const allCompetitorsEmpty = ctItems.length > 0 && ctItemsWithData.length === 0;
-  const noCompetitorData = ctItems.length === 0 || allCompetitorsEmpty;
-  const health = results.score || {};
-
+  const comps = results.competitors?.competitors || [];
   const kg = results.keyword_gap || {};
-  const kgItemsCount = (kg.items || []).length;
+  const health = results.score || {};
+  const ps = results.pagespeed || {};
+  const traffic = results.traffic || {};
+  const cc = results.content_cadence || {};
+  const domain = crawl.title?.split(/[-|–—·:]/)[0]?.trim() || 'dominio analizado';
 
-  const summary = {
+  const data = JSON.stringify({
+    domain,
     sector,
-    business_type: crawl.businessType || 'unknown',
-    url: crawl.title || '',
-    seo_etv: seo.organicTrafficEstimate,
-    seo_keywords_top10: seo.keywordsTop10,
-    seo_keywords_pos4to10: seo.keywordsPos4to10,
-    seo_trend_lost: seo.trendLost,
-    seo_trend_up: seo.trendUp,
-    geo_score: geo.overallScore,
-    geo_mention_rate: geo.mentionRate,
-    geo_queries_count: geo.queries?.length ?? 0,
-    geo_mentioned_count: geo.queries?.filter((q: any) => q.mentioned).length ?? 0,
-    rep_level: rep.reputationLevel,
-    rep_combined_rating: rep.combinedRating,
-    rep_total_reviews: rep.totalReviews,
-    techstack_maturity: ts.maturityScore,
-    techstack_cms: ts.cms,
-    competitors_all_empty: allCompetitorsEmpty,
-    no_competitor_data: noCompetitorData,
-    competitors_with_data_count: ctItemsWithData.length,
-    competitors_total_count: ctItems.length,
-    health_competitividad: health.competitividad ?? null,
-    paid_investing: seo.isInvestingPaid,
-    keyword_gap_count: kgItemsCount,
-  };
+    businessType: crawl.businessType || 'unknown',
+    score: health.total ?? null,
+    scoreBreakdown: health.breakdown || null,
 
-  return `Eres un consultor senior de growth y marketing digital con 10 años de experiencia auditando empresas medianas.
-Tu trabajo es revisar el informe de diagnóstico digital que AION ha generado automáticamente y detectar
-cualquier conclusión incorrecta, inconsistente o no respaldada por los datos.
+    // SEO
+    seoKeywordsTop10: seo.keywordsTop10 ?? null,
+    seoKeywordsPos4to10: seo.keywordsPos4to10 ?? null,
+    seoTraffic: seo.organicTrafficEstimate ?? null,
+    seoDomainRank: seo.domainRank ?? null,
+    seoTrend: seo.organicTrend ?? null,
+    seoTrendPct: seo.organicTrendPct ?? null,
+    seoBrandPct: seo.brandTrafficPct ?? null,
+    seoTopKeywords: seo.topKeywords?.slice(0, 5) || [],
+    seoSkipped: seo.skipped || false,
 
-RESUMEN DE DATOS DEL AUDIT:
-${JSON.stringify(summary, null, 2)}
+    // GEO
+    geoMentionRate: geo.mentionRate ?? null,
+    geoRangeLow: geo.mentionRangeLow ?? null,
+    geoRangeHigh: geo.mentionRangeHigh ?? null,
+    geoScore: geo.overallScore ?? null,
+    geoQueriesTotal: geo.queries?.length ?? 0,
+    geoQueriesMentioned: geo.queries?.filter((q: any) => q.mentioned).length ?? 0,
+    geoCategoryBreakdown: geo.categoryBreakdown || null,
+    geoCompetitorMentions: geo.competitorMentions?.slice(0, 3) || [],
+    geoNarrative: geo.executiveNarrative || null,
 
-DATOS COMPLETOS (subset relevante):
-${JSON.stringify({
-    seo: { ...seo, paidTopKeywords: undefined, topKeywords: seo.topKeywords?.slice(0, 3) },
-    geo: { overallScore: geo.overallScore, brandScore: geo.brandScore, sectorScore: geo.sectorScore, queries: geo.queries?.slice(0, 4) },
-    reputation: rep,
-    techstack: { maturityScore: ts.maturityScore, cms: ts.cms, analytics: ts.analytics },
-    sector: results.sector,
-    competitors_count: ctItems.length,
-    all_competitors_empty: allCompetitorsEmpty,
-  }, null, 2)}
+    // Competitors
+    competitorsCount: comps.length,
+    competitorsWithData: ctItems.length,
+    competitorNames: comps.map((c: any) => c.name).join(', '),
+    competitorTrafficSample: ctItems.slice(0, 3).map((c: any) => ({
+      name: c.name, kw: c.keywordsTop10, traffic: c.organicTrafficEstimate,
+    })),
+    keywordGapCount: (kg.items || []).length,
 
-Revisa las posibles inconsistencias y responde ÚNICAMENTE con JSON válido con esta estructura exacta:
+    // Web & Conversion
+    pagespeedMobile: ps.mobile?.performance ?? null,
+    pagespeedDesktop: ps.desktop?.performance ?? null,
+    lcpMs: ps.mobile?.lcp ?? null,
+    funnelScore: cv.funnelScore ?? null,
+    hasContactForm: cv.hasContactForm ?? null,
+    hasCTA: cv.hasCTA ?? null,
+
+    // Reputation & Social
+    reputationLevel: rep.reputationLevel ?? null,
+    combinedRating: rep.combinedRating ?? null,
+    newsCount: rep.newsCount ?? 0,
+    techstackMaturity: ts.maturityScore ?? null,
+    cms: ts.cms ?? null,
+
+    // Traffic
+    trafficTotal: traffic.visits ?? null,
+    trafficChannels: traffic.channels ? Object.entries(traffic.channels).map(([k, v]: [string, any]) => ({
+      channel: k, share: v.share, visits: v.visits,
+    })) : null,
+
+    // Blog
+    blogActive: cc.cadenceLevel ?? null,
+    blogPosts: cc.totalPosts ?? null,
+    blogLastDays: cc.daysSinceLastPost ?? null,
+
+    // Current insights (what the LLM generated)
+    currentSummary: insights.summary || null,
+    currentBullets: insights.bullets || [],
+    currentInitiatives: insights.initiatives || [],
+    currentVisibilitySummary: insights.visibilitySummary || null,
+    currentBenchmarkSummary: insights.benchmarkSummary || null,
+    currentExperienceSummary: insights.experienceSummary || null,
+  }, null, 2);
+
+  return `Eres el Director de Calidad de AION Growth Studio. Tienes 15 años de experiencia en growth marketing y marketing digital. Tu trabajo es GARANTIZAR que cada informe de diagnóstico que salga de AION sea impecable.
+
+Este informe va a ser leído por CEOs y CMOs que tomarán decisiones de inversión basándose en él. Si algo no es coherente, correcto o valioso, TÚ lo corriges. No señalas — arreglas.
+
+DATOS COMPLETOS DEL ANÁLISIS:
+${data}
+
+═══════════════════════════════════════════════
+TU MISIÓN: Revisar, corregir y mejorar TODO lo necesario
+═══════════════════════════════════════════════
+
+FASE 1 — COHERENCIA DE DATOS
+Revisa que no haya contradicciones entre secciones:
+- Si SEO muestra X keywords pero un bullet dice otro número → corrige el bullet
+- Si GEO mention rate es Y% pero la narrativa dice "invisible" → corrige
+- Si no hay datos de competidores → elimina TODA referencia comparativa
+- Si keyword_gap_count es 0 → elimina recomendaciones de "atacar gaps"
+- Si funnelScore > 60 pero dice "sin conversión" → corrige
+- Si domainRank es null pero hay >50 keywords → no decir "sin autoridad"
+
+FASE 2 — CALIDAD DEL VEREDICTO EJECUTIVO (CRÍTICO)
+El "summary" y los primeros 3 bullets son lo que lee un CEO. DEBEN:
+1. Contener mínimo 4 datos numéricos específicos del negocio
+2. Mencionar el nombre de la empresa o dominio
+3. Comparar al menos 1 dato con un competidor real (si hay datos)
+4. Explicar el IMPACTO DE NEGOCIO, no solo la métrica
+5. NO usar frases genéricas como "bases técnicas aceptables", "déficits significativos", "oportunidades de captación"
+
+Si el veredicto actual no cumple → REESCRÍBELO COMPLETO.
+
+FASE 3 — CALIDAD DE LAS INICIATIVAS
+Cada iniciativa debe ser:
+- Una ACCIÓN concreta (verbo imperativo), no un diagnóstico
+- Basada en un dato específico del análisis
+- Con resultado esperado cuantificable
+- Adaptada al sector (banca → no formularios genéricos, ecommerce → sí carrito)
+
+Si una iniciativa es genérica o no está basada en datos → REESCRÍBELA.
+
+FASE 4 — VALOR PARA EL CEO
+Hazte estas preguntas sobre cada sección:
+- "¿Un CEO pagaría por esta información?" Si no → mejórala o suprímela
+- "¿Esto le dice algo que no sabía?" Si es obvio → añade insight
+- "¿Puede actuar con esto?" Si es vago → concreta
+
+FASE 5 — SECCIONES A SUPRIMIR
+Si alguna sección no tiene datos suficientes para ser valiosa, suprímela:
+- "competitor_benchmark" → si no hay datos reales de competidores
+- "geo_analysis" → si 0 queries o todo vacío
+- "seo_visibility" → si SEO skipped y no hay ningún dato
+- "reputation" → si no hay ni rating ni news
+- "techstack" → si todo vacío
+
+FORMATO DE RESPUESTA — JSON VÁLIDO, SIN MARKDOWN:
 {
-  "approved": true,
-  "issues": [],
-  "suppressed_sections": [],
-  "overall_assessment": "valoración breve de 1-2 frases",
-  "corrected_insights": null
+  "approved": true/false,
+  "issues": [
+    {"severity": "critical/warning", "section": "...", "issue": "...", "fix_applied": "..."}
+  ],
+  "suppressed_sections": ["competitor_benchmark", ...],
+  "overall_assessment": "1-2 frases de valoración del informe",
+  "corrected_insights": {
+    "summary": "veredicto ejecutivo corregido (2-3 frases con datos concretos)",
+    "visibilitySummary": "una frase sobre SEO + GEO + Paid (máx 25 palabras)",
+    "benchmarkSummary": "una frase sobre posición competitiva (máx 25 palabras)",
+    "experienceSummary": "una frase sobre web + conversión + medición (máx 25 palabras)",
+    "bullets": ["bullet 1 corregido con dato numérico", "bullet 2", "bullet 3", "bullet 4", "bullet 5", "bullet 6"],
+    "initiatives": [
+      {"title": "Acción concreta (verbo + resultado)", "description": "2-3 frases: problema con dato, qué hacer, resultado esperado"},
+      {"title": "...", "description": "..."},
+      {"title": "...", "description": "..."}
+    ]
+  }
 }
 
-Si corriges bullets o iniciativas, incluye el objeto insights completo corregido en "corrected_insights":
-{
-  "bullets": ["bullet corregido 1", ...],
-  "initiatives": [{"title": "...", "description": "..."}, ...]
+REGLA DE ORO: Si "corrected_insights" está presente, TODOS los campos deben estar completos (summary, bullets, initiatives, los 3 summaries). El sistema reemplazará los insights originales con tu versión.
+
+Si el informe original es excelente y no necesita cambios → "corrected_insights": null y "approved": true.
+Si corriges CUALQUIER cosa → incluye el objeto corrected_insights COMPLETO con TODOS los campos.`;
 }
-Si no hay correcciones en insights, "corrected_insights" debe ser null.
 
-Criterios que debes aplicar ESTRICTAMENTE:
-
-1. COHERENCIA: Si etv orgánico < 100 y el informe sugiere "buena visibilidad orgánica", es contradicción.
-2. PROYECCIONES: Si la proyección de tráfico supera el 200% del tráfico actual, ajústala.
-3. COMPETIDORES SIN DATOS (CRÍTICO): Si no_competitor_data es true o all_competitors_empty es true:
-   - SIEMPRE suprime "competitor_benchmark"
-   - SIEMPRE suprime cualquier afirmación comparativa como "SEO mejorable con relación al mercado",
-     "por debajo de la media del sector", "sus competidores tienen más visibilidad", etc.
-   - El informe NUNCA puede hacer comparativas de mercado si no hay datos reales de competidores.
-   - Si el informe tiene texto comparativo con mercado/sector pero competitors_with_data_count = 0, marca issue CRÍTICO.
-4. URGENCIA INJUSTIFICADA: Si el informe usa alerta roja pero los datos no son críticos (etv > 1000, rating > 4.0), suaviza.
-5. TECH STACK: Si el CMS es enterprise (Drupal, SAP, Salesforce) y no hay analytics detectado, añade nota de caveat en lugar de conclusión categórica.
-6. GEO: Si el score GEO > 50 y hay texto de "invisibilidad crítica", es inconsistente.
-7. SALUD COMPETITIVIDAD: Si health_competitividad es null, suprime "competitor_benchmark" sin excepción.
-8. INVENTED MARKET REFERENCES: Si el informe menciona "promedio del mercado", "benchmark del sector", o hace afirmaciones
-   sobre cómo se posiciona vs el mercado pero no hay datos de competidores reales, es SIEMPRE un error. Suprime y marca issue.
-9. SECCIONES SIN DATOS GEO: Si geo_score es 0 y geo_queries_count es 0, suprime "geo_analysis".
-
-Para suppressed_sections usa estos identificadores exactos: "competitor_benchmark", "geo_analysis", "seo_visibility", "reputation", "techstack".
-
-REGLA DE ORO: Nunca inventar comparativas. Sin datos de competidores = sin benchmarks.
-Solo marca approved: false si hay issues que cambian materialmente las conclusiones.
-Issues menores de tono → approved: true con correcciones opcionales.
-
-REGLAS ADICIONALES DE CALIDAD DE INSIGHTS:
-
-10. DATOS NUMÉRICOS OBLIGATORIOS EN BULLETS: Cada bullet DEBE contener al menos un dato numérico concreto (número de keywords, score, segundos, estrellas, porcentaje, etc.).
-    - CORRECTO: "Invisible en IA: apareces en 1 de 12 respuestas de ChatGPT (GEO score 8/100)"
-    - INCORRECTO: "Tu presencia digital tiene bases técnicas aceptables"
-    Si un bullet no tiene dato numérico, corríGElo incorporando el dato más relevante disponible en el análisis.
-
-11. INICIATIVAS = ACCIONES, no diagnósticos:
-    - CORRECTO: "Añadir formulario de contacto a páginas de servicio"
-    - INCORRECTO: "Tu presencia digital global obtiene un 44/100" (esto es un diagnóstico)
-    Si el title de una iniciativa es un diagnóstico y no una acción ejecutable, reescríbelo como acción.
-
-12. VEREDICTO COHERENTE CON DATOS: Si los bullets mencionan datos positivos (ej: buena reputación, keywords en top 10), el overall_assessment no puede ser completamente negativo, y viceversa.
-
-13. NO CONTRADECIR LOS DATOS: Si seo.keywordsTop10 >= 50 y un bullet dice "sin presencia en Google", es una contradicción grave. Corrige el bullet.
-
-14. KEYWORD GAPS: Si keyword_gap_count === 0, rechaza cualquier recomendación que mencione "gap de keywords", "keywords donde no posicionas", "gap competitivo de palabras clave" o similar. Sin datos de gaps no puede haber recomendación de gaps.
-
-15. SECTOR FINANCIERO: Si business_type o sector contiene alguno de [banca, banco, bank, finanzas, wealth, seguros, privada, insurance, finance]: rechaza "formulario de contacto" como acción recomendada y sustitúyelo por "canal de contacto privado" o "sección de contacto cualificado". La banca no capta leads con formularios genéricos.
-
-16. COHERENCIA NUMÉRICA: Si el informe cita un número concreto (ej: "1 keyword") pero seo_keywords_pos4to10 > 5, es un error factual. Corrige el número en el bullet o iniciativa afectada usando seo_keywords_pos4to10.
-
-17. SCORE vs DESCRIPCIÓN: Si geo_mention_rate > 60 y el informe describe la presencia en IA como "invisible" o "crítica", es una contradicción. Suaviza a "mejorable" o "parcial". Si el score total > 60 y un bullet usa "deficiente" o "crítico" para describir la situación global, corrígelo a "en desarrollo" o "mejorable".
-
-18. VALIDACIÓN DEL VEREDICTO: Revisa el primer bullet (veredicto ejecutivo). Si cumple ALGUNA de estas condiciones → approved: false y corrige en corrected_insights:
-    a) Menos de 3 datos numéricos concretos en el veredicto (puntos, keywords, segundos, porcentajes, posiciones, etc.)
-    b) No menciona el nombre del dominio o empresa analizada en ningún momento
-    c) No compara ningún dato con un competidor o benchmark concreto
-    - CORRECTO: "andbank.com logra 69 keywords en top 10 pero aparece en solo 2 de 12 respuestas IA (17%); Julius Baer supera los 300 keywords — hay una brecha de posicionamiento que atacar."
-    - INCORRECTO: "Tienes fundamentos pero pierdes terreno en visibilidad digital."
-
-Si aplicas correcciones a bullets o iniciativas, SIEMPRE incluye el objeto "corrected_insights" completo con los bullets e iniciativas corregidos.`;
+/** Extract balanced JSON from LLM response */
+function extractJSON(str: string): string | null {
+  const start = str.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < str.length; i++) {
+    const c = str[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inString) { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{') depth++;
+    if (c === '}') { depth--; if (depth === 0) return str.slice(start, i + 1); }
+  }
+  return null;
 }
 
 export async function runQAAgent(results: Record<string, any>): Promise<QAResult> {
@@ -147,13 +202,13 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
       approved: true,
       issues: [],
       suppressedSections: [],
-      overallAssessment: 'QA not configured (no ANTHROPIC_API_KEY)',
+      overallAssessment: 'QA not configured',
       qaBypassed: true,
     };
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), 55_000);
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -165,37 +220,70 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
         temperature: 0,
         messages: [{ role: 'user', content: buildQAPrompt(results) }],
       }),
     });
 
     if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      console.error(`[qa-agent] Opus API error ${res.status}: ${err.slice(0, 200)}`);
       return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: `API error ${res.status}` };
     }
 
     const data = await res.json();
     const text: string = data?.content?.[0]?.text || '';
 
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) {
+    const jsonStr = extractJSON(text);
+    if (!jsonStr) {
+      console.error('[qa-agent] No JSON found in Opus response');
       return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: 'Invalid QA response' };
     }
 
-    const qa = JSON.parse(match[0]);
-    return {
+    let qa: any;
+    try {
+      qa = JSON.parse(jsonStr);
+    } catch {
+      const fixed = jsonStr.replace(/,\s*([\]}])/g, '$1');
+      qa = JSON.parse(fixed);
+    }
+
+    const result: QAResult = {
       approved: qa.approved ?? true,
       issues: qa.issues || [],
       suppressedSections: (qa.suppressed_sections || []).map((s: any) => s.section ?? s),
       overallAssessment: qa.overall_assessment || '',
       qaTimestamp: new Date().toISOString(),
-      correctedInsights: qa.corrected_insights ?? undefined,
     };
+
+    // If Opus provided corrected insights, include them
+    if (qa.corrected_insights && typeof qa.corrected_insights === 'object') {
+      const ci = qa.corrected_insights;
+      // Validate that the correction has actual content
+      if ((ci.bullets?.length ?? 0) >= 3 || ci.summary) {
+        result.correctedInsights = {
+          summary: ci.summary || undefined,
+          visibilitySummary: ci.visibilitySummary || undefined,
+          benchmarkSummary: ci.benchmarkSummary || undefined,
+          experienceSummary: ci.experienceSummary || undefined,
+          bullets: ci.bullets || [],
+          initiatives: ci.initiatives || [],
+        };
+        console.log(`[qa-agent] Opus corrected insights: ${ci.bullets?.length ?? 0} bullets, ${ci.initiatives?.length ?? 0} initiatives`);
+      }
+    }
+
+    const issueCount = (qa.issues || []).length;
+    const suppressCount = result.suppressedSections.length;
+    console.log(`[qa-agent] Opus QA: approved=${result.approved} issues=${issueCount} suppressed=${suppressCount} corrected=${!!result.correctedInsights}`);
+
+    return result;
   } catch (err: any) {
-    const reason = err.name === 'AbortError' ? 'QA agent timed out (15s)' : err.message?.slice(0, 100);
-    return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: reason };
+    const reason = err.name === 'AbortError' ? 'QA agent timed out (55s)' : err.message?.slice(0, 100);
+    console.error(`[qa-agent] ${reason}`);
+    return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: reason || 'QA failed' };
   } finally {
     clearTimeout(timer);
   }
