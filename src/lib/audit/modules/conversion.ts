@@ -50,7 +50,12 @@ export async function runConversion(url: string, crawlData: CrawlResult): Promis
     // ── Chat widget ──────────────────────────────────────────────
     const hasChatWidget = $('[id*="chat"], [class*="chat-widget"], [class*="chat_widget"], [id*="crisp"], [id*="tidio"], [class*="intercom-"], [id*="drift"]').length > 0;
 
-    const structural = { formCount, formFieldCount, hasContactForm, ctaCount, hasCTA, hasLeadMagnet, hasTestimonials, hasPricing, hasVideo, hasChatWidget };
+    // Post-validation: resolve contradictions
+    // A lead magnet requires at least one CTA to access it
+    const validatedHasCTA = hasCTA || hasLeadMagnet || hasContactForm;
+    const validatedCtaCount = validatedHasCTA && ctaCount === 0 ? 1 : ctaCount;
+
+    const structural = { formCount, formFieldCount, hasContactForm, ctaCount: validatedCtaCount, hasCTA: validatedHasCTA, hasLeadMagnet, hasTestimonials, hasPricing, hasVideo, hasChatWidget };
 
     // ── Heuristic score (no LLM needed) ─────────────────────────
     let funnelScore = 0;

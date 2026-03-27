@@ -16,6 +16,19 @@ const SECTOR_DEFAULT_COMPETITORS: Record<string, string[]> = {
   'tecnología':        ['Indra', 'Telefónica Tech', 'NTT Data', 'Capgemini', 'Sopra Steria'],
 };
 
+/** Sanitize internal error reasons — never expose env var names or stack traces */
+function sanitizeReason(reason?: string): string {
+  if (!reason) return 'Métrica no disponible en este análisis.';
+  // Hide any env var name patterns
+  if (/[A-Z_]{3,}(KEY|TOKEN|LOGIN|PASSWORD|SECRET|URL)/i.test(reason)) {
+    return 'Métrica no disponible en este análisis.';
+  }
+  if (/not configured|not set|missing|undefined/i.test(reason)) {
+    return 'Métrica no disponible en este análisis.';
+  }
+  return reason;
+}
+
 /**
  * Converts pipeline results into the plain-text equivalent of the HTML report.
  * Used as input for the Opus quality evaluator.
@@ -60,7 +73,7 @@ export function renderReportText(results: Record<string, any>, domain: string): 
   // ── SEO ───────────────────────────────────────────────────────────
   lines.push('【 SEO — VISIBILIDAD ORGÁNICA 】');
   if (seo.skipped) {
-    lines.push(`Datos SEO: No disponibles — ${seo.reason || 'el dominio no aparece en los índices de tráfico orgánico, lo que indica una presencia orgánica muy baja o nula en Google.'}`);
+    lines.push(`Datos SEO: No disponibles — ${sanitizeReason(seo.reason) === 'Métrica no disponible en este análisis.' ? 'el dominio no aparece en los índices de tráfico orgánico, lo que indica una presencia orgánica muy baja o nula en Google.' : sanitizeReason(seo.reason)}`);
   } else {
     lines.push(`Keywords en top 10:   ${seo.keywordsTop10 ?? 0}`);
     lines.push(`Keywords en top 3:    ${seo.keywordsTop3 ?? 0}`);
@@ -70,7 +83,14 @@ export function renderReportText(results: Record<string, any>, domain: string): 
       const dir = seo.organicTrend === 'up' ? '↑ Creciente' : seo.organicTrend === 'down' ? '↓ Descendente' : '→ Estable';
       lines.push(`Tendencia 12 meses:   ${dir} (${seo.organicTrendPct > 0 ? '+' : ''}${seo.organicTrendPct ?? 0}%)`);
     }
-    lines.push(`Domain rank:          ${seo.domainRank != null ? seo.domainRank : 'No indexado — el dominio no tiene suficiente autoridad para obtener un Domain Rank.'}`);
+    if (seo.domainRank != null) {
+      lines.push(`Domain rank:          ${seo.domainRank}`);
+    } else if ((seo.keywordsTop10 ?? 0) > 100) {
+      // High-authority domain but DR API failed — don't say "no authority"
+      lines.push(`Domain rank:          No disponible (API no devolvió dato, el dominio tiene ${fmt(seo.keywordsTop10)} keywords posicionadas)`);
+    } else {
+      lines.push(`Domain rank:          No disponible`);
+    }
   }
   if (seo.trendLost > 0 || seo.trendUp > 0) {
     lines.push(`Tendencia:            +${seo.trendUp ?? 0} subidas / -${seo.trendLost ?? 0} bajadas`);
@@ -139,7 +159,7 @@ export function renderReportText(results: Record<string, any>, domain: string): 
   } else if (ssl.valid === false) {
     lines.push(`Performance móvil:   No medible — el certificado SSL inválido impide el análisis de rendimiento.`);
   } else if (ps.skipped) {
-    lines.push(`Performance móvil:   No medible — ${ps.reason || 'la web no respondió al test de PageSpeed.'}`);
+    lines.push(`Performance móvil:   No medible — ${sanitizeReason(ps.reason) === 'Métrica no disponible en este análisis.' ? 'la web no respondió al test de PageSpeed.' : sanitizeReason(ps.reason)}`);
   } else {
     lines.push(`Performance móvil:   No disponible.`);
   }

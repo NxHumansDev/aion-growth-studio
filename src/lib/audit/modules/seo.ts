@@ -191,19 +191,34 @@ export async function runSEO(url: string): Promise<SEOResult> {
         const kwItems: any[] = kwTask.result[0]?.items || [];
         const domainBase = domain.replace(/\.[a-z]{2,6}$/i, '').toLowerCase();
 
+        // Stopwords and junk patterns to filter out
+        const JUNK_RE = /^(el|la|los|las|de|del|en|un|una|que|por|con|para|the|of|in|and|to|is|at|it|on|a|an)$/i;
+        const NOISE_RE = /^(real decreto|decreto|ley |boe |orden |resolución |sentencia |auto |circular )/i;
+
         const topKeywords = kwItems
           .filter((it: any) => {
-            const kw = (it.keyword_data?.keyword || '').toLowerCase();
-            return !kw.includes(domainBase) && kw.length > 3;
+            const kw = (it.keyword_data?.keyword || '').trim().toLowerCase();
+            const vol = it.keyword_data?.keyword_info?.search_volume ?? 0;
+            // Reject: brand terms, very short, only stopwords, legislative junk, no volume
+            if (kw.includes(domainBase)) return false;
+            if (kw.length < 4) return false;
+            if (JUNK_RE.test(kw)) return false;
+            if (NOISE_RE.test(kw)) return false;
+            // Reject keywords that are just 1-2 char fragments
+            if (kw.split(/\s+/).every((w: string) => w.length <= 2)) return false;
+            // Prefer keywords with actual search volume
+            if (vol === 0) return false;
+            return true;
           })
-          .slice(0, 6)
+          .slice(0, 8) // take more to have buffer after final filter
           .map((it: any) => ({
             keyword: it.keyword_data?.keyword || '',
             position: it.ranked_serp_element?.serp_item?.rank_absolute ?? 0,
             volume: it.keyword_data?.keyword_info?.search_volume ?? 0,
             etv: Math.round(it.ranked_serp_element?.serp_item?.etv ?? 0),
           }))
-          .filter((kw) => kw.keyword);
+          .filter((kw) => kw.keyword && kw.volume > 0)
+          .slice(0, 6);
 
         if (topKeywords.length > 0) baseResult.topKeywords = topKeywords;
       }

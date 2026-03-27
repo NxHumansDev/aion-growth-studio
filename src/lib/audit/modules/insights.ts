@@ -141,7 +141,7 @@ function buildSummary(url: string, r: Record<string, ModuleResult>): string {
   lines.push(`Tipo de negocio: ${(crawl as any)?.businessType || 'unknown'}`);
   lines.push(`Propuesta de valor detectada: "${content?.valueProposition || 'no detectada'}"`);
   lines.push(`CTA principal en la web: "${content?.cta || 'no detectado'}"`);
-  lines.push(`Palabras en la web: ${crawl?.wordCount ?? '?'}`);
+  lines.push(`Palabras en la página principal: ${crawl?.wordCount ?? '?'} (solo homepage, no el sitio completo)`);
 
   // ── Score global ─────────────────────────────────────────────────
   lines.push('\n=== AION DIGITAL HEALTH SCORE ===');
