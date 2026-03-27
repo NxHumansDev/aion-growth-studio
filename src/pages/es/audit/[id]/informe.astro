@@ -1321,7 +1321,7 @@ const demandNarrative = capturePct === null ? '' :
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Blog, presencia en prensa y visibilidad en IA</div>
+          <div class="sub-section-subtitle">Blog, presencia en prensa y presencia social</div>
 
           <!-- Blog + Prensa cards -->
           <div class="grid-2" style="margin-bottom:14px;">
@@ -1367,43 +1367,47 @@ const demandNarrative = capturePct === null ? '' :
             </div>
           </div>
 
-          <!-- Señales alternativas: GEO + LinkedIn (when no backlinks data) -->
-          {seo?.domainRank == null && (geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
-            <div class="grid-2" style="margin-bottom:14px;">
-              {geo?.mentionRate != null && (
-                <div class="metric-card" style={`border-left:3px solid ${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#9CA3AF'};`}>
-                  <div class="metric-value" style={`color:${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate}%</div>
-                  <div class="metric-label">Visibilidad en IA</div>
-                  <div class="metric-sub" style="margin-top:4px;">Mencionado en {geo.mentionRate}% de consultas en ChatGPT, Perplexity y otros LLMs</div>
-                </div>
+          <!-- Social presence: B2B → LinkedIn, B2C → Instagram -->
+          {isB2B && (linkedin?.followers ?? 0) > 0 && (
+            <div class="metric-card" style="border-left:3px solid #0077B5;margin-bottom:14px;">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                <span style="font-size:0.7rem;color:#5A6478;">seguidores LinkedIn</span>
+              </div>
+              {linkedin?.employees && (
+                <div style="font-size:0.82rem;color:#374151;margin-top:4px;">{fmt(linkedin.employees)} empleados en LinkedIn</div>
               )}
-              {(linkedin?.followers ?? 0) > 0 && (
-                <div class="metric-card" style="border-left:3px solid #0077B5;">
-                  <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
-                  <div class="metric-label">Seguidores LinkedIn</div>
-                  <div class="metric-sub" style="margin-top:4px;">Indicador de autoridad y presencia profesional</div>
-                </div>
-              )}
+              <div class="metric-sub" style="margin-top:4px;">En B2B, LinkedIn es el canal principal de generación de confianza profesional.</div>
+            </div>
+          )}
+          {!isB2B && (instagram?.followers ?? 0) > 0 && (
+            <div class="metric-card" style="border-left:3px solid #E1306C;margin-bottom:14px;">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <div class="metric-value" style="color:#E1306C;">{fmt(instagram?.followers)}</div>
+                <span style="font-size:0.7rem;color:#5A6478;">seguidores Instagram</span>
+              </div>
+              <div class="metric-sub" style="margin-top:4px;">Instagram es un canal clave para marcas B2C.</div>
             </div>
           )}
 
-          <!-- Señales de autoridad (solo cuando disponibles) -->
-          {seo && (seo.domainRank != null || seo.referringDomains != null) && (
-            <div class="grid-3" style="margin-bottom:14px;">
-              <div class="metric-card">
-                <div class="metric-value" style={`color:${seo.domainRank==null?'#9CA3AF':seo.domainRank>=50?'#1D9E75':seo.domainRank>=25?'#BA7517':'#E24B4A'};`}>{seo.domainRank ?? '—'}</div>
-                <div class="metric-label">Domain Rank</div>
-                <div class="metric-sub" style="margin-top:4px;">Autoridad del dominio (0–100)</div>
+          <!-- Autoridad de dominio -->
+          {seo && seo.domainRank != null && (
+            <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+                <div style={`font-size:2rem;font-weight:800;color:${drColor};line-height:1;`}>{seo.domainRank}</div>
+                <div style="font-size:0.65rem;color:#9CA3AF;">/100</div>
               </div>
-              <div class="metric-card">
-                <div class="metric-value">{fmt(seo.referringDomains)}</div>
-                <div class="metric-label">Dominios enlazantes</div>
-                <div class="metric-sub" style="margin-top:4px;">Webs únicas que enlazan al dominio</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-value">{fmt(seo.backlinksTotal)}</div>
-                <div class="metric-label">Dominios + enlaces</div>
-                <div class="metric-sub" style="margin-top:4px;">Total de enlaces entrantes</div>
+              <div style="flex:1;min-width:200px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;">Autoridad de dominio</div>
+                {seo.domainRank < 20 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Google os ve como un dominio nuevo o poco relevante. Conseguir menciones en medios del sector es la palanca principal.</p>
+                )}
+                {seo.domainRank >= 20 && seo.domainRank < 50 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad moderada — podéis competir por keywords de dificultad media.</p>
+                )}
+                {seo.domainRank >= 50 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad fuerte — ventaja competitiva clara para posicionar contenido nuevo.</p>
+                )}
               </div>
             </div>
           )}
@@ -1428,32 +1432,7 @@ const demandNarrative = capturePct === null ? '' :
             </div>
           )}
 
-          <!-- Contextual callout -->
-          {seo && seo.domainRank != null && seo.domainRank < 20 && (
-            <div class="callout callout-red">
-              Tu domain rank es bajo ({seo.domainRank}/100). Conseguir menciones en medios relevantes, publicar guest posts y aparecer en directorios del sector son acciones prioritarias.
-            </div>
-          )}
-          {seo && seo.domainRank != null && seo.domainRank >= 20 && seo.domainRank < 50 && (
-            <div class="callout callout-amber">
-              Domain rank en desarrollo ({seo.domainRank}/100). Aumentar la presencia en blogs especializados y medios del sector puede acelerar el crecimiento orgánico.
-            </div>
-          )}
-          {seo && seo.domainRank != null && seo.domainRank >= 50 && (
-            <div class="callout callout-green">
-              Buena autoridad de dominio ({seo.domainRank}/100) con {fmt(seo.referringDomains)} dominios enlazantes.
-            </div>
-          )}
-          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
-            <div class="callout callout-amber">
-              El score de reputación refleja las señales de presencia disponibles:{' '}
-              {geo?.mentionRate != null && <span>visibilidad en IA ({geo.mentionRate}%), </span>}
-              {newsCountEs > 0 && <span>presencia en prensa ({newsCountEs} artículos), </span>}
-              {hasBlogEs && <span>blog propio, </span>}
-              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores)</span>}.
-            </div>
-          )}
-          {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEs && newsCountEs === 0 && (
+          {(!seo || seo.domainRank == null) && !hasBlogEs && newsCountEs === 0 && (
             <div class="callout callout-amber">No se han podido obtener datos de autoridad para este sitio.</div>
           )}
           {(seo?.spamScore ?? 0) > 40 && (
