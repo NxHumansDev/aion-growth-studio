@@ -66,37 +66,28 @@ const _totalTraf    = Object.values(_trafficCh).reduce((s: number, c: any) => s 
 const _organicTraf  = _trafficCh.organic?.visits || 0;
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
 
-// Brand Authority score (0-100): backlinks + blog + press + GEO visibility + LinkedIn
+// Brand Authority score (0-100): domain authority + blog + press + social (NO GEO)
+const isB2B = businessType === 'b2b' || businessType === 'saas';
 const brandAuthorityScoreEs = (() => {
   let ba = 0;
   const rd = seo?.referringDomains ?? 0;
-  if (rd >= 500) ba += 35;
-  else if (rd >= 100) ba += 25;
-  else if (rd >= 20) ba += 15;
-  else if (rd >= 5) ba += 8;
-  else if (rd >= 1) ba += 3;
+  if (rd >= 500) ba += 20; else if (rd >= 100) ba += 14; else if (rd >= 20) ba += 8; else if (rd >= 1) ba += 3;
   const dr = seo?.domainRank ?? 0;
-  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 25);
-  if (hasBlogEs) {
-    ba += 12;
-    if ((cc?.totalPosts ?? 0) >= 20) ba += 13;
-    else if ((cc?.totalPosts ?? 0) >= 5) ba += 7;
-  }
+  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 10);
+  if (hasBlogEs) { ba += 10; if ((cc?.totalPosts ?? 0) >= 20) ba += 10; else if ((cc?.totalPosts ?? 0) >= 5) ba += 5; }
   const nc = newsCountEs;
-  if (nc >= 10) ba += 15;
-  else if (nc >= 5) ba += 10;
-  else if (nc >= 2) ba += 6;
-  else if (nc >= 1) ba += 3;
-  // GEO: menciones en IA como proxy de reconocimiento de marca (0–15 pts)
-  const geoMR = geo?.mentionRate ?? 0;
-  if (geoMR >= 70) ba += 15;
-  else if (geoMR >= 40) ba += 10;
-  else if (geoMR >= 15) ba += 5;
-  // LinkedIn: followers como señal de autoridad profesional (0–10 pts)
-  const liF = linkedin?.followers ?? 0;
-  if (liF >= 10000) ba += 10;
-  else if (liF >= 1000) ba += 6;
-  else if (liF >= 100) ba += 3;
+  if (nc >= 10) ba += 20; else if (nc >= 5) ba += 14; else if (nc >= 2) ba += 8; else if (nc >= 1) ba += 4;
+  if (isB2B) {
+    const liF = linkedin?.followers ?? 0;
+    if (liF >= 50000) ba += 20; else if (liF >= 10000) ba += 15; else if (liF >= 1000) ba += 10; else if (liF >= 100) ba += 5;
+    const liE = linkedin?.employees ?? 0;
+    if (liE >= 500) ba += 10; else if (liE >= 50) ba += 6; else if (liE >= 10) ba += 3;
+  } else {
+    const igF = instagram?.followers ?? 0;
+    if (igF >= 100000) ba += 20; else if (igF >= 10000) ba += 14; else if (igF >= 1000) ba += 8; else if (igF >= 100) ba += 4;
+    const liF = linkedin?.followers ?? 0;
+    if (liF >= 5000) ba += 10; else if (liF >= 500) ba += 5; else if (liF >= 100) ba += 2;
+  }
   return Math.min(100, ba);
 })();
 
