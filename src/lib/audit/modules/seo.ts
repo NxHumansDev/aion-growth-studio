@@ -86,12 +86,12 @@ export async function runSEO(url: string): Promise<SEOResult> {
     const task = data?.tasks?.[0];
 
     if (!task || task.status_code !== 20000 || !task.result_count) {
-      return { skipped: true, reason: 'DataForSEO returned no data for this domain' };
+      return { skipped: true, reason: 'No se pudieron obtener datos SEO para este dominio. Esto no significa que no tenga presencia orgánica — puede ser un dominio nuevo en los índices o un error temporal de la fuente de datos.' };
     }
 
     const item = task.result[0]?.items?.[0];
     if (!item) {
-      return { skipped: true, reason: 'DataForSEO returned no data for this domain' };
+      return { skipped: true, reason: 'No se pudieron obtener datos SEO para este dominio.' };
     }
 
     // ── Organic metrics ─────────────────────────────────────────
@@ -153,13 +153,27 @@ export async function runSEO(url: string): Promise<SEOResult> {
     // ── Organic competitors from DataForSEO ───────────────────────────
     // Blocklist: generic/media domains that share informational keywords but aren't real competitors
     const GENERIC_DOMAINS = new Set([
+      // Social & UGC
       'youtube.com', 'wikipedia.org', 'facebook.com', 'instagram.com', 'twitter.com',
       'x.com', 'linkedin.com', 'tiktok.com', 'pinterest.com', 'reddit.com', 'quora.com',
-      'amazon.com', 'amazon.es', 'google.com', 'bing.com',
+      // Marketplaces (too generic — compete with everyone)
+      'amazon.com', 'amazon.es', 'amazon.de', 'amazon.co.uk', 'ebay.com', 'ebay.es',
+      'aliexpress.com', 'alibaba.com', 'wallapop.com', 'milanuncios.com',
+      // Search engines
+      'google.com', 'google.es', 'bing.com',
+      // News & media
       'elpais.com', 'elmundo.es', 'abc.es', 'lavanguardia.com', 'expansion.com',
       'eleconomista.es', 'cincodias.elpais.com', 'elconfidencial.com', 'eldiario.es',
+      '20minutos.es', 'marca.com', 'as.com', 'huffingtonpost.es',
+      // Review sites
       'trustpilot.com', 'tripadvisor.com', 'glassdoor.com', 'yelp.com',
+      // Government
       'gov.es', 'boe.es', 'aeat.es', 'administracion.gob.es',
+      // Supermarkets / generalist retailers (off-sector for most verticals)
+      'carrefour.es', 'mercadona.es', 'lidl.es', 'alcampo.es', 'dia.es', 'aldi.es',
+      'hipercor.es', 'eroski.es', 'consum.es',
+      // Generic aggregators / classifieds
+      'idealista.com', 'fotocasa.es', 'infojobs.net', 'indeed.com',
     ]);
 
     try {

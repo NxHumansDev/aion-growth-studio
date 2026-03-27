@@ -180,11 +180,20 @@ async function fetchNewsPresence(
       (it: any) => it.title && (it.type === 'news_search' || it.source || it.domain),
     );
 
-    const headlines: NewsHeadline[] = newsItems.slice(0, 5).map((it: any) => ({
-      title: String(it.title || '').slice(0, 120),
-      source: String(it.source || it.domain || ''),
-      ...(it.date && { date: String(it.date).slice(0, 20) }),
-    }));
+    // Filter out negative news about the company (closures, bankruptcy, lawsuits)
+    const NEGATIVE_RE = /cierra|cerrar|quiebra|concurso de acreedores|liquidaci[oó]n|demanda contra|fraude|estafa|despidos masivos|ERE |ERTE |bancarrota|bankruptcy|closes|shutdown|fraud|scam|lawsuit/i;
+
+    const headlines: NewsHeadline[] = newsItems
+      .slice(0, 8)
+      .map((it: any) => ({
+        title: String(it.title || '').slice(0, 120),
+        source: String(it.source || it.domain || ''),
+        ...(it.date && { date: String(it.date).slice(0, 20) }),
+        _negative: NEGATIVE_RE.test(String(it.title || '')),
+      }))
+      .filter((h) => !h._negative)
+      .slice(0, 5)
+      .map(({ _negative, ...rest }) => rest);
 
     return {
       newsCount: Math.max(result?.items_count ?? 0, newsItems.length),

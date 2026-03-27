@@ -151,6 +151,18 @@ export async function runTechStack(url: string): Promise<TechStackResult> {
       result.allTools!.push('Google Analytics (vía GTM)');
     }
 
+    // Shopify inference: Shopify injects its own analytics + pixel infrastructure
+    if (result.cms === 'Shopify') {
+      if (result.analytics!.length === 0) {
+        result.analytics!.push('Shopify Analytics (nativo)');
+        result.allTools!.push('Shopify Analytics (nativo)');
+      }
+      if (result.conversionPixels!.length === 0 && html.includes('shopify.com/checkouts')) {
+        result.conversionPixels!.push('Shopify Conversion Tracking');
+        result.allTools!.push('Shopify Conversion Tracking');
+      }
+    }
+
     // Maturity score:
     // Analytics (25) + TagManager (20) + Conversion pixels (20) + CRM/Automation (25) + Chat (10)
     // Heatmaps are a bonus (+5) but don't increase base score beyond 100
