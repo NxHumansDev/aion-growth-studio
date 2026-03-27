@@ -896,7 +896,7 @@ const demandNarrative = capturePct === null ? '' :
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;">
                   Tendencia de tráfico orgánico
-                  <span style="font-size:0.7rem;font-weight:400;color:#9CA3AF;">últimos 12 meses</span>
+                  <span style="font-size:0.7rem;font-weight:400;color:#9CA3AF;">últimos 3 meses</span>
                 </div>
                 {organicTrend === 'up' && (
                   <span style="font-size:0.72rem;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:4px;">
@@ -1396,11 +1396,11 @@ const demandNarrative = capturePct === null ? '' :
               </div>
               {newsCountEs > 0 ? (
                 <div style="font-size:0.82rem;color:#374151;">
-                  Menciones en Google News en los últimos 12 meses.
-                  {newsCountEs >= 10 ? ' Buena cobertura mediática.' : newsCountEs >= 3 ? ' Cobertura moderada.' : ' Cobertura baja — una estrategia de PR multiplicaría la visibilidad.'}
+                  Menciones en Google News en los últimos 3 meses.
+                  {newsCountEs >= 5 ? ' Buena cobertura — vuestra marca tiene presencia activa en medios.' : newsCountEs >= 2 ? ' Cobertura moderada — hay actividad pero margen para más visibilidad.' : ' Cobertura baja — una estrategia de PR podría multiplicar la visibilidad de marca.'}
                 </div>
               ) : (
-                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News en los últimos 12 meses.</div>
+                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News en los últimos 3 meses.</div>
               )}
             </div>
           </div>
