@@ -2,8 +2,8 @@ export const prerender = false;
 
 import type { APIRoute } from 'astro';
 import { getAuditPage, saveModuleResult, savePhaseResults, markAuditError } from '../../../../lib/audit/notion';
-import { executeStep, executePhase, executeStepWithTimeout, PHASE_ENTRY_STEPS } from '../../../../lib/audit/runner';
-import { evaluateCoverage, getRetryModules } from '../../../../lib/audit/coverage';
+import { executeStep, executePhase, PHASE_ENTRY_STEPS } from '../../../../lib/audit/runner';
+import { evaluateCoverage } from '../../../../lib/audit/coverage';
 import { STEP_PROGRESS } from '../../../../lib/audit/types';
 import type { AuditStep } from '../../../../lib/audit/types';
 import { validateApiKey, mapResultsForPlatform } from '../../../../lib/api-auth';
@@ -136,43 +136,19 @@ export const GET: APIRoute = async ({ params, request }) => {
 
     await saveModuleResult(id, moduleKey, result, nextStep, extraProps);
 
-    // ── Coverage check + retry when reaching completion ────────────
-    let finalResults = { ...audit.results, [moduleKey]: result };
-    let isCompleted = nextStep === 'done';
+    const isCompleted = nextStep === 'done';
 
+    // Log coverage on completion (no retry in this request to avoid timeout)
     if (isCompleted) {
+      const finalResults = { ...audit.results, [moduleKey]: result };
       const coverage = evaluateCoverage(finalResults);
-      console.log(`[audit:coverage] ${coverage.coveragePct}% (${coverage.successfulModules}/${coverage.totalModules}) | critical missing: ${coverage.criticalMissing.join(',') || 'none'}`);
-
-      if (!coverage.meetsThreshold) {
-        const retryModules = getRetryModules(finalResults);
-        if (retryModules.length > 0) {
-          console.log(`[audit:retry] Retrying ${retryModules.length} critical modules: ${retryModules.join(', ')}`);
-          for (const mod of retryModules) {
-            try {
-              const retryResult = await executeStepWithTimeout(mod as AuditStep, audit);
-              if (!retryResult.skipped && !retryResult.error) {
-                finalResults[mod] = retryResult;
-                await saveModuleResult(id, mod, retryResult, 'done', {});
-                console.log(`[audit:retry] ${mod}: OK`);
-              } else {
-                console.log(`[audit:retry] ${mod}: still failed (${retryResult.reason || retryResult.error || 'skipped'})`);
-              }
-            } catch (e: any) {
-              console.log(`[audit:retry] ${mod}: exception (${e.message?.slice(0, 60)})`);
-            }
-          }
-          // Re-evaluate
-          const finalCoverage = evaluateCoverage(finalResults);
-          console.log(`[audit:coverage:final] ${finalCoverage.coveragePct}% | critical missing: ${finalCoverage.criticalMissing.join(',') || 'none'}`);
-        }
-      }
+      console.log(`[audit:coverage] ${coverage.coveragePct}% (${coverage.successfulPoints}/${coverage.totalPoints}) | critical missing: ${coverage.criticalMissing.join(',') || 'none'}`);
     }
 
     const progress = isCompleted
       ? 100
       : PHASE_COMPLETE_PROGRESS[nextStep as string] ?? STEP_PROGRESS[nextStep as AuditStep] ?? 99;
-    const allResults = isCompleted ? finalResults : null;
+    const allResults = isCompleted ? { ...audit.results, [moduleKey]: result } : null;
 
     if (isPlatform) {
       const completedModules = [...Object.keys(audit.results), moduleKey];
