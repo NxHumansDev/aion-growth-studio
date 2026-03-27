@@ -66,36 +66,37 @@ const _totalTraf    = Object.values(_trafficCh).reduce((s: number, c: any) => s 
 const _organicTraf  = _trafficCh.organic?.visits || 0;
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
 
-// Brand Authority score (0-100): domain authority + blog + press + social
-// NO GEO visibility here — that's a separate metric in the Visibilidad section
-const isB2B = businessType === 'b2b' || businessType === 'saas';
+// Brand Authority score (0-100): backlinks + blog + press + GEO visibility + LinkedIn
 const brandAuthorityScoreEs = (() => {
   let ba = 0;
-  // Domain authority (0-30 pts)
   const rd = seo?.referringDomains ?? 0;
-  if (rd >= 500) ba += 20; else if (rd >= 100) ba += 14; else if (rd >= 20) ba += 8; else if (rd >= 1) ba += 3;
+  if (rd >= 500) ba += 35;
+  else if (rd >= 100) ba += 25;
+  else if (rd >= 20) ba += 15;
+  else if (rd >= 5) ba += 8;
+  else if (rd >= 1) ba += 3;
   const dr = seo?.domainRank ?? 0;
-  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 10);
-  // Blog (0-20 pts)
+  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 25);
   if (hasBlogEs) {
-    ba += 10;
-    if ((cc?.totalPosts ?? 0) >= 20) ba += 10; else if ((cc?.totalPosts ?? 0) >= 5) ba += 5;
+    ba += 12;
+    if ((cc?.totalPosts ?? 0) >= 20) ba += 13;
+    else if ((cc?.totalPosts ?? 0) >= 5) ba += 7;
   }
-  // Press (0-20 pts)
   const nc = newsCountEs;
-  if (nc >= 10) ba += 20; else if (nc >= 5) ba += 14; else if (nc >= 2) ba += 8; else if (nc >= 1) ba += 4;
-  // Social presence (0-30 pts) — B2B: LinkedIn, B2C: Instagram/social
-  if (isB2B) {
-    const liF = linkedin?.followers ?? 0;
-    const liE = linkedin?.employees ?? 0;
-    if (liF >= 50000) ba += 20; else if (liF >= 10000) ba += 15; else if (liF >= 1000) ba += 10; else if (liF >= 100) ba += 5;
-    if (liE >= 500) ba += 10; else if (liE >= 50) ba += 6; else if (liE >= 10) ba += 3;
-  } else {
-    const igF = instagram?.followers ?? 0;
-    if (igF >= 100000) ba += 20; else if (igF >= 10000) ba += 14; else if (igF >= 1000) ba += 8; else if (igF >= 100) ba += 4;
-    const liF = linkedin?.followers ?? 0;
-    if (liF >= 5000) ba += 10; else if (liF >= 500) ba += 5; else if (liF >= 100) ba += 2;
-  }
+  if (nc >= 10) ba += 15;
+  else if (nc >= 5) ba += 10;
+  else if (nc >= 2) ba += 6;
+  else if (nc >= 1) ba += 3;
+  // GEO: menciones en IA como proxy de reconocimiento de marca (0–15 pts)
+  const geoMR = geo?.mentionRate ?? 0;
+  if (geoMR >= 70) ba += 15;
+  else if (geoMR >= 40) ba += 10;
+  else if (geoMR >= 15) ba += 5;
+  // LinkedIn: followers como señal de autoridad profesional (0–10 pts)
+  const liF = linkedin?.followers ?? 0;
+  if (liF >= 10000) ba += 10;
+  else if (liF >= 1000) ba += 6;
+  else if (liF >= 100) ba += 3;
   return Math.min(100, ba);
 })();
 
@@ -134,7 +135,7 @@ function statusStyle(s: AreaStatus): { bg: string; fg: string; label: string } {
 const statusByArea: { area: string; status: AreaStatus; summary: string; anchor: string }[] = [
   { area: 'SEO Orgánico', status: ss(visSeoSub ?? health.visibilidad ?? 0), summary: seo ? `${fmt(seo.keywordsTop10)} keywords top 10, ~${fmt(seo.organicTrafficEstimate)} visitas/mes` : 'Sin datos SEO', anchor: '#seo' },
   { area: 'Visibilidad IA', status: ss(geo?.mentionRate ?? 0), summary: geo ? `Mencionado en ${geo.mentionRate ?? 0}% de las consultas` : 'Sin datos GEO', anchor: '#ia' },
-  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: seo?.domainRank != null ? ('Autoridad de dominio: ' + seo.domainRank + '/100 — ' + (seo.domainRank >= 50 ? 'ventaja competitiva' : seo.domainRank >= 20 ? 'moderada, en desarrollo' : 'baja, dificulta el posicionamiento')) : (seo?.keywordsTop10 ?? 0) > 100 ? 'Dominio con alta presencia SEO — dato de autoridad no disponible' : 'Sin datos de autoridad digital', anchor: '#autoridad' },
+  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} dominios enlazantes` : 'Sin datos de autoridad digital', anchor: '#autoridad' },
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competidores con datos` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
@@ -348,74 +349,15 @@ const fallbackStrategic = [
 ];
 const displayStrategic = strategicActions.length>0 ? strategicActions : fallbackStrategic.slice(0,4);
 
-// GEO cross-model + categories
+// GEO cross-model
 const crossModel: any[] = geo?.crossModel||[];
 const geoEngines = [...new Set(crossModel.map((e:any)=>e.name))];
-const geoRangeLow = geo?.mentionRangeLow ?? 0;
-
-// Precompute GEO funnel badge colors to avoid nested ternaries in style attrs
-const tofuMentioned = (geo?.funnelBreakdown?.tofu?.mentioned ?? 0) > 0;
-const mofuMentioned = (geo?.funnelBreakdown?.mofu?.mentioned ?? 0) > 0;
-const bofuMentioned = (geo?.funnelBreakdown?.bofu?.mentioned ?? 0) > 0;
-const tofuBadgeBg = tofuMentioned ? '#1A4B8C' : 'rgba(26,75,140,0.12)';
-const tofuBadgeColor = tofuMentioned ? '#fff' : '#1A4B8C';
-const mofuBadgeBg = mofuMentioned ? '#BA7517' : 'rgba(186,117,23,0.12)';
-const mofuBadgeColor = mofuMentioned ? '#fff' : '#BA7517';
-const bofuBadgeBg = bofuMentioned ? '#1D9E75' : 'rgba(29,158,117,0.12)';
-const bofuBadgeColor = bofuMentioned ? '#fff' : '#1D9E75';
-
-// Stage tag colors precomputed
-const stageTagStyles: Record<string, { bg: string; color: string }> = {
-  tofu: { bg: '#EBF2FF', color: '#1A4B8C' },
-  mofu: { bg: '#FAEEDA', color: '#BA7517' },
-  bofu: { bg: '#E1F5EE', color: '#1D9E75' },
-};
-const geoRangeHigh = geo?.mentionRangeHigh ?? 0;
-const hasGeoRange = geoRangeHigh > geoRangeLow;
-const categoryBreakdown = geo?.categoryBreakdown || {};
-const categoryLabels: Record<string, { label: string; color: string; bg: string }> = {
-  sector: { label: 'Sector', color: '#1A4B8C', bg: '#EBF2FF' },
-  problema: { label: 'Problema', color: '#7c3aed', bg: '#F3E8FF' },
-  comparativa: { label: 'Comparativa', color: '#BA7517', bg: '#FAEEDA' },
-  decision: { label: 'Decisión', color: '#E24B4A', bg: '#FCEBEB' },
-  recomendacion: { label: 'Recomendación', color: '#1D9E75', bg: '#E1F5EE' },
-  marca: { label: 'Marca', color: '#5A6478', bg: '#F3F4F6' },
-};
 
 // Match/Gap/Noise counts from keyword data
 const topKeywords: any[] = seo?.topKeywords || [];
 const matchCount = kwGapItems.filter((k: any) => k.clientPosition && k.clientPosition <= 10).length || topKeywords.filter((k: any) => k.position <= 10).length;
 const gapCount = kwGapItems.filter((k: any) => !k.clientPosition || k.clientPosition > 20).length;
 const noiseCount = topKeywords.filter((k: any) => k.position > 10 && k.volume < 50).length;
-
-// Demand capture metrics (executive view)
-// Only show this section when we have real keyword gap data (competitors analyzed)
-const hasKwGapData = kwGapItems.length > 0 || gapCount > 0;
-const totalStrategicKw = hasKwGapData ? (matchCount + gapCount || 1) : 0;
-const capturePct = hasKwGapData ? Math.round((matchCount / totalStrategicKw) * 100) : null;
-const uncapturedPct = hasKwGapData ? Math.round((gapCount / totalStrategicKw) * 100) : null;
-
-// Low-value traffic: keywords with very low ETV relative to total
-const topKwEtv = (seo?.topKeywords || []).reduce((s: number, k: any) => s + (k.etv || 0), 0);
-const totalEtvForNoise = seo?.organicTrafficEstimate || 1;
-const lowValueKw = (seo?.topKeywords || []).filter((k: any) => (k.etv || 0) < 5);
-const lowValuePct = (seo?.topKeywords?.length ?? 0) > 3
-  ? Math.round((lowValueKw.length / seo.topKeywords.length) * 100)
-  : null;
-
-// Narrative
-function buildDemandNarrative2(): string {
-  if (capturePct === null) return '';
-  const parts: string[] = [];
-  if (capturePct >= 70) parts.push('Buen posicionamiento en el core del sector.');
-  else if (capturePct >= 40) parts.push('Buen posicionamiento en parte del core, pero con gap relevante en categorías de alta intención.');
-  else parts.push('La mayoría de las búsquedas estratégicas del sector las captan los competidores.');
-  if (uncapturedPct && uncapturedPct > 20) parts.push(`Hay un ${uncapturedPct}% de demanda relevante que no estáis capturando — es la oportunidad de crecimiento más directa.`);
-  if (lowValuePct && lowValuePct > 30) parts.push('Una parte del tráfico actual proviene de términos de bajo valor, lo que indica oportunidad de focalizar mejor la estrategia de contenido.');
-  return parts.join(' ');
-}
-const demandNarrative = buildDemandNarrative2();
-const captureColor = (capturePct ?? 0) >= 50 ? '#1D9E75' : (capturePct ?? 0) >= 20 ? '#BA7517' : '#E24B4A';
 
 // Schema businessType label
 const btLabelForSchema = businessType !== 'unknown' ? (btLabels[businessType] || businessType) : null;
@@ -511,14 +453,6 @@ const brandNarrative = buildBrandNarrative();
 
 function buildIndexNarrative(): string {
   if (indexedPages === null) return '';
-  const kwCount = seo?.keywordsTop10 ?? 0;
-
-  // Sanity check: if site has many keywords but indexedPages is suspiciously low (1-5),
-  // the site: query likely failed or returned wrong data. Don't show misleading info.
-  if (indexedPages <= 5 && kwCount > 20) {
-    return `No se ha podido determinar con fiabilidad el número de páginas indexadas para este dominio. Con ${fmt(kwCount)} keywords posicionadas en top 10, el sitio tiene claramente múltiples páginas indexadas en Google.`;
-  }
-
   if (sitemapPages && indexationRatio !== null) {
     if (indexationRatio >= 90) {
       return `Google tiene indexadas ${fmt(indexedPages)} de las ${fmt(sitemapPages)} páginas de vuestro sitemap (${indexationRatio}%). Excelente cobertura — prácticamente todo vuestro contenido está visible en Google.`;
@@ -528,46 +462,9 @@ function buildIndexNarrative(): string {
     }
     return `Solo ${fmt(indexedPages)} de ${fmt(sitemapPages)} páginas están indexadas (${indexationRatio}%). Más de la mitad de vuestro contenido es invisible para Google. Esto suele indicar problemas técnicos de rastreo, contenido duplicado o páginas de baja calidad que Google decide no indexar.`;
   }
-
-  // No sitemap available — give context based on keywords and traffic
-  if (indexedPages < 10) {
-    return `Google muestra ${fmt(indexedPages)} páginas indexadas. ${!crawl.hasSitemap ? 'No se ha detectado un sitemap XML, lo que dificulta que Google descubra todas las páginas del sitio.' : ''} ${kwCount > 0 ? `Con ${fmt(kwCount)} keywords posicionadas, hay más contenido del que Google está mostrando en la búsqueda site:.` : 'Un sitio con pocas páginas indexadas tiene menos oportunidades de captar tráfico orgánico.'}`;
-  }
-  if (indexedPages < 50) {
-    return `Google tiene indexadas ${fmt(indexedPages)} páginas. ${!crawl.hasSitemap ? 'Sin sitemap XML, Google puede estar perdiendo páginas.' : ''} Para un sitio con actividad digital, el objetivo es que Google conozca y muestre todo el contenido relevante.`;
-  }
-  return `Google tiene indexadas ${fmt(indexedPages)} páginas de vuestro dominio. ${sitemapPages ? '' : 'Sin sitemap XML detectado — no podemos calcular qué porcentaje del contenido total está indexado, pero un sitemap ayudaría a Google a rastrear el sitio de forma más eficiente.'}`;
+  return `Google tiene indexadas ${fmt(indexedPages)} páginas de vuestro dominio.`;
 }
 const indexNarrative = buildIndexNarrative();
-const indexBarColor = indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
-const indexBarWidth = indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
-const brandBarBg = brandPct === 0 ? 'border-radius:5px;' : 'border-radius:0 5px 5px 0;';
-const brandBarW = brandPct > 0 ? nonBrandPct : 100;
-const brandLabelColor = brandPct > 0 ? '#4A7FD4' : '#9CA3AF';
-const brandLabelWeight = brandPct > 0 ? '600' : '400';
-const nonBrandLabelColor = (nonBrandPct ?? 0) > 50 ? '#BA7517' : '#1D9E75';
-const indexKwRef = seo?.keywordsTop10 ?? 0;
-const indexSuspiciouslyLow = (indexedPages ?? 999) <= 5 && indexKwRef > 20;
-
-// Precompute colors for domain rank to avoid nested ternary in template
-const drColor = seo?.domainRank != null ? (seo.domainRank >= 50 ? '#1D9E75' : seo.domainRank >= 20 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
-
-// Blog last post color
-const blogLastDays = cc?.daysSinceLastPost ?? 999;
-const blogLastColor = blogLastDays <= 30 ? '#1D9E75' : blogLastDays <= 90 ? '#BA7517' : '#E24B4A';
-const funnelScoreColor = (cv?.funnelScore ?? 0) >= 60 ? '#1D9E75' : (cv?.funnelScore ?? 0) >= 35 ? '#BA7517' : '#E24B4A';
-const mobileOkColor = (ps?.mobile?.performance ?? 0) >= 50 ? '#1D9E75' : '#E24B4A';
-
-// CTR estimated by position (industry standard) — moved to frontmatter to avoid esbuild issues
-function ctrByPos(pos: number) {
-  if (pos === 1) return { pct: 28, label: 'Excelente', color: '#1D9E75' };
-  if (pos === 2) return { pct: 15, label: 'Bueno', color: '#1D9E75' };
-  if (pos === 3) return { pct: 11, label: 'Bueno', color: '#1D9E75' };
-  if (pos <= 5) return { pct: 5, label: 'Aceptable', color: '#BA7517' };
-  if (pos <= 7) return { pct: 3, label: 'Bajo', color: '#BA7517' };
-  if (pos <= 10) return { pct: 2, label: 'Bajo', color: '#E24B4A' };
-  return { pct: 0.5, label: 'Muy bajo', color: '#E24B4A' };
-}
 
 // Health summary text — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
@@ -814,16 +711,12 @@ const heroStatus = statusStyle(ss(health.total));
               </h1>
               <div style="font-size:0.68rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Resumen ejecutivo</div>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                {executiveBullets.map((bullet: string, i: number) => {
-                  const bgColors = ['#1A4B8C', '#4A7FD4', '#7BA3E0'];
-                  const bg = bgColors[i] || '#7BA3E0';
-                  return (
+                {executiveBullets.map((bullet: string, i: number) => (
                   <div style="display:flex;align-items:baseline;gap:10px;font-size:0.82rem;line-height:1.55;">
-                    <span style={`flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${bg};color:white;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;`}>{i + 1}</span>
+                    <span style={`flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${i === 0 ? '#1A4B8C' : i === 1 ? '#4A7FD4' : '#7BA3E0'};color:white;font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;`}>{i + 1}</span>
                     <span style="color:#3A4458;">{bullet}</span>
                   </div>
-                  );
-                })}
+                ))}
               </div>
             </div>
           </div>
@@ -981,54 +874,39 @@ const heroStatus = statusStyle(ss(health.total));
                         <span>Marca ({brandPct}%)</span>
                         <span>No marca ({nonBrandPct}%)</span>
                       </div>
-                      <div style="height:10px;background:#E5E7EB;border-radius:5px;overflow:hidden;display:flex;">
-                        {brandPct > 0 && <div style={`width:${Math.max(brandPct, 3)}%;background:#4A7FD4;border-radius:5px 0 0 5px;`}></div>}
-                        <div style={`width:${brandBarW}%;background:#BA7517;${brandBarBg}`}></div>
+                      <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;display:flex;">
+                        <div style={`width:${brandPct}%;background:#4A7FD4;`}></div>
+                        <div style={`width:${nonBrandPct}%;background:#1D9E75;`}></div>
                       </div>
-                      <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-top:3px;">
-                        <span style={`color:${brandLabelColor};font-weight:${brandLabelWeight};`}>
-                          {brandPct > 0 ? `~${fmt(brandEtv)} vis/mes` : 'Sin tráfico de marca'}
-                        </span>
-                        <span style={`color:${nonBrandLabelColor};font-weight:600;`}>
-                          ~{fmt(nonBrandEtv)} vis/mes
-                        </span>
+                      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#9CA3AF;margin-top:3px;">
+                        <span>~{fmt(brandEtv)} vis/mes</span>
+                        <span>~{fmt(nonBrandEtv)} vis/mes</span>
                       </div>
                     </div>
                   </div>
                   {brandNarrative && <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;">{brandNarrative}</p>}
                 </div>
               )}
-              {indexedPages !== null && (() => {
-                return (
+              {indexedPages !== null && (
                 <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;">
                   <div style="font-size:0.72rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Páginas indexadas en Google</div>
-                  {indexSuspiciouslyLow ? (
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                      <span style="font-size:0.85rem;font-weight:600;color:#BA7517;">Dato no fiable</span>
-                      <span style="font-size:0.72rem;color:#9CA3AF;">({fmt(indexKwRef)} keywords posicionadas → múltiples páginas reales)</span>
-                    </div>
-                  ) : (
-                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
-                      <span style="font-size:1.5rem;font-weight:800;color:#1A1A2E;">{fmt(indexedPages)}</span>
-                      {sitemapPages ? (
-                        <span style="font-size:0.82rem;color:#5A6478;">de {fmt(sitemapPages)} en sitemap</span>
-                      ) : (
-                        <span style="font-size:0.82rem;color:#9CA3AF;">páginas{!crawl.hasSitemap ? ' · sin sitemap XML' : ''}</span>
-                      )}
-                    </div>
-                  )}
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                    <span style="font-size:1.5rem;font-weight:800;color:#1A1A2E;">{fmt(indexedPages)}</span>
+                    {sitemapPages && (
+                      <span style="font-size:0.82rem;color:#5A6478;">de {fmt(sitemapPages)} en sitemap</span>
+                    )}
+                  </div>
                   {indexationRatio !== null && (
                     <div style="margin-bottom:8px;">
                       <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;">
-                        <div style={`width:${indexBarWidth}%;background:${indexBarColor};border-radius:4px;`}></div>
+                        <div style={`width:${Math.min(indexationRatio, 100)}%;background:${indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A'};border-radius:4px;`}></div>
                       </div>
                       <div style="font-size:0.68rem;color:#9CA3AF;margin-top:3px;">Ratio de indexación: {indexationRatio}%</div>
                     </div>
                   )}
                   {indexNarrative && <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;">{indexNarrative}</p>}
                 </div>
-                );
-              })()}
+              )}
             </div>
           )}
 
@@ -1099,7 +977,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="margin-top:14px;margin-bottom:4px;">
                   <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
                     <span style="font-size:0.75rem;font-weight:600;color:#5A6478;">Top keywords orgánicas</span>
-                    <span style="font-size:0.65rem;color:#9CA3AF;">ordenadas por tráfico real estimado</span>
+                    <span style="font-size:0.65rem;color:#9CA3AF;">ordenadas por tráfico real estimado (ETV = volumen × CTR según posición)</span>
                   </div>
                   <table>
                     <thead>
@@ -1107,35 +985,24 @@ const heroStatus = statusStyle(ss(health.total));
                         <th>Keyword</th>
                         <th>Posición</th>
                         <th>Volumen / mes</th>
-                        <th title="Click-Through Rate estimado según la posición en Google">CTR est.</th>
-                        <th title="Estimated Traffic Value: visitas reales estimadas según la posición">Tráfico est.</th>
+                        <th title="Estimated Traffic Value: visitas reales estimadas según la posición">Tráfico est. (ETV)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {seo.topKeywords.slice(0,5).map((kw: any) => {
-                        const ctr = ctrByPos(kw.position);
-                        return (
+                      {seo.topKeywords.slice(0,5).map((kw: any) => (
                         <tr>
                           <td style="font-weight:500;">{kw.keyword}</td>
                           <td>
-                            <span style={`font-weight:600;color:${ctrByPos(kw.position).color};`}>
+                            <span style={`font-weight:600;color:${kw.position<=3?'#1D9E75':kw.position<=10?'#BA7517':'#5A6478'};`}>
                               #{kw.position}
                             </span>
                           </td>
                           <td>{fmt(kw.volume)}</td>
-                          <td>
-                            <span style={`font-weight:600;color:${ctr.color};`}>{ctr.pct}%</span>
-                            <span style={`font-size:0.65rem;color:${ctr.color};margin-left:4px;`}>{ctr.label}</span>
-                          </td>
                           <td style="font-weight:600;color:#1A4B8C;">{kw.etv ? fmt(kw.etv) : '—'}</td>
                         </tr>
-                        );
-                      })}
+                      ))}
                     </tbody>
                   </table>
-                  <p style="font-size:0.7rem;color:#9CA3AF;margin-top:6px;line-height:1.4;">
-                    El CTR (tasa de clic) depende de la posición en Google: la posición #1 recibe ~28% de los clics, la #3 baja al 11%, y a partir de la #7 apenas un 2-3%. Subir una keyword de la posición 5 a la 1 puede multiplicar su tráfico por 5.
-                  </p>
                 </div>
               )}
 
@@ -1164,39 +1031,38 @@ const heroStatus = statusStyle(ss(health.total));
                   </table>
                 </div>
               )}
-              {/* Demand capture executive box — only when we have real competitive data */}
-              {capturePct !== null && (
-                <div style="margin-top:16px;background:#F8F9FB;border-radius:12px;padding:20px;">
-                  <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:16px;">Captura de demanda orgánica</div>
-
-                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;margin-bottom:16px;">
-                    <div>
-                      <div style={`font-size:2rem;font-weight:800;color:${captureColor};line-height:1;`}>{capturePct}%</div>
-                      <div style="font-size:0.72rem;font-weight:600;color:#5A6478;margin-top:4px;">Cobertura estratégica</div>
-                      <div style="font-size:0.68rem;color:#9CA3AF;margin-top:2px;">Keywords estratégicas donde posicionáis en Top 10</div>
-                    </div>
-                    {uncapturedPct !== null && uncapturedPct > 0 && (
-                      <div>
-                        <div style="font-size:2rem;font-weight:800;color:#E24B4A;line-height:1;">{uncapturedPct}%</div>
-                        <div style="font-size:0.72rem;font-weight:600;color:#5A6478;margin-top:4px;">Demanda no capturada</div>
-                        <div style="font-size:0.68rem;color:#9CA3AF;margin-top:2px;">Búsquedas relevantes donde no aparecéis en Top 10</div>
-                      </div>
-                    )}
-                    {lowValuePct !== null && lowValuePct > 10 && (
-                      <div>
-                        <div style="font-size:2rem;font-weight:800;color:#BA7517;line-height:1;">{lowValuePct}%</div>
-                        <div style="font-size:0.72rem;font-weight:600;color:#5A6478;margin-top:4px;">Tráfico de bajo valor</div>
-                        <div style="font-size:0.68rem;color:#9CA3AF;margin-top:2px;">Porcentaje del tráfico SEO de términos de baja intención</div>
-                      </div>
-                    )}
+              {/* Match/Gap/Noise cards */}
+              {(matchCount > 0 || gapCount > 0) && (
+                <div style="margin-top:16px;">
+                  <div style="margin-bottom:10px;">
+                    <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:4px;">Cruce de keywords relevantes</div>
+                    <div style="font-size:0.72rem;color:#9CA3AF;line-height:1.5;">Cruzamos las búsquedas más relevantes de tu sector con tus posiciones reales en Google para saber dónde estás captando negocio, dónde lo estás perdiendo y dónde estás invirtiendo esfuerzo sin retorno.</div>
                   </div>
-
-                  {demandNarrative && (
-                    <div style="border-top:1px solid #E5E7EB;padding-top:12px;">
-                      <div style="font-size:0.68rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Lectura ejecutiva</div>
-                      <p style="font-size:0.78rem;color:#5A6478;line-height:1.55;margin:0;">{demandNarrative}</p>
+                  <div class="grid-3" style="gap:10px;">
+                    <div style="background:#EAF3DE;border-radius:8px;padding:14px;">
+                      <div style="font-size:22px;font-weight:700;color:#27500A;">{matchCount}</div>
+                      <div style="font-size:12px;font-weight:700;color:#27500A;margin-top:2px;">Coincidencia</div>
+                      <div style="font-size:11px;color:#3D7027;margin-top:4px;">Posicionas donde importa</div>
                     </div>
-                  )}
+                    {gapCount > 0 ? (
+                      <div style="background:#FCEBEB;border-radius:8px;padding:14px;">
+                        <div style="font-size:22px;font-weight:700;color:#791F1F;">{gapCount}</div>
+                        <div style="font-size:12px;font-weight:700;color:#791F1F;margin-top:2px;">Oportunidades sin captar</div>
+                        <div style="font-size:11px;color:#A32D2D;margin-top:4px;">Keywords relevantes donde no posicionas</div>
+                      </div>
+                    ) : (
+                      <div style="background:#EAF3DE;border-radius:8px;padding:14px;">
+                        <div style="font-size:22px;font-weight:700;color:#27500A;">✓</div>
+                        <div style="font-size:12px;font-weight:700;color:#27500A;margin-top:2px;">Sin gaps detectados</div>
+                        <div style="font-size:11px;color:#3D7027;margin-top:4px;">Cobertura completa analizada</div>
+                      </div>
+                    )}
+                    <div style="background:#FAEEDA;border-radius:8px;padding:14px;">
+                      <div style="font-size:22px;font-weight:700;color:#633806;">{noiseCount || Math.max(0, (seo?.keywordsTop10 || 0) - matchCount - gapCount)}</div>
+                      <div style="font-size:12px;font-weight:700;color:#633806;margin-top:2px;">Ruido</div>
+                      <div style="font-size:11px;color:#8A5015;margin-top:4px;">Posicionas donde no importa</div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1228,18 +1094,18 @@ const heroStatus = statusStyle(ss(health.total));
             })()}
           </div>
           {geo && (
-            <div style="font-size:0.75rem;color:#5A6478;font-style:italic;border-left:3px solid #7c3aed;padding-left:10px;line-height:1.5;margin-bottom:16px;">{(geo as any)?.executiveNarrative || diagnosisGEO(geo)}</div>
+            <div style="font-size:0.75rem;color:#5A6478;font-style:italic;border-left:3px solid #7c3aed;padding-left:10px;line-height:1.5;margin-bottom:16px;">{diagnosisGEO(geo)}</div>
           )}
 
           <!-- TOFU/MOFU/BOFU explanation -->
           <div style="background:#F8F9FB;border-radius:8px;border:0.5px solid #E5E7EB;padding:16px;margin-bottom:16px;">
-            <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Metodología: {geo?.queries?.length ?? 30} consultas en 6 categorías de intención</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">¿Qué es TOFU, MOFU y BOFU?</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
               <div style="background:#EBF2FF;border-radius:6px;padding:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;">TOFU</div>
                   {geo?.funnelBreakdown?.tofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${tofuBadgeBg};color:${tofuBadgeColor};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#1A4B8C':'rgba(26,75,140,0.12)'};color:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#fff':'#1A4B8C'};`}>
                       {geo.funnelBreakdown.tofu.mentioned ?? 0}/{geo.funnelBreakdown.tofu.total ?? 0}
                     </span>
                   )}
@@ -1251,7 +1117,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;">MOFU</div>
                   {geo?.funnelBreakdown?.mofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${mofuBadgeBg};color:${mofuBadgeColor};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#BA7517':'rgba(186,117,23,0.12)'};color:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#fff':'#BA7517'};`}>
                       {geo.funnelBreakdown.mofu.mentioned ?? 0}/{geo.funnelBreakdown.mofu.total ?? 0}
                     </span>
                   )}
@@ -1263,7 +1129,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;">BOFU</div>
                   {geo?.funnelBreakdown?.bofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${bofuBadgeBg};color:${bofuBadgeColor};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#1D9E75':'rgba(29,158,117,0.12)'};color:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#fff':'#1D9E75'};`}>
                       {geo.funnelBreakdown.bofu.mentioned ?? 0}/{geo.funnelBreakdown.bofu.total ?? 0}
                     </span>
                   )}
@@ -1277,55 +1143,21 @@ const heroStatus = statusStyle(ss(health.total));
 
           {!qaSuppressed.includes('geo_analysis') && geo ? (
             <div>
-              {/* Mention rate with confidence range */}
-              <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
-                  {(() => {
-                    const mr = geo.mentionRate ?? 0;
-                    const c = mr >= 60 ? '#1D9E75' : mr >= 30 ? '#BA7517' : '#E24B4A';
-                    return (
-                      <>
-                        <div style={`font-size:2rem;font-weight:800;color:${c};line-height:1;`}>{mr}%</div>
-                        {hasGeoRange && (
-                          <div style="font-size:0.65rem;color:#9CA3AF;">rango {geoRangeLow}–{geoRangeHigh}%</div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-                <div style="flex:1;min-width:200px;">
-                  <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;">Tasa de mención en IA</div>
-                  <div style="font-size:0.75rem;color:#5A6478;line-height:1.5;">
-                    Tu marca aparece en el {geo.mentionRate ?? 0}% de {geo.queries?.length ?? 0} consultas realizadas a {geoEngines.length > 0 ? geoEngines.join(', ') : 'motores de IA'}.
-                    {hasGeoRange && ` Con un intervalo de confianza del 95%, la visibilidad real se sitúa entre ${geoRangeLow}% y ${geoRangeHigh}%.`}
+              {/* Metric cards */}
+              <div class="grid-2" style="margin-bottom:14px;">
+                <div class="metric-card">
+                  <div class="metric-value" style={`color:${(geo.mentionRate??0)>=60?'#1D9E75':(geo.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate ?? 0}%</div>
+                  <div class="metric-label">Tasa de mención en IA</div>
+                  <div class="metric-sub" style="margin-top:4px;">
+                    {(geo.mentionRate??0)>=60 ? 'Buena visibilidad en IA' : (geo.mentionRate??0)>=30 ? 'Visibilidad parcial — mejorable' : 'Baja presencia en IA generativa'}
                   </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{geoEngines.length > 0 ? geoEngines.length : (geo.queries?.length ?? 0) > 0 ? '1' : '—'}</div>
+                  <div class="metric-label">Motores de IA analizados</div>
+                  <div class="metric-sub" style="margin-top:4px;">{geoEngines.length > 0 ? geoEngines.join(', ') : 'ChatGPT + otros'}</div>
                 </div>
               </div>
-
-              {/* Category breakdown — 6 intent categories */}
-              {Object.keys(categoryBreakdown).length > 0 && (
-                <div style="margin-bottom:14px;">
-                  <div style="font-size:0.72rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Visibilidad por tipo de consulta</div>
-                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    {Object.entries(categoryBreakdown).map(([cat, data]) => {
-                      const meta = categoryLabels[cat] || { label: cat, color: '#5A6478', bg: '#F3F4F6' };
-                      const pct = data.total > 0 ? Math.round((data.mentioned / data.total) * 100) : 0;
-                      return (
-                        <div style={`background:${meta.bg};border-radius:8px;padding:10px 12px;`}>
-                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                            <span style={`font-size:0.68rem;font-weight:700;color:${meta.color};text-transform:uppercase;letter-spacing:0.04em;`}>{meta.label}</span>
-                            <span style={`font-size:0.78rem;font-weight:800;color:${pct > 0 ? meta.color : '#9CA3AF'};`}>{pct}%</span>
-                          </div>
-                          <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden;">
-                            <div style={`height:100%;width:${pct}%;background:${meta.color};border-radius:3px;`}></div>
-                          </div>
-                          <div style="font-size:0.6rem;color:#9CA3AF;margin-top:3px;">{data.mentioned}/{data.total} consultas</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               {/* Engine breakdown from crossModel */}
               {crossModel.length > 0 && (
@@ -1369,7 +1201,7 @@ const heroStatus = statusStyle(ss(health.total));
                         {sorted.map((q: any) => (
                           <tr>
                             <td>
-                              <span class="tag" style={`background:${stageTagStyles[q.stage]?.bg || '#F3F4F6'};color:${stageTagStyles[q.stage]?.color || '#5A6478'};`}>
+                              <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
                                 {q.stage?.toUpperCase() ?? '—'}
                               </span>
                             </td>
@@ -1430,54 +1262,34 @@ const heroStatus = statusStyle(ss(health.total));
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Blog, presencia en prensa{isB2B ? ', LinkedIn' : ' y redes sociales'}</div>
+          <div class="sub-section-subtitle">Blog, presencia en prensa y visibilidad en IA</div>
 
           <!-- Blog + Prensa cards -->
           <div class="grid-2" style="margin-bottom:14px;">
             <!-- Blog -->
-            {(() => {
-              const hasBlog = hasBlogEs;
-              const cadence = cc?.cadenceLevel;
-              const borderColor = hasBlog ? (cadence === 'active' ? '#1D9E75' : cadence === 'irregular' ? '#BA7517' : '#E24B4A') : '';
-              const lastDays = cc?.daysSinceLastPost;
-              const avgDays = cc?.avgDaysBetweenPosts;
-              const freq = avgDays != null ? (avgDays <= 7 ? 'Semanal' : avgDays <= 14 ? 'Quincenal' : avgDays <= 30 ? 'Mensual' : avgDays <= 90 ? 'Trimestral' : 'Muy irregular') : null;
-              const lastLabel = lastDays != null ? (lastDays <= 7 ? 'esta semana' : lastDays <= 30 ? `hace ${lastDays} días` : lastDays <= 90 ? `hace ${Math.round(lastDays / 30)} meses` : lastDays <= 365 ? `hace ${Math.round(lastDays / 30)} meses` : `hace más de 1 año`) : null;
-              return (
-              <div class="metric-card" style={hasBlog ? `border-left:3px solid ${borderColor};` : ''}>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span style={`font-size:1.1rem;font-weight:800;color:${hasBlog ? borderColor : '#9CA3AF'};`}>{hasBlog ? '✓' : '—'}</span>
-                  <span class="metric-label" style="margin:0;">Blog / Contenido propio</span>
-                </div>
-                {hasBlog ? (
-                  <div>
-                    <div style="font-size:0.85rem;color:#374151;">
-                      {cc?.totalPosts && <span>{cc.totalPosts} artículos detectados</span>}
-                      {freq && <span style="color:#6B7280;"> · Frecuencia: {freq}</span>}
-                    </div>
-                    {lastLabel && (
-                      <div style={`font-size:0.78rem;margin-top:4px;color:${blogLastColor};font-weight:600;`}>
-                        Último post: {lastLabel}
-                        {(lastDays ?? 0) > 90 && ' — el blog parece inactivo'}
-                      </div>
-                    )}
-                    {cc?.postsLast90Days != null && (
-                      <div style="font-size:0.75rem;color:#6B7280;margin-top:2px;">{cc.postsLast90Days} publicaciones en los últimos 90 días</div>
-                    )}
-                    {blogUrlEs && (
-                      <div style="margin-top:6px;">
-                        <a href={blogUrlEs} target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;color:#4A7FD4;text-decoration:none;">
-                          → {blogUrlEs.replace(/^https?:\/\//, '')}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style="font-size:0.82rem;color:#6B7280;">No se ha detectado sección de blog ni artículos publicados. Un blog activo es una de las palancas más efectivas para captar tráfico orgánico.</div>
-                )}
+            <div class="metric-card" style={hasBlogEs ? 'border-left:3px solid #1D9E75;' : ''}>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style={`font-size:1.1rem;font-weight:800;color:${hasBlogEs?'#1D9E75':'#9CA3AF'};`}>{hasBlogEs ? '✓' : '—'}</span>
+                <span class="metric-label" style="margin:0;">Blog / Contenido propio</span>
               </div>
-              );
-            })()}
+              {hasBlogEs ? (
+                <div>
+                  {cc?.totalPosts && <div style="font-size:0.85rem;color:#374151;">{cc.totalPosts} artículos publicados
+                    {cc.daysSinceLastPost != null && <span style="color:#6B7280;"> · Último hace {cc.daysSinceLastPost}d</span>}
+                  </div>}
+                  {blogUrlEs && (
+                    <div style="margin-top:6px;">
+                      <a href={blogUrlEs} target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;color:#4A7FD4;text-decoration:none;">
+                        → {blogUrlEs.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  )}
+                  {!cc && <div style="font-size:0.82rem;color:#6B7280;margin-top:4px;">Detectado en la web — sin datos de publicación</div>}
+                </div>
+              ) : (
+                <div style="font-size:0.82rem;color:#6B7280;">No se ha detectado sección de blog ni artículos publicados.</div>
+              )}
+            </div>
 
             <!-- Prensa / Google News -->
             <div class="metric-card" style={newsCountEs > 0 ? 'border-left:3px solid #4A7FD4;' : ''}>
@@ -1486,88 +1298,50 @@ const heroStatus = statusStyle(ss(health.total));
                 <span class="metric-label" style="margin:0;">Apariciones en prensa</span>
               </div>
               {newsCountEs > 0 ? (
-                <div style="font-size:0.82rem;color:#374151;">
-                  Menciones en Google News en los últimos 12 meses.
-                  {newsCountEs >= 10 ? ' Buena cobertura mediática — indica presencia activa en el sector.' : newsCountEs >= 3 ? ' Cobertura moderada — hay margen para aumentar la presencia en medios.' : ' Cobertura baja — una estrategia de PR podría multiplicar la visibilidad de marca.'}
-                </div>
+                <div style="font-size:0.82rem;color:#374151;">Menciones en Google News en los últimos meses</div>
               ) : (
-                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News en los últimos 12 meses.</div>
+                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News.</div>
               )}
             </div>
           </div>
 
-          <!-- Social presence: B2B → LinkedIn, B2C → Instagram + others -->
-          <div class="grid-2" style="margin-bottom:14px;">
-            {isB2B ? (
-              <>
-                {(linkedin?.followers ?? 0) > 0 && (
-                  <div class="metric-card" style="border-left:3px solid #0077B5;">
-                    <div style="display:flex;align-items:baseline;gap:8px;">
-                      <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
-                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
-                    </div>
-                    <div class="metric-label">LinkedIn</div>
-                    {linkedin?.employees && (
-                      <div style="font-size:0.82rem;color:#374151;margin-top:4px;">{fmt(linkedin.employees)} empleados visibles en LinkedIn</div>
-                    )}
-                    <div class="metric-sub" style="margin-top:4px;">
-                      {(linkedin?.followers ?? 0) >= 10000 ? 'Buena presencia profesional — refuerza la credibilidad B2B.' : (linkedin?.followers ?? 0) >= 1000 ? 'Presencia profesional moderada. Publicar contenido de valor puede acelerar el crecimiento.' : 'Presencia LinkedIn en desarrollo. En B2B, LinkedIn es el canal principal de generación de confianza.'}
-                    </div>
-                  </div>
-                )}
-                {(linkedin?.followers ?? 0) === 0 && (
-                  <div class="metric-card">
-                    <div class="metric-value" style="color:#9CA3AF;">—</div>
-                    <div class="metric-label">LinkedIn</div>
-                    <div class="metric-sub" style="margin-top:4px;">No se ha detectado perfil de empresa en LinkedIn. En B2B es el canal principal de autoridad profesional.</div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {(instagram?.followers ?? 0) > 0 && (
-                  <div class="metric-card" style="border-left:3px solid #E1306C;">
-                    <div style="display:flex;align-items:baseline;gap:8px;">
-                      <div class="metric-value" style="color:#E1306C;">{fmt(instagram?.followers)}</div>
-                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
-                    </div>
-                    <div class="metric-label">Instagram</div>
-                    <div class="metric-sub" style="margin-top:4px;">
-                      {(instagram?.followers ?? 0) >= 50000 ? 'Comunidad sólida — el contenido visual refuerza el reconocimiento de marca.' : (instagram?.followers ?? 0) >= 5000 ? 'Comunidad en crecimiento. La consistencia en publicaciones es clave para escalar.' : 'Comunidad en fase inicial. Instagram es un canal clave para marcas B2C.'}
-                    </div>
-                  </div>
-                )}
-                {(linkedin?.followers ?? 0) > 0 && (
-                  <div class="metric-card" style="border-left:3px solid #0077B5;">
-                    <div style="display:flex;align-items:baseline;gap:8px;">
-                      <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
-                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
-                    </div>
-                    <div class="metric-label">LinkedIn</div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          <!-- Señales alternativas: GEO + LinkedIn (when no backlinks data) -->
+          {seo?.domainRank == null && (geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
+            <div class="grid-2" style="margin-bottom:14px;">
+              {geo?.mentionRate != null && (
+                <div class="metric-card" style={`border-left:3px solid ${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#9CA3AF'};`}>
+                  <div class="metric-value" style={`color:${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate}%</div>
+                  <div class="metric-label">Visibilidad en IA</div>
+                  <div class="metric-sub" style="margin-top:4px;">Mencionado en {geo.mentionRate}% de consultas en ChatGPT, Perplexity y otros LLMs</div>
+                </div>
+              )}
+              {(linkedin?.followers ?? 0) > 0 && (
+                <div class="metric-card" style="border-left:3px solid #0077B5;">
+                  <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                  <div class="metric-label">Seguidores LinkedIn</div>
+                  <div class="metric-sub" style="margin-top:4px;">Indicador de autoridad y presencia profesional</div>
+                </div>
+              )}
+            </div>
+          )}
 
-          <!-- Autoridad de dominio -->
-          {seo && seo.domainRank != null && (
-            <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
-                <div style={`font-size:2rem;font-weight:800;color:${drColor};line-height:1;`}>{seo.domainRank}</div>
-                <div style="font-size:0.65rem;color:#9CA3AF;">/100</div>
+          <!-- Señales de autoridad (solo cuando disponibles) -->
+          {seo && (seo.domainRank != null || seo.referringDomains != null) && (
+            <div class="grid-3" style="margin-bottom:14px;">
+              <div class="metric-card">
+                <div class="metric-value" style={`color:${seo.domainRank==null?'#9CA3AF':seo.domainRank>=50?'#1D9E75':seo.domainRank>=25?'#BA7517':'#E24B4A'};`}>{seo.domainRank ?? '—'}</div>
+                <div class="metric-label">Domain Rank</div>
+                <div class="metric-sub" style="margin-top:4px;">Autoridad del dominio (0–100)</div>
               </div>
-              <div style="flex:1;min-width:200px;">
-                <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;">Autoridad de dominio</div>
-                {seo.domainRank < 20 && (
-                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Google os ve como un dominio nuevo o poco relevante. Esto significa que cuesta más posicionar contenido porque el buscador aún no confía en vosotros como fuente de referencia. Conseguir menciones en medios relevantes del sector es la palanca principal para subir.</p>
-                )}
-                {seo.domainRank >= 20 && seo.domainRank < 50 && (
-                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad moderada — podéis competir por keywords de dificultad media. Para atacar las más competitivas, necesitáis reforzar la presencia en medios especializados y publicaciones del sector.</p>
-                )}
-                {seo.domainRank >= 50 && (
-                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad fuerte — tenéis una ventaja competitiva clara para posicionar contenido nuevo. Google os considera una fuente de referencia, lo que facilita rankear por keywords difíciles.</p>
-                )}
+              <div class="metric-card">
+                <div class="metric-value">{fmt(seo.referringDomains)}</div>
+                <div class="metric-label">Dominios enlazantes</div>
+                <div class="metric-sub" style="margin-top:4px;">Webs únicas que enlazan al dominio</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-value">{fmt(seo.backlinksTotal)}</div>
+                <div class="metric-label">Dominios + enlaces</div>
+                <div class="metric-sub" style="margin-top:4px;">Total de enlaces entrantes</div>
               </div>
             </div>
           )}
@@ -1577,7 +1351,7 @@ const heroStatus = statusStyle(ss(health.total));
             <div style="background:#F0F5FF;border-radius:8px;padding:12px 16px;margin-bottom:14px;">
               <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#5A6478;margin-bottom:8px;">Últimas apariciones en prensa</div>
               <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;">
-                {newsHeadlinesEs.map((h: any) => (
+                {newsHeadlinesEs.map((h: {title:string;source:string;date?:string}) => (
                   <li style="font-size:0.82rem;color:#1A1A2E;display:flex;gap:8px;align-items:baseline;">
                     <span style="color:#4A7FD4;flex-shrink:0;">•</span>
                     <span>
@@ -1591,13 +1365,30 @@ const heroStatus = statusStyle(ss(health.total));
               </ul>
             </div>
           )}
-          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || (linkedin?.followers ?? 0) > 0 || (instagram?.followers ?? 0) > 0) && (
+
+          <!-- Contextual callout -->
+          {seo && seo.domainRank != null && seo.domainRank < 20 && (
+            <div class="callout callout-red">
+              Tu domain rank es bajo ({seo.domainRank}/100). Conseguir menciones en medios relevantes, publicar guest posts y aparecer en directorios del sector son acciones prioritarias.
+            </div>
+          )}
+          {seo && seo.domainRank != null && seo.domainRank >= 20 && seo.domainRank < 50 && (
             <div class="callout callout-amber">
-              El score de autoridad de marca refleja las señales disponibles:{' '}
+              Domain rank en desarrollo ({seo.domainRank}/100). Aumentar la presencia en blogs especializados y medios del sector puede acelerar el crecimiento orgánico.
+            </div>
+          )}
+          {seo && seo.domainRank != null && seo.domainRank >= 50 && (
+            <div class="callout callout-green">
+              Buena autoridad de dominio ({seo.domainRank}/100) con {fmt(seo.referringDomains)} dominios enlazantes.
+            </div>
+          )}
+          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
+            <div class="callout callout-amber">
+              El score de reputación refleja las señales de presencia disponibles:{' '}
+              {geo?.mentionRate != null && <span>visibilidad en IA ({geo.mentionRate}%), </span>}
               {newsCountEs > 0 && <span>presencia en prensa ({newsCountEs} artículos), </span>}
               {hasBlogEs && <span>blog propio, </span>}
-              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores), </span>}
-              {(instagram?.followers ?? 0) > 0 && <span>Instagram ({fmt(instagram?.followers)} seguidores)</span>}.
+              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores)</span>}.
             </div>
           )}
           {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEs && newsCountEs === 0 && (
@@ -1746,56 +1537,29 @@ const heroStatus = statusStyle(ss(health.total));
                 </div>
               ) : (geo.competitorMentions?.length ?? 0) > 0 && (
                 <div style="margin-top:14px;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Tu marca vs competidores en IA</div>
-                  <div style="overflow-x:auto;">
-                    <table>
-                      <thead>
+                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Menciones de la competencia en IA</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Competidor</th>
+                        <th>Tasa de mención IA</th>
+                        <th>vs. {domain} ({geo.mentionRate ?? 0}%)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
                         <tr>
-                          <th>Empresa</th>
-                          <th style="text-align:center;">Total</th>
-                          {Object.keys(categoryBreakdown).length > 0 && Object.entries(categoryLabels).slice(0, 5).map(([cat, meta]) => (
-                            <th style={`text-align:center;font-size:9px;color:${meta.color};`}>{meta.label}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Client row */}
-                        <tr style="background:#F0F5FF;">
-                          <td style="font-weight:700;">{domain} <span style="font-size:10px;color:#1A4B8C;">(tú)</span></td>
-                          <td style="text-align:center;">
-                            {(() => {
-                              const mr = geo.mentionRate ?? 0;
-                              const c = mr >= 50 ? '#1D9E75' : mr >= 25 ? '#BA7517' : '#E24B4A';
-                              return <span style={`font-weight:800;color:${c};`}>{mr}%</span>;
-                            })()}
+                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
+                          <td>
+                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
                           </td>
-                          {Object.keys(categoryBreakdown).length > 0 && Object.keys(categoryLabels).slice(0, 5).map((cat) => {
-                            const d = categoryBreakdown[cat];
-                            const pct = d && d.total > 0 ? Math.round((d.mentioned / d.total) * 100) : 0;
-                            return <td style={`text-align:center;font-size:11px;font-weight:600;color:${pct > 0 ? '#1D9E75' : '#E24B4A'};`}>{pct}%</td>;
-                          })}
+                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
+                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= igual'}
+                          </td>
                         </tr>
-                        {/* Competitor rows */}
-                        {geo.competitorMentions.slice(0, 5).map((cm: any) => {
-                          const cmr = cm.mentionRate ?? 0;
-                          const cc = cmr >= 50 ? '#1D9E75' : cmr >= 25 ? '#BA7517' : '#E24B4A';
-                          return (
-                            <tr>
-                              <td style="font-weight:500;">{cm.name || cm.domain}</td>
-                              <td style="text-align:center;">
-                                <span style={`font-weight:700;color:${cc};`}>{cmr}%</span>
-                              </td>
-                              {Object.keys(categoryBreakdown).length > 0 && Object.keys(categoryLabels).slice(0, 5).map((cat) => {
-                                const d = cm.byCategory?.[cat];
-                                const pct = d && d.total > 0 ? Math.round((d.mentioned / d.total) * 100) : 0;
-                                return <td style={`text-align:center;font-size:11px;color:${pct > 0 ? '#1D9E75' : '#9CA3AF'};`}>{pct}%</td>;
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ))}
             </div>
@@ -2142,8 +1906,8 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style={`font-size:12px;font-weight:600;color:${crawl.hasCanonical?'#1D9E75':'#BA7517'};`}>{crawl.hasCanonical ? '✓ Canonical tags detectadas' : '? Canonical tags no verificadas'}</div>
                 <div class="metric-sub">{crawl.hasCanonical ? 'URLs canónicas configuradas' : 'Verifica que las URLs tienen rel=canonical'}</div>
               </div>
-              <div class="metric-card" style={`border-left:3px solid ${mobileOkColor};`}>
-                <div style={`font-size:12px;font-weight:600;color:${mobileOkColor};`}>{(ps?.mobile?.performance??0)>=50 ? '✓ Friendly para móvil' : '✗ Problemas en móvil'}</div>
+              <div class="metric-card" style={`border-left:3px solid ${(ps?.mobile?.performance??0)>=50?'#1D9E75':'#E24B4A'};`}>
+                <div style={`font-size:12px;font-weight:600;color:${(ps?.mobile?.performance??0)>=50?'#1D9E75':'#E24B4A'};`}>{(ps?.mobile?.performance??0)>=50 ? '✓ Friendly para móvil' : '✗ Problemas en móvil'}</div>
                 <div class="metric-sub">{ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos de rendimiento móvil'}</div>
               </div>
               <div class="metric-card" style={`border-left:3px solid ${gbp?'#1D9E75':'#5A6478'};`}>
@@ -2278,7 +2042,7 @@ const heroStatus = statusStyle(ss(health.total));
                 )}
                 {cv.funnelScore != null && (
                   <div class="metric-card">
-                    <div class="metric-value" style={`color:${funnelScoreColor};`}>{cv.funnelScore}/100</div>
+                    <div class="metric-value" style={`color:${(cv.funnelScore??0)>=60?'#1D9E75':(cv.funnelScore??0)>=35?'#BA7517':'#E24B4A'};`}>{cv.funnelScore}/100</div>
                     <div class="metric-label">Funnel Score</div>
                     <div class="metric-sub">Índice de optimización del embudo</div>
                   </div>
