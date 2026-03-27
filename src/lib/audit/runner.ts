@@ -303,9 +303,16 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
   try {
     result = await executeStepWithTimeout(step, audit);
 
-    // Crawl: trigger social prefetch after completing
+    // Crawl: follow redirects + trigger social prefetch
     if (step === 'crawl') {
-      triggerSocialPrefetch(audit.notionPageId, result as CrawlResult);
+      const crawlResult = result as CrawlResult;
+      // If the domain redirected (e.g. legalitas.es → legalitas.com), update the URL
+      // so all downstream modules analyze the correct domain
+      if (crawlResult.finalUrl) {
+        console.log(`[audit] Domain redirected: ${audit.url} → ${crawlResult.finalUrl} — updating for downstream modules`);
+        audit.url = crawlResult.finalUrl;
+      }
+      triggerSocialPrefetch(audit.notionPageId, crawlResult);
     }
 
     // QA: if correctedInsights provided, update insights in results for downstream use

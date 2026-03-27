@@ -170,6 +170,13 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       validateStatus: (status) => status < 500,
     });
 
+    // Detect redirect: if final URL differs from input, propagate it
+    const finalUrl = response.request?.res?.responseUrl || response.config?.url || url;
+    const redirected = finalUrl !== url && new URL(finalUrl).hostname !== new URL(url).hostname;
+    if (redirected) {
+      console.log(`[crawl] Redirect detected: ${url} → ${finalUrl}`);
+    }
+
     const html = String(response.data);
     const $ = cheerio.load(html);
 
@@ -318,6 +325,7 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       internalLinks,
       wordCount,
       loadedOk: true,
+      ...(redirected && { finalUrl }),
       businessType,
       companyName,
       ...(locationHint && { locationHint }),

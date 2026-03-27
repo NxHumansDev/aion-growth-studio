@@ -107,6 +107,7 @@ export interface HreflangAlternate {
 export type BusinessType = 'ecommerce' | 'saas' | 'b2b' | 'local' | 'media' | 'unknown';
 
 export interface CrawlResult extends ModuleResult {
+  finalUrl?: string;  // Set when domain redirects to a different hostname
   title?: string;
   description?: string;
   h1s?: string[];
