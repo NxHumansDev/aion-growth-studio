@@ -519,6 +519,74 @@ const executiveBullets: string[] = insightBullets.length >= 3 ? insightBullets :
 
 // Hero status
 const heroStatus = statusStyle(ss(health.total));
+
+// ── Precomputed colors (avoid nested ternaries in JSX that break esbuild) ──
+const drColor = seo?.domainRank != null ? (seo.domainRank >= 50 ? '#1D9E75' : seo.domainRank >= 20 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
+const blogLastDays = cc?.daysSinceLastPost ?? 999;
+const blogLastColor = blogLastDays <= 30 ? '#1D9E75' : blogLastDays <= 90 ? '#BA7517' : '#E24B4A';
+const funnelScoreColor = (cv?.funnelScore ?? 0) >= 60 ? '#1D9E75' : (cv?.funnelScore ?? 0) >= 35 ? '#BA7517' : '#E24B4A';
+const mobileOkColor = (ps?.mobile?.performance ?? 0) >= 50 ? '#1D9E75' : '#E24B4A';
+const indexKwRef = seo?.keywordsTop10 ?? 0;
+const indexSuspiciouslyLow = (indexedPages ?? 999) <= 5 && indexKwRef > 20;
+const indexBarColor = indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
+const indexBarWidth = indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
+const brandBarBg = brandPct === 0 ? 'border-radius:5px;' : 'border-radius:0 5px 5px 0;';
+const brandBarW = brandPct > 0 ? (nonBrandPct ?? 100) : 100;
+const brandLabelColor = brandPct > 0 ? '#4A7FD4' : '#9CA3AF';
+const brandLabelWeight = brandPct > 0 ? '600' : '400';
+const nonBrandLabelColor = (nonBrandPct ?? 0) > 50 ? '#BA7517' : '#1D9E75';
+
+// GEO precomputed
+const geoRangeLow = geo?.mentionRangeLow ?? 0;
+const geoRangeHigh = geo?.mentionRangeHigh ?? 0;
+const hasGeoRange = geoRangeHigh > geoRangeLow;
+const categoryBreakdown = geo?.categoryBreakdown || {};
+const categoryLabels: Record<string, { label: string; color: string; bg: string }> = {
+  sector: { label: 'Sector', color: '#1A4B8C', bg: '#EBF2FF' },
+  problema: { label: 'Problema', color: '#7c3aed', bg: '#F3E8FF' },
+  comparativa: { label: 'Comparativa', color: '#BA7517', bg: '#FAEEDA' },
+  decision: { label: 'Decisión', color: '#E24B4A', bg: '#FCEBEB' },
+  recomendacion: { label: 'Recomendación', color: '#1D9E75', bg: '#E1F5EE' },
+  marca: { label: 'Marca', color: '#5A6478', bg: '#F3F4F6' },
+};
+const tofuMentioned = (geo?.funnelBreakdown?.tofu?.mentioned ?? 0) > 0;
+const mofuMentioned = (geo?.funnelBreakdown?.mofu?.mentioned ?? 0) > 0;
+const bofuMentioned = (geo?.funnelBreakdown?.bofu?.mentioned ?? 0) > 0;
+const tofuBadgeBg = tofuMentioned ? '#1A4B8C' : 'rgba(26,75,140,0.12)';
+const tofuBadgeColor = tofuMentioned ? '#fff' : '#1A4B8C';
+const mofuBadgeBg = mofuMentioned ? '#BA7517' : 'rgba(186,117,23,0.12)';
+const mofuBadgeColor = mofuMentioned ? '#fff' : '#BA7517';
+const bofuBadgeBg = bofuMentioned ? '#1D9E75' : 'rgba(29,158,117,0.12)';
+const bofuBadgeColor = bofuMentioned ? '#fff' : '#1D9E75';
+const stageTagStyles: Record<string, { bg: string; color: string }> = {
+  tofu: { bg: '#EBF2FF', color: '#1A4B8C' },
+  mofu: { bg: '#FAEEDA', color: '#BA7517' },
+  bofu: { bg: '#E1F5EE', color: '#1D9E75' },
+};
+
+// CTR by position
+function ctrByPos(pos: number) {
+  if (pos === 1) return { pct: 28, label: 'Excelente', color: '#1D9E75' };
+  if (pos === 2) return { pct: 15, label: 'Bueno', color: '#1D9E75' };
+  if (pos === 3) return { pct: 11, label: 'Bueno', color: '#1D9E75' };
+  if (pos <= 5) return { pct: 5, label: 'Aceptable', color: '#BA7517' };
+  if (pos <= 7) return { pct: 3, label: 'Bajo', color: '#BA7517' };
+  if (pos <= 10) return { pct: 2, label: 'Bajo', color: '#E24B4A' };
+  return { pct: 0.5, label: 'Muy bajo', color: '#E24B4A' };
+}
+
+// Demand capture
+const hasKwGapData = kwGapItems.length > 0 || gapCount > 0;
+const totalStrategicKw = hasKwGapData ? (matchCount + gapCount || 1) : 0;
+const capturePct = hasKwGapData ? Math.round((matchCount / totalStrategicKw) * 100) : null;
+const uncapturedPct = hasKwGapData ? Math.round((gapCount / totalStrategicKw) * 100) : null;
+const captureColor = (capturePct ?? 0) >= 50 ? '#1D9E75' : (capturePct ?? 0) >= 20 ? '#BA7517' : '#E24B4A';
+const lowValueKw = (seo?.topKeywords || []).filter((k: any) => (k.etv || 0) < 5);
+const lowValuePct = (seo?.topKeywords?.length ?? 0) > 3 ? Math.round((lowValueKw.length / seo.topKeywords.length) * 100) : null;
+const demandNarrative = capturePct === null ? '' :
+  capturePct >= 70 ? 'Buen posicionamiento en el core del sector.' :
+  capturePct >= 40 ? 'Buen posicionamiento en parte del core, pero con gap relevante en categorías de alta intención.' + (uncapturedPct && uncapturedPct > 20 ? ' Hay un ' + uncapturedPct + '% de demanda que no estáis capturando.' : '') :
+  'La mayoría de las búsquedas estratégicas del sector las captan los competidores.' + (uncapturedPct && uncapturedPct > 20 ? ' El ' + uncapturedPct + '% de la demanda relevante es la oportunidad de crecimiento más directa.' : '');
 ---
 <!DOCTYPE html>
 <html lang="es">
