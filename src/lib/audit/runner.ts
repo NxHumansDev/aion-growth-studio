@@ -101,7 +101,7 @@ export interface StepExecution {
 }
 
 /** Run a single step with a per-module timeout. Returns {skipped} on timeout. */
-async function executeStepWithTimeout(
+export async function executeStepWithTimeout(
   step: AuditStep,
   audit: AuditPageData,
 ): Promise<ModuleResult> {

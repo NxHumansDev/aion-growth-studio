@@ -13,7 +13,10 @@ let error = '';
 try { audit = await getAuditPage(id!); } catch (e: any) { error = e.message || 'Error.'; }
 if (!audit || audit.status !== 'completed') { return Astro.redirect(`/es/audit/${id}`); }
 
+import { evaluateCoverage } from '../../../../lib/audit/coverage';
 const r = audit.results;
+const coverage = evaluateCoverage(r);
+const lowCoverage = coverage.coveragePct < 70;
 const domain = new URL(audit.url).hostname.replace(/^www\./, '');
 const auditDate = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 const health = computeHealthScore(r);
@@ -712,6 +715,16 @@ const demandNarrative = capturePct === null ? '' :
         <div class="top-bar-title">INFORME DE PRESENCIA DIGITAL &mdash; {domain.toUpperCase()}</div>
         <a class="btn-print" href={`/es/audit/${id}/pdf`} target="_blank" style="text-decoration:none;">Exportar PDF</a>
       </div>
+
+      <!-- Coverage warning -->
+      {lowCoverage && (
+        <div style="background:#FAEEDA;border-left:4px solid #BA7517;padding:14px 20px;margin:0 1.75rem 12px;border-radius:0 8px 8px 0;font-size:0.82rem;color:#633806;line-height:1.5;">
+          <strong>Informe parcial</strong> — No ha sido posible recopilar todos los datos para este dominio ({coverage.coveragePct}% de cobertura). Algunas secciones pueden estar incompletas. Esto puede deberse a restricciones del sitio web, falta de datos públicos o limitaciones temporales de las fuentes de datos.
+          {coverage.criticalMissing.length > 0 && (
+            <span> Secciones afectadas: {coverage.criticalMissing.length}.</span>
+          )}
+        </div>
+      )}
 
       <!-- REPORT AREA -->
       <div class="report">
