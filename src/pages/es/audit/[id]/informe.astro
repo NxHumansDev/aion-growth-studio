@@ -538,6 +538,8 @@ const brandBarW = brandPct > 0 ? nonBrandPct : 100;
 const brandLabelColor = brandPct > 0 ? '#4A7FD4' : '#9CA3AF';
 const brandLabelWeight = brandPct > 0 ? '600' : '400';
 const nonBrandLabelColor = (nonBrandPct ?? 0) > 50 ? '#BA7517' : '#1D9E75';
+const indexKwRef = seo?.keywordsTop10 ?? 0;
+const indexSuspiciouslyLow = (indexedPages ?? 999) <= 5 && indexKwRef > 20;
 
 // Health summary text — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
@@ -969,15 +971,13 @@ const heroStatus = statusStyle(ss(health.total));
                 </div>
               )}
               {indexedPages !== null && (() => {
-                const kwRef = seo?.keywordsTop10 ?? 0;
-                const suspiciouslyLow = indexedPages <= 5 && kwRef > 20;
                 return (
                 <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;">
                   <div style="font-size:0.72rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Páginas indexadas en Google</div>
-                  {suspiciouslyLow ? (
+                  {indexSuspiciouslyLow ? (
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                       <span style="font-size:0.85rem;font-weight:600;color:#BA7517;">Dato no fiable</span>
-                      <span style="font-size:0.72rem;color:#9CA3AF;">({fmt(kwRef)} keywords posicionadas → múltiples páginas reales)</span>
+                      <span style="font-size:0.72rem;color:#9CA3AF;">({fmt(indexKwRef)} keywords posicionadas → múltiples páginas reales)</span>
                     </div>
                   ) : (
                     <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
