@@ -135,7 +135,7 @@ function statusStyle(s: AreaStatus): { bg: string; fg: string; label: string } {
 const statusByArea: { area: string; status: AreaStatus; summary: string; anchor: string }[] = [
   { area: 'SEO Orgánico', status: ss(visSeoSub ?? health.visibilidad ?? 0), summary: seo ? `${fmt(seo.keywordsTop10)} keywords top 10, ~${fmt(seo.organicTrafficEstimate)} visitas/mes` : 'Sin datos SEO', anchor: '#seo' },
   { area: 'Visibilidad IA', status: ss(geo?.mentionRate ?? 0), summary: geo ? `Mencionado en ${geo.mentionRate ?? 0}% de las consultas` : 'Sin datos GEO', anchor: '#ia' },
-  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} dominios enlazantes` : 'Sin datos de autoridad digital', anchor: '#autoridad' },
+  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: seo?.domainRank != null ? `Autoridad de dominio: ${seo.domainRank}/100 — ${seo.domainRank >= 50 ? 'ventaja competitiva' : seo.domainRank >= 20 ? 'moderada, en desarrollo' : 'baja, dificulta el posicionamiento'}` : 'Sin datos de autoridad digital', anchor: '#autoridad' },
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competidores con datos` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
@@ -1348,23 +1348,24 @@ const heroStatus = statusStyle(ss(health.total));
             </div>
           )}
 
-          <!-- Señales de autoridad (solo cuando disponibles) -->
-          {seo && (seo.domainRank != null || seo.referringDomains != null) && (
-            <div class="grid-3" style="margin-bottom:14px;">
-              <div class="metric-card">
-                <div class="metric-value" style={`color:${seo.domainRank==null?'#9CA3AF':seo.domainRank>=50?'#1D9E75':seo.domainRank>=25?'#BA7517':'#E24B4A'};`}>{seo.domainRank ?? '—'}</div>
-                <div class="metric-label">Domain Rank</div>
-                <div class="metric-sub" style="margin-top:4px;">Autoridad del dominio (0–100)</div>
+          <!-- Autoridad de dominio -->
+          {seo && seo.domainRank != null && (
+            <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+                <div style={`font-size:2rem;font-weight:800;color:${seo.domainRank>=50?'#1D9E75':seo.domainRank>=20?'#BA7517':'#E24B4A'};line-height:1;`}>{seo.domainRank}</div>
+                <div style="font-size:0.65rem;color:#9CA3AF;">/100</div>
               </div>
-              <div class="metric-card">
-                <div class="metric-value">{fmt(seo.referringDomains)}</div>
-                <div class="metric-label">Dominios enlazantes</div>
-                <div class="metric-sub" style="margin-top:4px;">Webs únicas que enlazan al dominio</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-value">{fmt(seo.backlinksTotal)}</div>
-                <div class="metric-label">Dominios + enlaces</div>
-                <div class="metric-sub" style="margin-top:4px;">Total de enlaces entrantes</div>
+              <div style="flex:1;min-width:200px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;">Autoridad de dominio</div>
+                {seo.domainRank < 20 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Google os ve como un dominio nuevo o poco relevante. Esto significa que cuesta más posicionar contenido porque el buscador aún no confía en vosotros como fuente de referencia. Conseguir menciones en medios relevantes del sector es la palanca principal para subir.</p>
+                )}
+                {seo.domainRank >= 20 && seo.domainRank < 50 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad moderada — podéis competir por keywords de dificultad media. Para atacar las más competitivas, necesitáis reforzar la presencia en medios especializados y publicaciones del sector.</p>
+                )}
+                {seo.domainRank >= 50 && (
+                  <p style="font-size:0.78rem;color:#5A6478;line-height:1.5;margin:0;">Autoridad fuerte — tenéis una ventaja competitiva clara para posicionar contenido nuevo. Google os considera una fuente de referencia, lo que facilita rankear por keywords difíciles.</p>
+                )}
               </div>
             </div>
           )}
@@ -1386,23 +1387,6 @@ const heroStatus = statusStyle(ss(health.total));
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-
-          <!-- Contextual callout -->
-          {seo && seo.domainRank != null && seo.domainRank < 20 && (
-            <div class="callout callout-red">
-              Tu domain rank es bajo ({seo.domainRank}/100). Conseguir menciones en medios relevantes, publicar guest posts y aparecer en directorios del sector son acciones prioritarias.
-            </div>
-          )}
-          {seo && seo.domainRank != null && seo.domainRank >= 20 && seo.domainRank < 50 && (
-            <div class="callout callout-amber">
-              Domain rank en desarrollo ({seo.domainRank}/100). Aumentar la presencia en blogs especializados y medios del sector puede acelerar el crecimiento orgánico.
-            </div>
-          )}
-          {seo && seo.domainRank != null && seo.domainRank >= 50 && (
-            <div class="callout callout-green">
-              Buena autoridad de dominio ({seo.domainRank}/100) con {fmt(seo.referringDomains)} dominios enlazantes.
             </div>
           )}
           {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
