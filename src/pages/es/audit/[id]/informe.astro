@@ -1168,13 +1168,13 @@ const demandNarrative = capturePct === null ? '' :
 
           <!-- TOFU/MOFU/BOFU explanation -->
           <div style="background:#F8F9FB;border-radius:8px;border:0.5px solid #E5E7EB;padding:16px;margin-bottom:16px;">
-            <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">¿Qué es TOFU, MOFU y BOFU?</div>
+            <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Metodología: {geo?.queries?.length ?? 30} consultas en 6 categorías de intención</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
               <div style="background:#EBF2FF;border-radius:6px;padding:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;">TOFU</div>
                   {geo?.funnelBreakdown?.tofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#1A4B8C':'rgba(26,75,140,0.12)'};color:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#fff':'#1A4B8C'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${tofuBadgeBg};color:${tofuBadgeColor};`}>
                       {geo.funnelBreakdown.tofu.mentioned ?? 0}/{geo.funnelBreakdown.tofu.total ?? 0}
                     </span>
                   )}
@@ -1186,7 +1186,7 @@ const demandNarrative = capturePct === null ? '' :
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;">MOFU</div>
                   {geo?.funnelBreakdown?.mofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#BA7517':'rgba(186,117,23,0.12)'};color:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#fff':'#BA7517'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${mofuBadgeBg};color:${mofuBadgeColor};`}>
                       {geo.funnelBreakdown.mofu.mentioned ?? 0}/{geo.funnelBreakdown.mofu.total ?? 0}
                     </span>
                   )}
@@ -1198,7 +1198,7 @@ const demandNarrative = capturePct === null ? '' :
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;">BOFU</div>
                   {geo?.funnelBreakdown?.bofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#1D9E75':'rgba(29,158,117,0.12)'};color:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#fff':'#1D9E75'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${bofuBadgeBg};color:${bofuBadgeColor};`}>
                       {geo.funnelBreakdown.bofu.mentioned ?? 0}/{geo.funnelBreakdown.bofu.total ?? 0}
                     </span>
                   )}
@@ -1212,21 +1212,49 @@ const demandNarrative = capturePct === null ? '' :
 
           {!qaSuppressed.includes('geo_analysis') && geo ? (
             <div>
-              {/* Metric cards */}
-              <div class="grid-2" style="margin-bottom:14px;">
-                <div class="metric-card">
-                  <div class="metric-value" style={`color:${(geo.mentionRate??0)>=60?'#1D9E75':(geo.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate ?? 0}%</div>
-                  <div class="metric-label">Tasa de mención en IA</div>
-                  <div class="metric-sub" style="margin-top:4px;">
-                    {(geo.mentionRate??0)>=60 ? 'Buena visibilidad en IA' : (geo.mentionRate??0)>=30 ? 'Visibilidad parcial — mejorable' : 'Baja presencia en IA generativa'}
+              {/* Mention rate with confidence range */}
+              <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+                  <div style={`font-size:2rem;font-weight:800;color:${(geo.mentionRate ?? 0) >= 60 ? '#1D9E75' : (geo.mentionRate ?? 0) >= 30 ? '#BA7517' : '#E24B4A'};line-height:1;`}>{geo.mentionRate ?? 0}%</div>
+                  {hasGeoRange && (
+                    <div style="font-size:0.65rem;color:#9CA3AF;">rango {geoRangeLow}–{geoRangeHigh}%</div>
+                  )}
+                </div>
+                <div style="flex:1;min-width:200px;">
+                  <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;">Tasa de mención en IA</div>
+                  <div style="font-size:0.75rem;color:#5A6478;line-height:1.5;">
+                    Tu marca aparece en el {geo.mentionRate ?? 0}% de {geo.queries?.length ?? 0} consultas a {geoEngines.length > 0 ? geoEngines.join(', ') : 'motores de IA'}.
+                    {hasGeoRange && ` Intervalo de confianza 95%: ${geoRangeLow}%–${geoRangeHigh}%.`}
                   </div>
                 </div>
-                <div class="metric-card">
-                  <div class="metric-value">{geoEngines.length > 0 ? geoEngines.length : (geo.queries?.length ?? 0) > 0 ? '1' : '—'}</div>
-                  <div class="metric-label">Motores de IA analizados</div>
-                  <div class="metric-sub" style="margin-top:4px;">{geoEngines.length > 0 ? geoEngines.join(', ') : 'ChatGPT + otros'}</div>
-                </div>
               </div>
+
+              {/* 6 category breakdown */}
+              {Object.keys(categoryBreakdown).length > 0 && (
+                <div style="margin-bottom:14px;">
+                  <div style="font-size:0.72rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Visibilidad por tipo de consulta</div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    {Object.entries(categoryBreakdown).map(([cat, data]) => {
+                      const meta = categoryLabels[cat];
+                      if (!meta) return null;
+                      const d = data as any;
+                      const pct = d.total > 0 ? Math.round((d.mentioned / d.total) * 100) : 0;
+                      return (
+                        <div style={`background:${meta.bg};border-radius:8px;padding:10px 12px;`}>
+                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                            <span style={`font-size:0.68rem;font-weight:700;color:${meta.color};text-transform:uppercase;letter-spacing:0.04em;`}>{meta.label}</span>
+                            <span style={`font-size:0.78rem;font-weight:800;color:${pct > 0 ? meta.color : '#9CA3AF'};`}>{pct}%</span>
+                          </div>
+                          <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden;">
+                            <div style={`height:100%;width:${pct}%;background:${meta.color};border-radius:3px;`}></div>
+                          </div>
+                          <div style="font-size:0.6rem;color:#9CA3AF;margin-top:3px;">{d.mentioned}/{d.total} consultas</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Engine breakdown from crossModel */}
               {crossModel.length > 0 && (
@@ -1270,7 +1298,7 @@ const demandNarrative = capturePct === null ? '' :
                         {sorted.map((q: any) => (
                           <tr>
                             <td>
-                              <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
+                              <span class="tag" style={`background:${stageTagStyles[q.stage]?.bg || '#F3F4F6'};color:${stageTagStyles[q.stage]?.color || '#5A6478'};`}>
                                 {q.stage?.toUpperCase() ?? '—'}
                               </span>
                             </td>
@@ -1581,36 +1609,40 @@ const demandNarrative = capturePct === null ? '' :
                 <div style="font-size:11px;color:#9CA3AF;margin-top:6px;font-style:italic;">* Sin datos de tráfico SEO disponibles para estos competidores. Se muestran los datos de velocidad web e IA.</div>
               )}
 
-              {/* Competitor GEO mentions */}
+              {/* Competitor GEO comparison */}
               {geo && (allCompGeoZero ? (
                 <div class="callout callout-green" style="margin-top:14px;margin-bottom:0;">
-                  Ninguno de tus competidores analizados aparece en respuestas de IA. Esta es una ventana de oportunidad: el primero que trabaje su visibilidad en IA capturará demanda sin competencia directa.
+                  Ninguno de tus competidores aparece en respuestas de IA. Ventana de oportunidad: el primero que trabaje su visibilidad en IA capturará demanda sin competencia.
                 </div>
               ) : (geo.competitorMentions?.length ?? 0) > 0 && (
                 <div style="margin-top:14px;">
-                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Menciones de la competencia en IA</div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Competidor</th>
-                        <th>Tasa de mención IA</th>
-                        <th>vs. {domain} ({geo.mentionRate ?? 0}%)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {geo.competitorMentions.slice(0,5).map((cm: any) => (
+                  <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">Tu marca vs competidores en IA</div>
+                  <div style="overflow-x:auto;">
+                    <table>
+                      <thead>
                         <tr>
-                          <td style="font-weight:500;">{cm.name || cm.domain}</td>
-                          <td>
-                            <span style={`font-weight:600;color:${(cm.mentionRate??0)>=60?'#1D9E75':(cm.mentionRate??0)>=30?'#BA7517':'#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
-                          </td>
-                          <td style={`font-size:11px;color:${(cm.mentionRate??0)>(geo.mentionRate??0)?'#E24B4A':'#1D9E75'};`}>
-                            {(cm.mentionRate??0) > (geo.mentionRate??0) ? `▲ +${(cm.mentionRate??0)-(geo.mentionRate??0)}pp` : (cm.mentionRate??0) < (geo.mentionRate??0) ? `▼ −${(geo.mentionRate??0)-(cm.mentionRate??0)}pp` : '= igual'}
+                          <th>Empresa</th>
+                          <th style="text-align:center;">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style="background:#F0F5FF;">
+                          <td style="font-weight:700;">{domain} <span style="font-size:10px;color:#1A4B8C;">(tú)</span></td>
+                          <td style="text-align:center;">
+                            <span style={`font-weight:800;color:${(geo.mentionRate ?? 0) >= 50 ? '#1D9E75' : (geo.mentionRate ?? 0) >= 25 ? '#BA7517' : '#E24B4A'};`}>{geo.mentionRate ?? 0}%</span>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        {geo.competitorMentions.slice(0, 5).map((cm: any) => (
+                          <tr>
+                            <td style="font-weight:500;">{cm.name || cm.domain}</td>
+                            <td style="text-align:center;">
+                              <span style={`font-weight:700;color:${(cm.mentionRate ?? 0) >= 50 ? '#1D9E75' : (cm.mentionRate ?? 0) >= 25 ? '#BA7517' : '#E24B4A'};`}>{cm.mentionRate ?? 0}%</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ))}
             </div>
