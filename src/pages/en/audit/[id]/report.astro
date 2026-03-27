@@ -454,6 +454,8 @@ function buildIndexNarrative(): string {
   return `Google has indexed ${fmt(indexedPages)} pages from your domain.`;
 }
 const indexNarrative = buildIndexNarrative();
+const indexBarColor = indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
+const indexBarWidth = indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
 
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
 
@@ -837,7 +839,7 @@ const heroStatus = statusStyle(ss(health.total));
                   {indexationRatio !== null && (
                     <div style="margin-bottom:8px;">
                       <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;">
-                        <div style={`width:${Math.min(indexationRatio, 100)}%;background:${indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A'};border-radius:4px;`}></div>
+                        <div style={`width:${indexBarWidth}%;background:${indexBarColor};border-radius:4px;`}></div>
                       </div>
                       <div style="font-size:0.68rem;color:#9CA3AF;margin-top:3px;">Indexation ratio: {indexationRatio}%</div>
                     </div>

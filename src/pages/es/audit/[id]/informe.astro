@@ -353,6 +353,24 @@ const displayStrategic = strategicActions.length>0 ? strategicActions : fallback
 const crossModel: any[] = geo?.crossModel||[];
 const geoEngines = [...new Set(crossModel.map((e:any)=>e.name))];
 const geoRangeLow = geo?.mentionRangeLow ?? 0;
+
+// Precompute GEO funnel badge colors to avoid nested ternaries in style attrs
+const tofuMentioned = (geo?.funnelBreakdown?.tofu?.mentioned ?? 0) > 0;
+const mofuMentioned = (geo?.funnelBreakdown?.mofu?.mentioned ?? 0) > 0;
+const bofuMentioned = (geo?.funnelBreakdown?.bofu?.mentioned ?? 0) > 0;
+const tofuBadgeBg = tofuMentioned ? '#1A4B8C' : 'rgba(26,75,140,0.12)';
+const tofuBadgeColor = tofuMentioned ? '#fff' : '#1A4B8C';
+const mofuBadgeBg = mofuMentioned ? '#BA7517' : 'rgba(186,117,23,0.12)';
+const mofuBadgeColor = mofuMentioned ? '#fff' : '#BA7517';
+const bofuBadgeBg = bofuMentioned ? '#1D9E75' : 'rgba(29,158,117,0.12)';
+const bofuBadgeColor = bofuMentioned ? '#fff' : '#1D9E75';
+
+// Stage tag colors precomputed
+const stageTagStyles: Record<string, { bg: string; color: string }> = {
+  tofu: { bg: '#EBF2FF', color: '#1A4B8C' },
+  mofu: { bg: '#FAEEDA', color: '#BA7517' },
+  bofu: { bg: '#E1F5EE', color: '#1D9E75' },
+};
 const geoRangeHigh = geo?.mentionRangeHigh ?? 0;
 const hasGeoRange = geoRangeHigh > geoRangeLow;
 const categoryBreakdown = geo?.categoryBreakdown || {};
@@ -513,6 +531,13 @@ function buildIndexNarrative(): string {
   return `Google tiene indexadas ${fmt(indexedPages)} páginas de vuestro dominio. ${sitemapPages ? '' : 'Sin sitemap XML detectado — no podemos calcular qué porcentaje del contenido total está indexado, pero un sitemap ayudaría a Google a rastrear el sitio de forma más eficiente.'}`;
 }
 const indexNarrative = buildIndexNarrative();
+const indexBarColor = indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
+const indexBarWidth = indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
+const brandBarBg = brandPct === 0 ? 'border-radius:5px;' : 'border-radius:0 5px 5px 0;';
+const brandBarW = brandPct > 0 ? nonBrandPct : 100;
+const brandLabelColor = brandPct > 0 ? '#4A7FD4' : '#9CA3AF';
+const brandLabelWeight = brandPct > 0 ? '600' : '400';
+const nonBrandLabelColor = (nonBrandPct ?? 0) > 50 ? '#BA7517' : '#1D9E75';
 
 // Health summary text — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
@@ -928,13 +953,13 @@ const heroStatus = statusStyle(ss(health.total));
                       </div>
                       <div style="height:10px;background:#E5E7EB;border-radius:5px;overflow:hidden;display:flex;">
                         {brandPct > 0 && <div style={`width:${Math.max(brandPct, 3)}%;background:#4A7FD4;border-radius:5px 0 0 5px;`}></div>}
-                        <div style={`width:${brandPct > 0 ? nonBrandPct : 100}%;background:#BA7517;${brandPct === 0 ? 'border-radius:5px;' : 'border-radius:0 5px 5px 0;'}`}></div>
+                        <div style={`width:${brandBarW}%;background:#BA7517;${brandBarBg}`}></div>
                       </div>
                       <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-top:3px;">
-                        <span style={`color:${brandPct > 0 ? '#4A7FD4' : '#9CA3AF'};font-weight:${brandPct > 0 ? '600' : '400'};`}>
+                        <span style={`color:${brandLabelColor};font-weight:${brandLabelWeight};`}>
                           {brandPct > 0 ? `~${fmt(brandEtv)} vis/mes` : 'Sin tráfico de marca'}
                         </span>
-                        <span style={`color:${nonBrandPct > 50 ? '#BA7517' : '#1D9E75'};font-weight:600;`}>
+                        <span style={`color:${nonBrandLabelColor};font-weight:600;`}>
                           ~{fmt(nonBrandEtv)} vis/mes
                         </span>
                       </div>
@@ -967,7 +992,7 @@ const heroStatus = statusStyle(ss(health.total));
                   {indexationRatio !== null && (
                     <div style="margin-bottom:8px;">
                       <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;">
-                        <div style={`width:${Math.min(indexationRatio, 100)}%;background:${indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A'};border-radius:4px;`}></div>
+                        <div style={`width:${indexBarWidth}%;background:${indexBarColor};border-radius:4px;`}></div>
                       </div>
                       <div style="font-size:0.68rem;color:#9CA3AF;margin-top:3px;">Ratio de indexación: {indexationRatio}%</div>
                     </div>
@@ -1208,7 +1233,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;">TOFU</div>
                   {geo?.funnelBreakdown?.tofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#1A4B8C':'rgba(26,75,140,0.12)'};color:${(geo.funnelBreakdown.tofu.mentioned??0)>0?'#fff':'#1A4B8C'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${tofuBadgeBg};color:${tofuBadgeColor};`}>
                       {geo.funnelBreakdown.tofu.mentioned ?? 0}/{geo.funnelBreakdown.tofu.total ?? 0}
                     </span>
                   )}
@@ -1220,7 +1245,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:0.06em;">MOFU</div>
                   {geo?.funnelBreakdown?.mofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#BA7517':'rgba(186,117,23,0.12)'};color:${(geo.funnelBreakdown.mofu.mentioned??0)>0?'#fff':'#BA7517'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${mofuBadgeBg};color:${mofuBadgeColor};`}>
                       {geo.funnelBreakdown.mofu.mentioned ?? 0}/{geo.funnelBreakdown.mofu.total ?? 0}
                     </span>
                   )}
@@ -1232,7 +1257,7 @@ const heroStatus = statusStyle(ss(health.total));
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                   <div style="font-size:0.7rem;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;">BOFU</div>
                   {geo?.funnelBreakdown?.bofu && (
-                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#1D9E75':'rgba(29,158,117,0.12)'};color:${(geo.funnelBreakdown.bofu.mentioned??0)>0?'#fff':'#1D9E75'};`}>
+                    <span style={`font-size:0.68rem;font-weight:700;padding:1px 7px;border-radius:4px;background:${bofuBadgeBg};color:${bofuBadgeColor};`}>
                       {geo.funnelBreakdown.bofu.mentioned ?? 0}/{geo.funnelBreakdown.bofu.total ?? 0}
                     </span>
                   )}
@@ -1338,7 +1363,7 @@ const heroStatus = statusStyle(ss(health.total));
                         {sorted.map((q: any) => (
                           <tr>
                             <td>
-                              <span class="tag" style={`background:${q.stage==='tofu'?'#EBF2FF':q.stage==='mofu'?'#FAEEDA':'#E1F5EE'};color:${q.stage==='tofu'?'#1A4B8C':q.stage==='mofu'?'#BA7517':'#1D9E75'};`}>
+                              <span class="tag" style={`background:${stageTagStyles[q.stage]?.bg || '#F3F4F6'};color:${stageTagStyles[q.stage]?.color || '#5A6478'};`}>
                                 {q.stage?.toUpperCase() ?? '—'}
                               </span>
                             </td>
