@@ -336,22 +336,24 @@ export async function runSEO(url: string): Promise<SEOResult> {
     // ── Brand vs Non-Brand traffic + Indexed pages (parallel) ─────
     const domainRaw = domain.replace(/\.[a-z]{2,6}$/i, '');
     const domainBase = domainRaw.replace(/[-_.]/g, '').toLowerCase();
-    // Generate brand terms: "davidlloyd" → also try "david" for compound names
-    const brandTerms = [domainBase];
-    // Split compound domain: "davidlloyd" → "david lloyd", "davidlloyd"
-    // Also handle hyphenated: "hotel-urban" → "hotel urban", "hotelurban"
+    // Generate brand terms for local matching: all meaningful parts of the domain
+    const brandTerms: string[] = [domainBase];
     const domainSpaced = domainRaw.replace(/[-_.]/g, ' ').toLowerCase().trim();
     if (domainSpaced.includes(' ')) {
-      // Already has natural word breaks (from hyphens/dots)
       domainSpaced.split(' ').filter(w => w.length >= 3).forEach(w => brandTerms.push(w));
     } else if (domainBase.length > 6) {
-      // Try to find a natural split point for compound names
-      brandTerms.push(domainBase.slice(0, Math.ceil(domainBase.length * 0.5)));
+      // Compound name: try first half and second half as separate brand terms
+      const mid = Math.ceil(domainBase.length * 0.5);
+      brandTerms.push(domainBase.slice(0, mid));
+      if (domainBase.length - mid >= 4) brandTerms.push(domainBase.slice(mid));
     }
-    // Use the most distinctive brand term (longest that's not the full compound)
-    const brandFilter = domainSpaced.includes(' ')
-      ? domainSpaced.split(' ').sort((a, b) => b.length - a.length)[0]
-      : domainBase;
+
+    // For API filter, use the SHORTEST distinctive term (≥4 chars) to catch
+    // spaced variations. "davidlloyd" → filter by "david" catches "david lloyd"
+    const brandFilterCandidates = brandTerms
+      .filter(t => t.length >= 4 && t !== domainBase)
+      .sort((a, b) => a.length - b.length);
+    const brandFilter = brandFilterCandidates[0] || domainBase;
 
     try {
       const [brandRes, siteSearchRes, sitemapRes] = await Promise.all([
@@ -397,7 +399,11 @@ export async function runSEO(url: string): Promise<SEOResult> {
           let brandKwCount = 0;
           brandItems.forEach((it: any) => {
             const kw = (it.keyword_data?.keyword || '').toLowerCase();
-            if (brandTerms.some(t => kw.includes(t))) {
+            // Match: full compound OR 2+ brand parts present in the keyword
+            const matchCount = brandTerms.filter(t => kw.includes(t)).length;
+            const isBrand = kw.includes(domainBase) || matchCount >= 2 ||
+              (brandTerms.length === 1 && matchCount >= 1);
+            if (isBrand) {
               brandEtv += it.ranked_serp_element?.serp_item?.etv ?? 0;
               brandKwCount++;
             }
