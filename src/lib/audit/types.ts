@@ -419,6 +419,10 @@ export interface SEOResult extends ModuleResult {
   backlinksTotal?: number;
   domainRank?: number;   // 0-100: DataForSEO domain authority score
   spamScore?: number;    // 0-100: link profile spam risk
+  // Historical organic trend (12 months)
+  organicHistory?: Array<{ month: string; etv: number; keywords: number }>;
+  organicTrend?: 'up' | 'down' | 'stable';
+  organicTrendPct?: number; // % change last 6 months vs previous 6
 }
 
 // ── New: SEO top pages ─────────────────────────────────────────────

@@ -365,6 +365,68 @@ const btLabelForSchema = businessType !== 'unknown' ? (btLabels[businessType] ||
 // Competitor all-zero GEO check
 const allCompGeoZero = (geo?.competitorMentions?.length ?? 0) > 0 && geo.competitorMentions.every((cm: any) => (cm.mentionRate ?? 0) === 0);
 
+// ── Organic trend chart data ──────────────────────────────────────
+const organicHistory: Array<{month:string;etv:number;keywords:number}> = seo?.organicHistory || [];
+const organicTrend: string = seo?.organicTrend || 'stable';
+const organicTrendPct: number = seo?.organicTrendPct ?? 0;
+
+// Build SVG path for the trend line
+function buildTrendSVG(history: typeof organicHistory): string {
+  if (history.length < 3) return '';
+  const W = 400, H = 100, PX = 30, PY = 12;
+  const values = history.map(p => p.etv);
+  const maxV = Math.max(...values, 1);
+  const minV = Math.min(...values, 0);
+  const range = maxV - minV || 1;
+  const points = values.map((v, i) => {
+    const x = PX + (i / (values.length - 1)) * (W - PX * 2);
+    const y = PY + (1 - (v - minV) / range) * (H - PY * 2);
+    return { x, y, v };
+  });
+  // Area fill
+  const areaPath = `M${points[0].x},${points[0].y} ${points.map(p => `L${p.x},${p.y}`).join(' ')} L${points[points.length-1].x},${H-PY} L${points[0].x},${H-PY} Z`;
+  // Line
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const color = organicTrend === 'up' ? '#1D9E75' : organicTrend === 'down' ? '#E24B4A' : '#BA7517';
+  const fillColor = organicTrend === 'up' ? 'rgba(29,158,117,0.1)' : organicTrend === 'down' ? 'rgba(226,75,74,0.1)' : 'rgba(186,117,23,0.1)';
+  // Month labels (show every 3rd)
+  const months = history.map((p, i) => {
+    const [y, m] = p.month.split('-');
+    const label = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(m)-1] || m;
+    return { x: PX + (i / (history.length - 1)) * (W - PX * 2), label: `${label} ${y.slice(2)}` };
+  });
+  const labels = months.filter((_, i) => i % 3 === 0 || i === months.length - 1);
+  return `<svg viewBox="0 0 ${W} ${H + 20}" style="width:100%;height:auto;max-height:140px;">
+    <path d="${areaPath}" fill="${fillColor}"/>
+    <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${color}" stroke="#fff" stroke-width="1.5"/>`).join('')}
+    ${labels.map(l => `<text x="${l.x}" y="${H + 12}" text-anchor="middle" style="font-size:9px;fill:#9CA3AF;font-family:Inter,sans-serif;">${l.label}</text>`).join('')}
+  </svg>`;
+}
+const trendSVG = buildTrendSVG(organicHistory);
+
+// Trend narrative for CEO
+function buildTrendNarrative(trend: string, pct: number, history: typeof organicHistory): string {
+  if (history.length < 3) return '';
+  const recent = history[history.length - 1]?.etv ?? 0;
+  const oldest = history[0]?.etv ?? 0;
+  const absPct = Math.abs(pct);
+  if (trend === 'up' && absPct > 50) {
+    return `Vuestra visibilidad orgánica ha crecido un ${absPct}% en los últimos meses — de ${fmt(oldest)} a ${fmt(recent)} visitas estimadas/mes. Es una tendencia positiva que indica que las acciones de posicionamiento están dando resultado.`;
+  }
+  if (trend === 'up') {
+    return `El tráfico orgánico muestra una tendencia de crecimiento moderado (+${absPct}%) en los últimos meses. Reforzar la estrategia de contenido puede acelerar esta curva significativamente.`;
+  }
+  if (trend === 'down' && absPct > 30) {
+    return `Vuestra visibilidad orgánica ha caído un ${absPct}% — de ${fmt(oldest)} a ${fmt(recent)} visitas/mes. Esta tendencia descendente requiere atención inmediata: cada mes que pasa sin actuar, los competidores ocupan las posiciones que perdéis.`;
+  }
+  if (trend === 'down') {
+    return `El tráfico orgánico muestra un descenso del ${absPct}% en los últimos meses. Aunque no es crítico aún, conviene identificar las causas (pérdida de keywords, cambios de algoritmo) y actuar antes de que se consolide la tendencia.`;
+  }
+  return `El tráfico orgánico se ha mantenido estable en los últimos meses (${fmt(recent)} visitas/mes). La estabilidad es buena base, pero sin crecimiento activo los competidores que sí invierten en SEO acabarán superándoos.`;
+}
+const trendNarrative = buildTrendNarrative(organicTrend, organicTrendPct, organicHistory);
+
 // Health summary text — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
 
@@ -727,6 +789,37 @@ const heroStatus = statusStyle(ss(health.total));
           {visSummaryText && (
             <div style="font-size:0.85rem;color:#434750;font-style:italic;line-height:1.6;margin-bottom:20px;padding-left:4px;border-left:3px solid #4A7FD4;">
               {visSummaryText}
+            </div>
+          )}
+
+          <!-- Organic trend chart -->
+          {trendSVG && (
+            <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;">
+                  Tendencia de tráfico orgánico
+                  <span style="font-size:0.7rem;font-weight:400;color:#9CA3AF;">últimos 12 meses</span>
+                </div>
+                {organicTrend === 'up' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:4px;">
+                    ↑ +{Math.abs(organicTrendPct)}%
+                  </span>
+                )}
+                {organicTrend === 'down' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#E24B4A;display:flex;align-items:center;gap:4px;">
+                    ↓ -{Math.abs(organicTrendPct)}%
+                  </span>
+                )}
+                {organicTrend === 'stable' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#BA7517;display:flex;align-items:center;gap:4px;">
+                    → Estable
+                  </span>
+                )}
+              </div>
+              <div set:html={trendSVG} />
+              {trendNarrative && (
+                <p style="font-size:0.8rem;color:#5A6478;line-height:1.55;margin-top:12px;">{trendNarrative}</p>
+              )}
             </div>
           )}
 

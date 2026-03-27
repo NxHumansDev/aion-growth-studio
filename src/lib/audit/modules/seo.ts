@@ -16,8 +16,8 @@ export async function runSEO(url: string): Promise<SEOResult> {
   const timer = setTimeout(() => controller.abort(), 45000);
 
   try {
-    // ── Tier 1 + Tier 2 + Backlinks + Organic Competitors in parallel ──
-    const [overviewRes, kwRes, blRes, compRes] = await Promise.all([
+    // ── Tier 1 + Tier 2 + Backlinks + Organic Competitors + History in parallel ──
+    const [overviewRes, kwRes, blRes, compRes, histRes] = await Promise.all([
       fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
         method: 'POST',
         signal: controller.signal,
@@ -60,6 +60,13 @@ export async function runSEO(url: string): Promise<SEOResult> {
           order_by: ['intersections,desc'],
         }]),
       }),
+      // Historical rank overview — 12 months of organic ETV + keywords
+      fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/historical_rank_overview/live', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+        body: JSON.stringify([{ target: domain, location_code: 2724, language_code: 'es' }]),
+      }),
     ]);
 
     if (!overviewRes.ok) {
@@ -68,11 +75,12 @@ export async function runSEO(url: string): Promise<SEOResult> {
       return { skipped: true, reason: `DataForSEO: ${msg}`.slice(0, 120) };
     }
 
-    const [data, kwData, blData, compData] = await Promise.all([
+    const [data, kwData, blData, compData, histData] = await Promise.all([
       overviewRes.json(),
       kwRes.ok ? kwRes.json() : Promise.resolve(null),
       blRes.ok ? blRes.json() : Promise.resolve(null),
       compRes.ok ? compRes.json() : Promise.resolve(null),
+      histRes.ok ? histRes.json() : Promise.resolve(null),
     ]);
 
     const task = data?.tasks?.[0];
@@ -176,8 +184,6 @@ export async function runSEO(url: string): Promise<SEOResult> {
       }
     } catch { _logParts.push('comps:except'); }
 
-    baseResult._log = _logParts.join(' ');
-
     // ── Tier 2 result (already fetched in parallel above) ────────
     try {
       const kwTask = kwData?.tasks?.[0];
@@ -238,6 +244,58 @@ export async function runSEO(url: string): Promise<SEOResult> {
         }
       } catch { /* non-fatal */ }
     }
+
+    // ── Historical organic trend (12 months) ────────────────────────
+    try {
+      const histTask = histData?.tasks?.[0];
+      if (histTask?.status_code === 20000 && histTask.result_count > 0) {
+        const histItems: any[] = histTask.result[0]?.items || [];
+        // Each item has .year, .month, .metrics.organic {etv, count, pos_1, pos_2_3, pos_4_10, ...}
+        const organicHistory = histItems
+          .filter((it: any) => it.metrics?.organic)
+          .map((it: any) => {
+            const mo = it.metrics.organic;
+            const kwTop10 = (mo.pos_1 ?? 0) + (mo.pos_2_3 ?? 0) + (mo.pos_4_10 ?? 0);
+            return {
+              month: `${it.year}-${String(it.month).padStart(2, '0')}`,
+              etv: Math.round(mo.etv ?? 0),
+              keywords: kwTop10,
+            };
+          })
+          .sort((a: any, b: any) => a.month.localeCompare(b.month))
+          .slice(-12); // last 12 months
+
+        if (organicHistory.length >= 3) {
+          baseResult.organicHistory = organicHistory;
+
+          // Calculate trend: compare average of last 3 months vs first 3 months
+          const recent3 = organicHistory.slice(-3);
+          const older3 = organicHistory.slice(0, 3);
+          const avgRecent = recent3.reduce((s, p) => s + p.etv, 0) / recent3.length;
+          const avgOlder = older3.reduce((s, p) => s + p.etv, 0) / older3.length;
+
+          if (avgOlder > 0) {
+            const changePct = Math.round(((avgRecent - avgOlder) / avgOlder) * 100);
+            baseResult.organicTrendPct = changePct;
+            baseResult.organicTrend = changePct > 10 ? 'up' : changePct < -10 ? 'down' : 'stable';
+          } else if (avgRecent > 0) {
+            baseResult.organicTrend = 'up';
+            baseResult.organicTrendPct = 100;
+          } else {
+            baseResult.organicTrend = 'stable';
+            baseResult.organicTrendPct = 0;
+          }
+
+          _logParts.push(`hist:${organicHistory.length}m trend:${baseResult.organicTrend}(${baseResult.organicTrendPct}%)`);
+        } else {
+          _logParts.push(`hist:${organicHistory.length}m(insufficient)`);
+        }
+      } else {
+        _logParts.push('hist:no-data');
+      }
+    } catch { _logParts.push('hist:except'); }
+
+    baseResult._log = _logParts.join(' ');
 
     return baseResult;
   } catch (err: any) {

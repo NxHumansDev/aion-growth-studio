@@ -168,6 +168,15 @@ function buildSummary(url: string, r: Record<string, ModuleResult>): string {
     lines.push(`Domain Rank: ${seo.domainRank}/100 (0=sin autoridad, 100=dominio top mundial)`);
     lines.push(`Keywords en top 3: ${seo.keywordsTop3 ?? 0} · top 10: ${seo.keywordsTop10 ?? 0} · posición 4-10 (optimizables): ${seo.keywordsPos4to10 ?? kw4to10} · top 30: ${seo.keywordsTop30 ?? 0}`);
     lines.push(`Tráfico orgánico estimado: ${seo.organicTrafficEstimate ?? 0} visitas/mes`);
+    if (seo.organicTrend) {
+      const tDir = seo.organicTrend === 'up' ? 'CRECIENTE' : seo.organicTrend === 'down' ? 'DESCENDENTE' : 'ESTABLE';
+      lines.push(`Tendencia orgánica últimos 12 meses: ${tDir} (${seo.organicTrendPct > 0 ? '+' : ''}${seo.organicTrendPct ?? 0}%)`);
+      if (seo.organicHistory?.length) {
+        const first = seo.organicHistory[0];
+        const last = seo.organicHistory[seo.organicHistory.length - 1];
+        lines.push(`  Hace 12 meses: ~${first.etv} visitas/mes → Ahora: ~${last.etv} visitas/mes`);
+      }
+    }
     lines.push(`Dominios referentes: ${seo.referringDomains ?? 0} · Backlinks totales: ${seo.backlinksTotal ?? 0}`);
   } else {
     lines.push('SEO orgánico: sin datos disponibles');

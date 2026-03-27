@@ -356,6 +356,55 @@ const allCompGeoZero = (geo?.competitorMentions?.length ?? 0) > 0 && geo.competi
 // SEO → AI gap
 const seoToAiGap: any[] = (seo?.topKeywords || []).slice(0, 5);
 
+// ── Organic trend chart data ──────────────────────────────────────
+const organicHistory: Array<{month:string;etv:number;keywords:number}> = seo?.organicHistory || [];
+const organicTrend: string = seo?.organicTrend || 'stable';
+const organicTrendPct: number = seo?.organicTrendPct ?? 0;
+
+function buildTrendSVG(history: typeof organicHistory): string {
+  if (history.length < 3) return '';
+  const W = 400, H = 100, PX = 30, PY = 12;
+  const values = history.map(p => p.etv);
+  const maxV = Math.max(...values, 1);
+  const minV = Math.min(...values, 0);
+  const range = maxV - minV || 1;
+  const points = values.map((v, i) => {
+    const x = PX + (i / (values.length - 1)) * (W - PX * 2);
+    const y = PY + (1 - (v - minV) / range) * (H - PY * 2);
+    return { x, y, v };
+  });
+  const areaPath = `M${points[0].x},${points[0].y} ${points.map(p => `L${p.x},${p.y}`).join(' ')} L${points[points.length-1].x},${H-PY} L${points[0].x},${H-PY} Z`;
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const color = organicTrend === 'up' ? '#1D9E75' : organicTrend === 'down' ? '#E24B4A' : '#BA7517';
+  const fillColor = organicTrend === 'up' ? 'rgba(29,158,117,0.1)' : organicTrend === 'down' ? 'rgba(226,75,74,0.1)' : 'rgba(186,117,23,0.1)';
+  const months = history.map((p, i) => {
+    const [y, m] = p.month.split('-');
+    const label = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1] || m;
+    return { x: PX + (i / (history.length - 1)) * (W - PX * 2), label: `${label} ${y.slice(2)}` };
+  });
+  const labels = months.filter((_, i) => i % 3 === 0 || i === months.length - 1);
+  return `<svg viewBox="0 0 ${W} ${H + 20}" style="width:100%;height:auto;max-height:140px;">
+    <path d="${areaPath}" fill="${fillColor}"/>
+    <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${color}" stroke="#fff" stroke-width="1.5"/>`).join('')}
+    ${labels.map(l => `<text x="${l.x}" y="${H + 12}" text-anchor="middle" style="font-size:9px;fill:#9CA3AF;font-family:Inter,sans-serif;">${l.label}</text>`).join('')}
+  </svg>`;
+}
+const trendSVG = buildTrendSVG(organicHistory);
+
+function buildTrendNarrative(trend: string, pct: number, history: typeof organicHistory): string {
+  if (history.length < 3) return '';
+  const recent = history[history.length - 1]?.etv ?? 0;
+  const oldest = history[0]?.etv ?? 0;
+  const absPct = Math.abs(pct);
+  if (trend === 'up' && absPct > 50) return `Your organic visibility has grown ${absPct}% over recent months — from ${fmt(oldest)} to ${fmt(recent)} estimated visits/month. A positive trend indicating that positioning efforts are paying off.`;
+  if (trend === 'up') return `Organic traffic shows moderate growth (+${absPct}%) in recent months. Strengthening the content strategy can significantly accelerate this curve.`;
+  if (trend === 'down' && absPct > 30) return `Your organic visibility has dropped ${absPct}% — from ${fmt(oldest)} to ${fmt(recent)} visits/month. This downward trend requires immediate attention: every month without action, competitors occupy positions you are losing.`;
+  if (trend === 'down') return `Organic traffic shows a ${absPct}% decline in recent months. While not yet critical, it is important to identify the causes (keyword losses, algorithm changes) and act before the trend consolidates.`;
+  return `Organic traffic has remained stable in recent months (${fmt(recent)} visits/month). Stability is a good foundation, but without active growth, competitors investing in SEO will eventually surpass you.`;
+}
+const trendNarrative = buildTrendNarrative(organicTrend, organicTrendPct, organicHistory);
+
 // Health summary — prefer AI-generated summary from insights, fallback to rule-based
 const healthSummaryText = (insights as any)?.summary || diagnosisHealthSummary(health);
 
@@ -666,6 +715,37 @@ const heroStatus = statusStyle(ss(health.total));
         <div id="seo" class="report-block reveal">
           <div class="block-title">Digital Visibility</div>
           <div class="block-subtitle">Analysis of organic presence, AI visibility, and brand reputation</div>
+
+          <!-- Organic trend chart -->
+          {trendSVG && (
+            <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;">
+                  Organic traffic trend
+                  <span style="font-size:0.7rem;font-weight:400;color:#9CA3AF;">last 12 months</span>
+                </div>
+                {organicTrend === 'up' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#1D9E75;display:flex;align-items:center;gap:4px;">
+                    ↑ +{Math.abs(organicTrendPct)}%
+                  </span>
+                )}
+                {organicTrend === 'down' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#E24B4A;display:flex;align-items:center;gap:4px;">
+                    ↓ -{Math.abs(organicTrendPct)}%
+                  </span>
+                )}
+                {organicTrend === 'stable' && (
+                  <span style="font-size:0.72rem;font-weight:700;color:#BA7517;display:flex;align-items:center;gap:4px;">
+                    → Stable
+                  </span>
+                )}
+              </div>
+              <div set:html={trendSVG} />
+              {trendNarrative && (
+                <p style="font-size:0.8rem;color:#5A6478;line-height:1.55;margin-top:12px;">{trendNarrative}</p>
+              )}
+            </div>
+          )}
 
           <!-- ── Layer 1: Organic SEO ── -->
           <div style="font-size:0.88rem;font-weight:700;color:#1A4B8C;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:8px;">

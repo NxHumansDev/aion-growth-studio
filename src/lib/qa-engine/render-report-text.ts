@@ -66,6 +66,10 @@ export function renderReportText(results: Record<string, any>, domain: string): 
     lines.push(`Keywords en top 3:    ${seo.keywordsTop3 ?? 0}`);
     lines.push(`Keywords pos. 4-10:   ${seo.keywordsPos4to10 ?? 0}`);
     lines.push(`Tráfico estimado:     ${fmtNum(seo.organicTrafficEstimate)} visitas/mes`);
+    if (seo.organicTrend) {
+      const dir = seo.organicTrend === 'up' ? '↑ Creciente' : seo.organicTrend === 'down' ? '↓ Descendente' : '→ Estable';
+      lines.push(`Tendencia 12 meses:   ${dir} (${seo.organicTrendPct > 0 ? '+' : ''}${seo.organicTrendPct ?? 0}%)`);
+    }
     lines.push(`Domain rank:          ${seo.domainRank != null ? seo.domainRank : 'No indexado — el dominio no tiene suficiente autoridad para obtener un Domain Rank.'}`);
   }
   if (seo.trendLost > 0 || seo.trendUp > 0) {
