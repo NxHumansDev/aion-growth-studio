@@ -183,12 +183,17 @@ async function fetchNewsPresence(
     // Filter out negative news (closures, bankruptcy, lawsuits)
     const NEGATIVE_RE = /cierra|cerrar|quiebra|concurso de acreedores|liquidaci[oó]n|demanda contra|fraude|estafa|despidos masivos|ERE |ERTE |bancarrota|bankruptcy|closes|shutdown|fraud|scam|lawsuit/i;
 
-    // Relevance filter: title must contain at least one meaningful brand word
-    const brandWords = brandName.toLowerCase().split(/[\s\-_.]+/).filter(w => w.length >= 3);
+    // Relevance filter: title must contain the brand name or multiple brand words
+    const brandLower = brandName.toLowerCase();
+    const brandWords = brandLower.split(/[\s\-_.]+/).filter(w => w.length >= 3);
     function isRelevant(title: string): boolean {
       if (brandWords.length === 0) return true;
       const lower = title.toLowerCase();
-      return brandWords.some(w => lower.includes(w));
+      // Full brand name match
+      if (lower.includes(brandLower)) return true;
+      // If brand has multiple words, require 2+ matches (avoids "david" matching random news)
+      const matchCount = brandWords.filter(w => lower.includes(w)).length;
+      return brandWords.length >= 2 ? matchCount >= 2 : matchCount >= 1;
     }
 
     const headlines: NewsHeadline[] = newsItems

@@ -66,37 +66,36 @@ const _totalTraf    = Object.values(_trafficCh).reduce((s: number, c: any) => s 
 const _organicTraf  = _trafficCh.organic?.visits || 0;
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
 
-// Brand Authority score (0-100): backlinks + blog + press + GEO visibility + LinkedIn
+// Brand Authority score (0-100): domain authority + blog + press + social
+// NO GEO visibility here — that's a separate metric in the Visibilidad section
+const isB2B = businessType === 'b2b' || businessType === 'saas';
 const brandAuthorityScoreEs = (() => {
   let ba = 0;
+  // Domain authority (0-30 pts)
   const rd = seo?.referringDomains ?? 0;
-  if (rd >= 500) ba += 35;
-  else if (rd >= 100) ba += 25;
-  else if (rd >= 20) ba += 15;
-  else if (rd >= 5) ba += 8;
-  else if (rd >= 1) ba += 3;
+  if (rd >= 500) ba += 20; else if (rd >= 100) ba += 14; else if (rd >= 20) ba += 8; else if (rd >= 1) ba += 3;
   const dr = seo?.domainRank ?? 0;
-  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 25);
+  if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 10);
+  // Blog (0-20 pts)
   if (hasBlogEs) {
-    ba += 12;
-    if ((cc?.totalPosts ?? 0) >= 20) ba += 13;
-    else if ((cc?.totalPosts ?? 0) >= 5) ba += 7;
+    ba += 10;
+    if ((cc?.totalPosts ?? 0) >= 20) ba += 10; else if ((cc?.totalPosts ?? 0) >= 5) ba += 5;
   }
+  // Press (0-20 pts)
   const nc = newsCountEs;
-  if (nc >= 10) ba += 15;
-  else if (nc >= 5) ba += 10;
-  else if (nc >= 2) ba += 6;
-  else if (nc >= 1) ba += 3;
-  // GEO: menciones en IA como proxy de reconocimiento de marca (0–15 pts)
-  const geoMR = geo?.mentionRate ?? 0;
-  if (geoMR >= 70) ba += 15;
-  else if (geoMR >= 40) ba += 10;
-  else if (geoMR >= 15) ba += 5;
-  // LinkedIn: followers como señal de autoridad profesional (0–10 pts)
-  const liF = linkedin?.followers ?? 0;
-  if (liF >= 10000) ba += 10;
-  else if (liF >= 1000) ba += 6;
-  else if (liF >= 100) ba += 3;
+  if (nc >= 10) ba += 20; else if (nc >= 5) ba += 14; else if (nc >= 2) ba += 8; else if (nc >= 1) ba += 4;
+  // Social presence (0-30 pts) — B2B: LinkedIn, B2C: Instagram/social
+  if (isB2B) {
+    const liF = linkedin?.followers ?? 0;
+    const liE = linkedin?.employees ?? 0;
+    if (liF >= 50000) ba += 20; else if (liF >= 10000) ba += 15; else if (liF >= 1000) ba += 10; else if (liF >= 100) ba += 5;
+    if (liE >= 500) ba += 10; else if (liE >= 50) ba += 6; else if (liE >= 10) ba += 3;
+  } else {
+    const igF = instagram?.followers ?? 0;
+    if (igF >= 100000) ba += 20; else if (igF >= 10000) ba += 14; else if (igF >= 1000) ba += 8; else if (igF >= 100) ba += 4;
+    const liF = linkedin?.followers ?? 0;
+    if (liF >= 5000) ba += 10; else if (liF >= 500) ba += 5; else if (liF >= 100) ba += 2;
+  }
   return Math.min(100, ba);
 })();
 
@@ -1422,7 +1421,7 @@ const heroStatus = statusStyle(ss(health.total));
               );
             })()}
           </div>
-          <div class="sub-section-subtitle">Blog, presencia en prensa y visibilidad en IA</div>
+          <div class="sub-section-subtitle">Blog, presencia en prensa{isB2B ? ', LinkedIn' : ' y redes sociales'}</div>
 
           <!-- Blog + Prensa cards -->
           <div class="grid-2" style="margin-bottom:14px;">
@@ -1458,32 +1457,69 @@ const heroStatus = statusStyle(ss(health.total));
                 <span class="metric-label" style="margin:0;">Apariciones en prensa</span>
               </div>
               {newsCountEs > 0 ? (
-                <div style="font-size:0.82rem;color:#374151;">Menciones en Google News en los últimos meses</div>
+                <div style="font-size:0.82rem;color:#374151;">
+                  Menciones en Google News en los últimos 12 meses.
+                  {newsCountEs >= 10 ? ' Buena cobertura mediática — indica presencia activa en el sector.' : newsCountEs >= 3 ? ' Cobertura moderada — hay margen para aumentar la presencia en medios.' : ' Cobertura baja — una estrategia de PR podría multiplicar la visibilidad de marca.'}
+                </div>
               ) : (
-                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News.</div>
+                <div style="font-size:0.82rem;color:#6B7280;">Sin cobertura detectada en Google News en los últimos 12 meses.</div>
               )}
             </div>
           </div>
 
-          <!-- Señales alternativas: GEO + LinkedIn (when no backlinks data) -->
-          {seo?.domainRank == null && (geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
-            <div class="grid-2" style="margin-bottom:14px;">
-              {geo?.mentionRate != null && (
-                <div class="metric-card" style={`border-left:3px solid ${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#9CA3AF'};`}>
-                  <div class="metric-value" style={`color:${geo.mentionRate>=60?'#1D9E75':geo.mentionRate>=30?'#BA7517':'#E24B4A'};`}>{geo.mentionRate}%</div>
-                  <div class="metric-label">Visibilidad en IA</div>
-                  <div class="metric-sub" style="margin-top:4px;">Mencionado en {geo.mentionRate}% de consultas en ChatGPT, Perplexity y otros LLMs</div>
-                </div>
-              )}
-              {(linkedin?.followers ?? 0) > 0 && (
-                <div class="metric-card" style="border-left:3px solid #0077B5;">
-                  <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
-                  <div class="metric-label">Seguidores LinkedIn</div>
-                  <div class="metric-sub" style="margin-top:4px;">Indicador de autoridad y presencia profesional</div>
-                </div>
-              )}
-            </div>
-          )}
+          <!-- Social presence: B2B → LinkedIn, B2C → Instagram + others -->
+          <div class="grid-2" style="margin-bottom:14px;">
+            {isB2B ? (
+              <>
+                {(linkedin?.followers ?? 0) > 0 && (
+                  <div class="metric-card" style="border-left:3px solid #0077B5;">
+                    <div style="display:flex;align-items:baseline;gap:8px;">
+                      <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
+                    </div>
+                    <div class="metric-label">LinkedIn</div>
+                    {linkedin?.employees && (
+                      <div style="font-size:0.82rem;color:#374151;margin-top:4px;">{fmt(linkedin.employees)} empleados visibles en LinkedIn</div>
+                    )}
+                    <div class="metric-sub" style="margin-top:4px;">
+                      {(linkedin?.followers ?? 0) >= 10000 ? 'Buena presencia profesional — refuerza la credibilidad B2B.' : (linkedin?.followers ?? 0) >= 1000 ? 'Presencia profesional moderada. Publicar contenido de valor puede acelerar el crecimiento.' : 'Presencia LinkedIn en desarrollo. En B2B, LinkedIn es el canal principal de generación de confianza.'}
+                    </div>
+                  </div>
+                )}
+                {(linkedin?.followers ?? 0) === 0 && (
+                  <div class="metric-card">
+                    <div class="metric-value" style="color:#9CA3AF;">—</div>
+                    <div class="metric-label">LinkedIn</div>
+                    <div class="metric-sub" style="margin-top:4px;">No se ha detectado perfil de empresa en LinkedIn. En B2B es el canal principal de autoridad profesional.</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {(instagram?.followers ?? 0) > 0 && (
+                  <div class="metric-card" style="border-left:3px solid #E1306C;">
+                    <div style="display:flex;align-items:baseline;gap:8px;">
+                      <div class="metric-value" style="color:#E1306C;">{fmt(instagram?.followers)}</div>
+                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
+                    </div>
+                    <div class="metric-label">Instagram</div>
+                    <div class="metric-sub" style="margin-top:4px;">
+                      {(instagram?.followers ?? 0) >= 50000 ? 'Comunidad sólida — el contenido visual refuerza el reconocimiento de marca.' : (instagram?.followers ?? 0) >= 5000 ? 'Comunidad en crecimiento. La consistencia en publicaciones es clave para escalar.' : 'Comunidad en fase inicial. Instagram es un canal clave para marcas B2C.'}
+                    </div>
+                  </div>
+                )}
+                {(linkedin?.followers ?? 0) > 0 && (
+                  <div class="metric-card" style="border-left:3px solid #0077B5;">
+                    <div style="display:flex;align-items:baseline;gap:8px;">
+                      <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
+                      <span style="font-size:0.7rem;color:#5A6478;">seguidores</span>
+                    </div>
+                    <div class="metric-label">LinkedIn</div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
           <!-- Autoridad de dominio -->
           {seo && seo.domainRank != null && (
@@ -1526,13 +1562,13 @@ const heroStatus = statusStyle(ss(health.total));
               </ul>
             </div>
           )}
-          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || geo?.mentionRate != null || (linkedin?.followers ?? 0) > 0) && (
+          {seo && seo.domainRank == null && seo.referringDomains == null && (hasBlogEs || newsCountEs > 0 || (linkedin?.followers ?? 0) > 0 || (instagram?.followers ?? 0) > 0) && (
             <div class="callout callout-amber">
-              El score de reputación refleja las señales de presencia disponibles:{' '}
-              {geo?.mentionRate != null && <span>visibilidad en IA ({geo.mentionRate}%), </span>}
+              El score de autoridad de marca refleja las señales disponibles:{' '}
               {newsCountEs > 0 && <span>presencia en prensa ({newsCountEs} artículos), </span>}
               {hasBlogEs && <span>blog propio, </span>}
-              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores)</span>}.
+              {(linkedin?.followers ?? 0) > 0 && <span>LinkedIn ({fmt(linkedin?.followers)} seguidores), </span>}
+              {(instagram?.followers ?? 0) > 0 && <span>Instagram ({fmt(instagram?.followers)} seguidores)</span>}.
             </div>
           )}
           {(!seo || (seo.domainRank == null && seo.referringDomains == null)) && !hasBlogEs && newsCountEs === 0 && (
