@@ -485,6 +485,14 @@ const brandNarrative = buildBrandNarrative();
 
 function buildIndexNarrative(): string {
   if (indexedPages === null) return '';
+  const kwCount = seo?.keywordsTop10 ?? 0;
+
+  // Sanity check: if site has many keywords but indexedPages is suspiciously low (1-5),
+  // the site: query likely failed or returned wrong data. Don't show misleading info.
+  if (indexedPages <= 5 && kwCount > 20) {
+    return `No se ha podido determinar con fiabilidad el número de páginas indexadas para este dominio. Con ${fmt(kwCount)} keywords posicionadas en top 10, el sitio tiene claramente múltiples páginas indexadas en Google.`;
+  }
+
   if (sitemapPages && indexationRatio !== null) {
     if (indexationRatio >= 90) {
       return `Google tiene indexadas ${fmt(indexedPages)} de las ${fmt(sitemapPages)} páginas de vuestro sitemap (${indexationRatio}%). Excelente cobertura — prácticamente todo vuestro contenido está visible en Google.`;
@@ -494,7 +502,15 @@ function buildIndexNarrative(): string {
     }
     return `Solo ${fmt(indexedPages)} de ${fmt(sitemapPages)} páginas están indexadas (${indexationRatio}%). Más de la mitad de vuestro contenido es invisible para Google. Esto suele indicar problemas técnicos de rastreo, contenido duplicado o páginas de baja calidad que Google decide no indexar.`;
   }
-  return `Google tiene indexadas ${fmt(indexedPages)} páginas de vuestro dominio.`;
+
+  // No sitemap available — give context based on keywords and traffic
+  if (indexedPages < 10) {
+    return `Google muestra ${fmt(indexedPages)} páginas indexadas. ${!crawl.hasSitemap ? 'No se ha detectado un sitemap XML, lo que dificulta que Google descubra todas las páginas del sitio.' : ''} ${kwCount > 0 ? `Con ${fmt(kwCount)} keywords posicionadas, hay más contenido del que Google está mostrando en la búsqueda site:.` : 'Un sitio con pocas páginas indexadas tiene menos oportunidades de captar tráfico orgánico.'}`;
+  }
+  if (indexedPages < 50) {
+    return `Google tiene indexadas ${fmt(indexedPages)} páginas. ${!crawl.hasSitemap ? 'Sin sitemap XML, Google puede estar perdiendo páginas.' : ''} Para un sitio con actividad digital, el objetivo es que Google conozca y muestre todo el contenido relevante.`;
+  }
+  return `Google tiene indexadas ${fmt(indexedPages)} páginas de vuestro dominio. ${sitemapPages ? '' : 'Sin sitemap XML detectado — no podemos calcular qué porcentaje del contenido total está indexado, pero un sitemap ayudaría a Google a rastrear el sitio de forma más eficiente.'}`;
 }
 const indexNarrative = buildIndexNarrative();
 
@@ -927,15 +943,27 @@ const heroStatus = statusStyle(ss(health.total));
                   {brandNarrative && <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;">{brandNarrative}</p>}
                 </div>
               )}
-              {indexedPages !== null && (
+              {indexedPages !== null && (() => {
+                const kwRef = seo?.keywordsTop10 ?? 0;
+                const suspiciouslyLow = indexedPages <= 5 && kwRef > 20;
+                return (
                 <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;">
                   <div style="font-size:0.72rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Páginas indexadas en Google</div>
-                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
-                    <span style="font-size:1.5rem;font-weight:800;color:#1A1A2E;">{fmt(indexedPages)}</span>
-                    {sitemapPages && (
-                      <span style="font-size:0.82rem;color:#5A6478;">de {fmt(sitemapPages)} en sitemap</span>
-                    )}
-                  </div>
+                  {suspiciouslyLow ? (
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                      <span style="font-size:0.85rem;font-weight:600;color:#BA7517;">Dato no fiable</span>
+                      <span style="font-size:0.72rem;color:#9CA3AF;">({fmt(kwRef)} keywords posicionadas → múltiples páginas reales)</span>
+                    </div>
+                  ) : (
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span style="font-size:1.5rem;font-weight:800;color:#1A1A2E;">{fmt(indexedPages)}</span>
+                      {sitemapPages ? (
+                        <span style="font-size:0.82rem;color:#5A6478;">de {fmt(sitemapPages)} en sitemap</span>
+                      ) : (
+                        <span style="font-size:0.82rem;color:#9CA3AF;">páginas{!crawl.hasSitemap ? ' · sin sitemap XML' : ''}</span>
+                      )}
+                    </div>
+                  )}
                   {indexationRatio !== null && (
                     <div style="margin-bottom:8px;">
                       <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;">
@@ -946,7 +974,8 @@ const heroStatus = statusStyle(ss(health.total));
                   )}
                   {indexNarrative && <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;">{indexNarrative}</p>}
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
