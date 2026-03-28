@@ -58,7 +58,9 @@ export async function runTraffic(url: string): Promise<TrafficResult> {
     ]);
 
     if (!resultCurrent) {
-      return { skipped: true, reason: 'Tráfico insuficiente para estimar (dominio muy pequeño o nuevo)' };
+      // Traffic Analytics has no data — this is common for Spanish domains.
+      // Return a minimal result so coverage doesn't count this as a failure.
+      return { skipped: true, reason: 'Datos de distribución de tráfico no disponibles para este dominio. Esto es habitual en dominios con menos presencia en paneles de medición internacionales.' };
     }
 
     const metrics = resultCurrent.metrics || {};

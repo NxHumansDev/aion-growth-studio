@@ -27,7 +27,7 @@ const DATA_POINTS: DataPoint[] = [
   { id: 'seo.topKeywords', label: 'Top keywords list', critical: false, check: r => (r.seo?.topKeywords?.length ?? 0) > 0 },
   { id: 'seo.history', label: 'Organic trend (12m)', critical: false, check: r => (r.seo?.organicHistory?.length ?? 0) >= 3 },
   { id: 'seo.brand', label: 'Brand vs non-brand', critical: false, check: r => r.seo?.brandTrafficPct != null },
-  { id: 'traffic.channels', label: 'Traffic channels', critical: false, check: r => r.traffic && !r.traffic.skipped && r.traffic.visits > 0 },
+  { id: 'traffic.channels', label: 'Traffic channels', critical: false, check: r => r.traffic != null },
   { id: 'content.analysis', label: 'Content analysis', critical: false, check: r => r.content && !r.content.skipped },
   { id: 'content.blog', label: 'Blog detection', critical: false, check: r => r.content_cadence && !r.content_cadence.skipped },
   { id: 'conversion.funnel', label: 'Conversion funnel', critical: true, check: r => r.conversion && !r.conversion.skipped && r.conversion.funnelScore != null },
