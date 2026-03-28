@@ -401,14 +401,17 @@ export async function runGEO(
       : []),
   ];
 
-  // Generate structured 12-query set, then deduplicate
+  // Generate queries
+  const t0 = Date.now();
   const rawQuerySpecs = await generateQueries(
     sector, valueProposition, keywords, brandName, domain, locationHint, OPENAI_KEY,
   );
   const querySpecs = deduplicateQuerySpecs(rawQuerySpecs);
+  console.log(`[geo] queries generated: ${querySpecs.length} (${Date.now() - t0}ms) | engines: ${engines.map(e => e.name).join(',')}`);
 
   try {
     // Run ALL queries × ALL engines in parallel
+    const t1 = Date.now();
     const runResults = await Promise.all(
       querySpecs.map(async (spec) => {
         const settled = await Promise.allSettled(
@@ -431,6 +434,8 @@ export async function runGEO(
         return { spec, engineOutputs, mentioned };
       }),
     );
+
+    console.log(`[geo] all queries executed: ${runResults.length} results (${Date.now() - t1}ms)`);
 
     // If ALL answers are empty → API down or all timed out
     const perEngineEmpty = engines.map((e) => ({
@@ -623,6 +628,7 @@ Responde SOLO con el texto narrativo, sin JSON, sin comillas.`;
       _log: `ok | q:${total} | mentions:${mentionCount}/${total} (${mentionRangeLow}-${mentionRangeHigh}%) | ${engineLog}`,
     };
   } catch (err: any) {
+    console.error(`[geo] FATAL: ${err?.message?.slice(0, 200)}`);
     return {
       queries: [],
       overallScore: 0,

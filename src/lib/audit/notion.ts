@@ -89,6 +89,18 @@ export async function getAuditPage(pageId: string): Promise<AuditPageData> {
     results['insights'] = { ...results['insights'], ...results['_insights_ext'] };
     delete results['_insights_ext'];
   }
+  // Merge geo_queries back into geo
+  if (results['geo_queries'] && results['geo']) {
+    results['geo'] = { ...results['geo'], ...results['geo_queries'] };
+    delete results['geo_queries'];
+  } else if (results['geo_queries']) {
+    results['_geo_queries'] = results['geo_queries'];
+    delete results['geo_queries'];
+  }
+  if (results['_geo_queries'] && results['geo']) {
+    results['geo'] = { ...results['geo'], ...results['_geo_queries'] };
+    delete results['_geo_queries'];
+  }
 
   return { notionPageId: pageId, url, email, status, currentStep, score, sector, userInstagram, userLinkedin, userCompetitors, results };
 }
@@ -172,6 +184,42 @@ function prepareBlocks(module: string, data: ModuleResult): Array<{ object: stri
     code: { rich_text: [{ type: 'text', text: { content } }], language: 'json' },
   });
 
+  // GEO: split into scores (metrics) and queries (raw data)
+  if (module === 'geo' && data && !data.skipped && !data._truncated && data.queries?.length) {
+    const scores: any = {
+      overallScore: data.overallScore,
+      brandScore: data.brandScore,
+      sectorScore: data.sectorScore,
+      mentionRate: data.mentionRate,
+      mentionRangeLow: data.mentionRangeLow,
+      mentionRangeHigh: data.mentionRangeHigh,
+      funnelBreakdown: data.funnelBreakdown,
+      categoryBreakdown: data.categoryBreakdown,
+      crossModel: data.crossModel,
+      competitorMentions: data.competitorMentions,
+      executiveNarrative: data.executiveNarrative,
+    };
+    // Keep queries minimal: only query text + mentioned + stage + category
+    const queries: any = {
+      queries: data.queries.map((q: any) => ({
+        query: q.query?.slice(0, 60),
+        mentioned: q.mentioned,
+        stage: q.stage,
+        category: q.category,
+      })),
+    };
+    const scoresStr = JSON.stringify({ m: 'geo', d: scores });
+    const queriesStr = JSON.stringify({ m: 'geo_queries', d: queries });
+
+    if (scoresStr.length <= 1990 && queriesStr.length <= 1990) {
+      return [makeBlock(scoresStr), makeBlock(queriesStr)];
+    }
+    if (scoresStr.length <= 1990) {
+      return [makeBlock(scoresStr)];
+    }
+    // Fall through to standard truncation
+  }
+
   // Insights: split into core (summary + bullets) and extras (initiatives)
   // so we never lose the executive summary bullets to truncation
   if (module === 'insights' && data && !data.skipped && !data._truncated) {
@@ -204,6 +252,7 @@ function prepareBlocks(module: string, data: ModuleResult): Array<{ object: stri
 function prepareBlockContent(module: string, data: ModuleResult): string {
   const str = JSON.stringify({ m: module, d: data });
   if (str.length <= 1990) return str;
+  console.log(`[notion:truncate] ${module}: ${str.length} chars → needs truncation`);
 
   // GEO module: use stage-aware truncation to preserve all funnel stages
   if (module === 'geo') {
@@ -221,6 +270,7 @@ function prepareBlockContent(module: string, data: ModuleResult): string {
   }
 
   // Nuclear: just flag it as truncated so parsing doesn't fail silently
+  console.error(`[notion:truncate] ${module}: NUCLEAR TRUNCATION — all progressive passes failed, data lost`);
   return JSON.stringify({ m: module, d: { _truncated: true } });
 }
 
