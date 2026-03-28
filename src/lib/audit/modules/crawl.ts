@@ -332,6 +332,7 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       ...(instagramHandle && { instagramHandle }),
       ...(twitterHandle && { twitterHandle }),
       ...(linkedinUrl && { linkedinUrl }),
+      _socialLog: `ig:${instagramHandle || 'none'} tw:${twitterHandle || 'none'} li:${linkedinUrl ? 'found' : 'none'}`,
       ...(hreflangAlternates.length > 0 && { hreflangAlternates }),
       ...(hasBlog && { hasBlog }),
       ...(blogUrl && { blogUrl }),

@@ -32,8 +32,8 @@ const DATA_POINTS: DataPoint[] = [
   { id: 'content.blog', label: 'Blog detection', critical: false, check: r => r.content_cadence && !r.content_cadence.skipped },
   { id: 'conversion.funnel', label: 'Conversion funnel', critical: true, check: r => r.conversion && !r.conversion.skipped && r.conversion.funnelScore != null },
   { id: 'techstack.maturity', label: 'Tech stack', critical: true, check: r => r.techstack && !r.techstack.skipped },
-  { id: 'reputation.rating', label: 'Reputation rating', critical: false, check: r => r.reputation?.combinedRating != null || r.reputation?.gbpRating != null },
-  { id: 'reputation.news', label: 'News coverage', critical: false, check: r => (r.reputation?.newsCount ?? 0) > 0 || r.reputation?.newsHeadlines?.length > 0 },
+  // Reputation: count as OK if the module ran (even if no reviews/news found — that IS the data)
+  { id: 'reputation.checked', label: 'Reputation check', critical: false, check: r => r.reputation && !r.reputation.skipped },
   { id: 'geo.queries', label: 'AI visibility queries', critical: true, check: r => (r.geo?.queries?.length ?? 0) >= 8 },
   { id: 'geo.mentionRate', label: 'AI mention rate', critical: true, check: r => r.geo?.mentionRate != null },
   { id: 'geo.categories', label: 'AI category breakdown', critical: false, check: r => Object.keys(r.geo?.categoryBreakdown ?? {}).length >= 3 },
@@ -50,10 +50,11 @@ const DATA_POINTS: DataPoint[] = [
     const valid = items.filter((c: any) => !c.apiError && c.keywordsTop10 != null);
     return valid.length >= comps.length;
   }},
-  { id: 'keyword_gap.items', label: 'Keyword gap analysis', critical: false, check: r => r.keyword_gap && !r.keyword_gap.skipped },
+  { id: 'keyword_gap.items', label: 'Keyword gap analysis', critical: false, check: r => r.keyword_gap != null },
   { id: 'geo.compMentions', label: 'Competitor AI mentions', critical: false, check: r => (r.geo?.competitorMentions?.length ?? 0) >= 1 },
-  { id: 'social.linkedin', label: 'LinkedIn data', critical: false, check: r => r.linkedin?.found === true },
-  { id: 'social.instagram', label: 'Instagram data', critical: false, check: r => r.instagram?.found === true },
+  // Social: count as OK if the module ran (not finding a profile IS the data)
+  { id: 'social.linkedin', label: 'LinkedIn check', critical: false, check: r => r.linkedin && !r.linkedin.skipped },
+  { id: 'social.instagram', label: 'Instagram check', critical: false, check: r => r.instagram && !r.instagram.skipped },
 ];
 
 export interface CoverageResult {

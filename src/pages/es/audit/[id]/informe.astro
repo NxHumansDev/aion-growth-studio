@@ -1493,28 +1493,43 @@ const donutSVG = buildDonutSVG();
             </div>
           </div>
 
-          <!-- Social presence: B2B → LinkedIn, B2C → Instagram -->
-          {isB2B && (linkedin?.followers ?? 0) > 0 && (
-            <div class="metric-card" style="border-left:3px solid #0077B5;margin-bottom:14px;">
+          <!-- Social presence -->
+          <div class="grid-2" style="margin-bottom:14px;">
+            {/* LinkedIn — always show */}
+            <div class="metric-card" style={(linkedin?.followers ?? 0) > 0 ? 'border-left:3px solid #0077B5;' : ''}>
               <div style="display:flex;align-items:baseline;gap:8px;">
-                <div class="metric-value" style="color:#0077B5;">{fmt(linkedin?.followers)}</div>
-                <span style="font-size:0.7rem;color:#5A6478;">seguidores LinkedIn</span>
+                <div class="metric-value" style={(linkedin?.followers ?? 0) > 0 ? 'color:#0077B5;' : 'color:#9CA3AF;'}>{(linkedin?.followers ?? 0) > 0 ? fmt(linkedin?.followers) : '—'}</div>
+                <span style="font-size:0.7rem;color:#5A6478;">LinkedIn</span>
               </div>
-              {linkedin?.employees && (
-                <div style="font-size:0.82rem;color:#374151;margin-top:4px;">{fmt(linkedin.employees)} empleados en LinkedIn</div>
+              {(linkedin?.followers ?? 0) > 0 ? (
+                <div>
+                  {linkedin?.employees && (
+                    <div style="font-size:0.82rem;color:#374151;margin-top:4px;">{fmt(linkedin.employees)} empleados</div>
+                  )}
+                  <div class="metric-sub" style="margin-top:4px;">
+                    {isB2B ? 'Canal principal de autoridad profesional en B2B.' : 'Presencia profesional activa.'}
+                  </div>
+                </div>
+              ) : (
+                <div class="metric-sub" style="margin-top:4px;">No se ha detectado perfil de empresa en LinkedIn.</div>
               )}
-              <div class="metric-sub" style="margin-top:4px;">En B2B, LinkedIn es el canal principal de generación de confianza profesional.</div>
             </div>
-          )}
-          {!isB2B && (instagram?.followers ?? 0) > 0 && (
-            <div class="metric-card" style="border-left:3px solid #E1306C;margin-bottom:14px;">
+
+            {/* Instagram — always show */}
+            <div class="metric-card" style={(instagram?.followers ?? 0) > 0 ? 'border-left:3px solid #E1306C;' : ''}>
               <div style="display:flex;align-items:baseline;gap:8px;">
-                <div class="metric-value" style="color:#E1306C;">{fmt(instagram?.followers)}</div>
-                <span style="font-size:0.7rem;color:#5A6478;">seguidores Instagram</span>
+                <div class="metric-value" style={(instagram?.followers ?? 0) > 0 ? 'color:#E1306C;' : 'color:#9CA3AF;'}>{(instagram?.followers ?? 0) > 0 ? fmt(instagram?.followers) : '—'}</div>
+                <span style="font-size:0.7rem;color:#5A6478;">Instagram</span>
               </div>
-              <div class="metric-sub" style="margin-top:4px;">Instagram es un canal clave para marcas B2C.</div>
+              {(instagram?.followers ?? 0) > 0 ? (
+                <div class="metric-sub" style="margin-top:4px;">
+                  {!isB2B ? 'Canal clave para marcas B2C.' : 'Presencia social activa.'}
+                </div>
+              ) : (
+                <div class="metric-sub" style="margin-top:4px;">No se ha detectado perfil de empresa en Instagram.</div>
+              )}
             </div>
-          )}
+          </div>
 
           <!-- Autoridad de dominio -->
           {seo && seo.domainRank != null && (
@@ -1687,7 +1702,7 @@ const donutSVG = buildDonutSVG();
                       <td style="font-weight:500;">{ct.name || ct.domain}</td>
                       <td>{ct.keywordsTop10 != null ? fmt(ct.keywordsTop10) : <span style="color:#9CA3AF;font-size:11px;">sin datos</span>}</td>
                       <td>{ct.organicTrafficEstimate != null ? fmt(ct.organicTrafficEstimate) : <span style="color:#9CA3AF;font-size:11px;">sin datos</span>}</td>
-                      <td>{ct.paidKeywordsTotal != null ? fmt(ct.paidKeywordsTotal) : '—'}</td>
+                      <td>{fmt(ct.paidKeywordsTotal ?? 0)}</td>
                       <td>{compPS?.items?.find((p: any) => p.domain === ct.domain)?.mobileScore ?? compPS?.items?.find((p: any) => p.name === ct.name)?.mobileScore ?? '—'}/100</td>
                     </tr>
                   ))}
@@ -1962,7 +1977,7 @@ const donutSVG = buildDonutSVG();
                   <div class="metric-label">Visitas / mes</div>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-value">{traffic.bounceRate != null ? `${traffic.bounceRate}%` : '—'}</div>
+                  <div class="metric-value">{traffic.bounceRate != null ? `${traffic.bounceRate}%` : 'N/D'}</div>
                   <div class="metric-label">Tasa de rebote</div>
                 </div>
                 <div class="metric-card">

@@ -265,13 +265,21 @@ export async function runReputation(
   const cityHint = extractCity(existingGbp?.address);
 
   // Run Places + Trustpilot + Google News in parallel
-  const [gbp, tp, news] = await Promise.all([
+  const [gbp, tpByName, news] = await Promise.all([
     fetchGBPReputation(companyName, domain, cityHint),
     fetchTrustpilot(companyName),
     fetchNewsPresence(companyName),
   ]);
 
-  const _log = `query="${companyName}" news:${news.newsCount} gbp:${gbp.found ? 'ok' : 'miss'} tp:${tp.found ? 'ok' : 'miss'}`;
+  // If Trustpilot didn't find by company name, try by domain
+  let tp = tpByName;
+  if (!tp.found && domain !== companyName.toLowerCase()) {
+    tp = await fetchTrustpilot(domain);
+    if (tp.found) console.log(`[reputation] Trustpilot: found by domain "${domain}" (not by name "${companyName}")`)
+  }
+
+  const _log = `query="${companyName}" domain="${domain}" news:${news.newsCount} gbp:${gbp.found ? `ok(${gbp.rating})` : 'miss'} tp:${tp.found ? `ok(${tp.rating})` : 'miss'}`;
+  console.log(`[reputation] ${_log}`);
 
   if (!gbp.found && !tp.found) {
     return {
