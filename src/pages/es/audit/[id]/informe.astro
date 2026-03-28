@@ -71,8 +71,14 @@ const _organicTraf = seo?.organicTrafficEstimate ?? 0;
 const _paidTraf = seo?.paidTrafficEstimate ?? 0;
 const _totalTraf = _organicTraf + _paidTraf;
 const _trafficCh: Record<string, any> = {};
-if (_organicTraf > 0) _trafficCh.organic = { visits: _organicTraf, share: Math.round((_organicTraf / Math.max(_totalTraf, 1)) * 100) };
-if (_paidTraf > 0) _trafficCh.paid = { visits: _paidTraf, share: Math.round((_paidTraf / Math.max(_totalTraf, 1)) * 100) };
+if (_organicTraf > 0) _trafficCh.organic = { visits: _organicTraf, share: 0 };
+if (_paidTraf > 0) _trafficCh.paid = { visits: _paidTraf, share: 0 };
+// Calculate shares
+if (_totalTraf > 0) {
+  for (const key of Object.keys(_trafficCh)) {
+    _trafficCh[key].share = Math.round((_trafficCh[key].visits / _totalTraf) * 100);
+  }
+}
 const visTrafficSub = _totalTraf > 0 ? Math.min(100, Math.round((_organicTraf / _totalTraf) * 150)) : 0;
 
 // Brand Authority score (0-100): domain + reviews + blog + press + social
@@ -630,7 +636,8 @@ const trafficChannels = Object.entries(_trafficCh)
   .filter(c => c.share > 0)
   .sort((a, b) => b.share - a.share);
 
-const hasTrafficData = _totalTraf > 0 && trafficChannels.length > 0;
+// Only show donut when there are 2+ channels (organic + paid). 1 segment = no donut.
+const hasTrafficData = _totalTraf > 0 && trafficChannels.length >= 2;
 const topChannel = trafficChannels[0];
 
 function buildDonutSVG(): string {
@@ -2146,33 +2153,45 @@ const donutSVG = buildDonutSVG();
             </div>
           </div>
 
-          <!-- Traffic Distribution Donut -->
-          {hasTrafficData && (
+          <!-- Traffic Distribution -->
+          {_totalTraf > 0 && (
             <div style="margin-bottom:20px;">
               <hr class="section-divider" />
               <div style="font-size:0.78rem;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Distribución del tráfico estimado</div>
-              <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
-                <div set:html={donutSVG} />
-                <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
-                  {trafficChannels.map((ch) => (
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <span style={`width:12px;height:12px;border-radius:3px;background:${ch.color};flex-shrink:0;`}></span>
-                      <span style="font-size:0.78rem;font-weight:600;color:#1A1A2E;min-width:70px;">{ch.label}</span>
-                      <span style="font-size:0.82rem;font-weight:700;color:#1A1A2E;">{ch.share}%</span>
-                      <span style="font-size:0.7rem;color:#9CA3AF;">{fmt(ch.visits)} vis/año</span>
+
+              {hasTrafficData ? (
+                <div>
+                  <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
+                    <div set:html={donutSVG} />
+                    <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
+                      {trafficChannels.map((ch) => (
+                        <div style="display:flex;align-items:center;gap:10px;">
+                          <span style={`width:12px;height:12px;border-radius:3px;background:${ch.color};flex-shrink:0;`}></span>
+                          <span style="font-size:0.78rem;font-weight:600;color:#1A1A2E;min-width:70px;">{ch.label}</span>
+                          <span style="font-size:0.82rem;font-weight:700;color:#1A1A2E;">{ch.share}%</span>
+                          <span style="font-size:0.7rem;color:#9CA3AF;">{fmt(ch.visits)} vis/mes</span>
+                        </div>
+                      ))}
+                      <div style="font-size:0.7rem;color:#9CA3AF;margin-top:4px;">
+                        Total estimado: {fmt(_totalTraf)} visitas/mes
+                      </div>
                     </div>
-                  ))}
-                  <div style="font-size:0.7rem;color:#9CA3AF;margin-top:4px;">
-                    Total estimado: {fmt(_totalTraf)} visitas/año
                   </div>
+                  <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;margin-top:12px;">
+                    {`El ${Math.round((_organicTraf / _totalTraf) * 100)}% del tráfico estimado es orgánico y el ${Math.round((_paidTraf / _totalTraf) * 100)}% proviene de Google Ads. ${_paidTraf > _organicTraf ? 'Alta dependencia de paid — cada euro que dejáis de invertir, el tráfico desaparece.' : 'El canal orgánico domina, lo que indica una base sólida de posicionamiento.'}`}
+                  </p>
                 </div>
-              </div>
-              <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;margin-top:12px;">
-                {_paidTraf > 0
-                  ? `El ${Math.round((_organicTraf / _totalTraf) * 100)}% del tráfico estimado es orgánico y el ${Math.round((_paidTraf / _totalTraf) * 100)}% proviene de campañas de pago (Google Ads). ${_paidTraf > _organicTraf ? 'Alta dependencia de paid — cada euro que dejáis de invertir, el tráfico desaparece.' : 'El canal orgánico domina, lo que indica una base sólida de posicionamiento.'}`
-                  : 'Todo el tráfico estimado proviene de posicionamiento orgánico. No se detecta inversión activa en Google Ads.'
-                }
-              </p>
+              ) : (
+                <div style="background:#F8F9FB;border-radius:12px;padding:16px 20px;">
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+                    <span style="font-size:1.5rem;font-weight:800;color:#1D9E75;">{fmt(_organicTraf)}</span>
+                    <span style="font-size:0.78rem;color:#5A6478;">visitas orgánicas/mes estimadas</span>
+                  </div>
+                  <p style="font-size:0.75rem;color:#5A6478;line-height:1.5;margin:0;">
+                    Todo el tráfico estimado proviene de posicionamiento orgánico. No se detecta inversión activa en Google Ads.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
