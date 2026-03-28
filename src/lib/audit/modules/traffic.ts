@@ -12,14 +12,6 @@ const COUNTRY_NAMES: Record<string, string> = {
   PT: 'Portugal', CA: 'Canadá', AU: 'Australia',
 };
 
-function buildDateRange(yearsAgo: number): { dateFrom: string; dateTo: string } {
-  const now = new Date();
-  const dateTo = new Date(now.getFullYear() - yearsAgo, now.getMonth(), 1);
-  const dateFrom = new Date(dateTo.getFullYear() - 1, dateTo.getMonth(), 1);
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  return { dateFrom: fmt(dateFrom), dateTo: fmt(dateTo) };
-}
-
 async function fetchTrafficSummary(
   domain: string,
   auth: string,
@@ -31,11 +23,21 @@ async function fetchTrafficSummary(
     headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
     body: JSON.stringify([{ target: domain, date_from: dateFrom, date_to: dateTo }]),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error(`[traffic] HTTP ${res.status} for ${domain} (${dateFrom} → ${dateTo})`);
+    return null;
+  }
   const data = await res.json();
   const task = data?.tasks?.[0];
-  if (task?.status_code !== 20000) return null;
-  return task?.result?.[0] || null;
+  if (task?.status_code !== 20000) {
+    console.error(`[traffic] DFS status ${task?.status_code}: ${task?.status_message} for ${domain} (${dateFrom} → ${dateTo})`);
+    return null;
+  }
+  if (!task.result?.[0]) {
+    console.error(`[traffic] No result for ${domain} (${dateFrom} → ${dateTo})`);
+    return null;
+  }
+  return task.result[0];
 }
 
 export async function runTraffic(url: string): Promise<TrafficResult> {
@@ -48,19 +50,29 @@ export async function runTraffic(url: string): Promise<TrafficResult> {
 
   const auth = Buffer.from(`${LOGIN}:${PASSWORD}`).toString('base64');
 
-  const current = buildDateRange(0);
-  const previous = buildDateRange(1);
+  // Use last 3 complete months (not current month which has no data yet)
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const dateFrom = fmtDate(threeMonthsAgo);
+  const dateTo = fmtDate(lastMonth);
+
+  // Also fetch previous 3 months for YoY comparison
+  const prevEnd = new Date(threeMonthsAgo.getFullYear(), threeMonthsAgo.getMonth(), 1);
+  const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth() - 3, 1);
+
+  console.log(`[traffic] ${domain}: current ${dateFrom} → ${dateTo} | prev ${fmtDate(prevStart)} → ${fmtDate(prevEnd)}`);
 
   try {
     const [resultCurrent, resultPrev] = await Promise.all([
-      fetchTrafficSummary(domain, auth, current.dateFrom, current.dateTo),
-      fetchTrafficSummary(domain, auth, previous.dateFrom, previous.dateTo),
+      fetchTrafficSummary(domain, auth, dateFrom, dateTo),
+      fetchTrafficSummary(domain, auth, fmtDate(prevStart), fmtDate(prevEnd)),
     ]);
 
     if (!resultCurrent) {
-      // Traffic Analytics has no data — this is common for Spanish domains.
-      // Return a minimal result so coverage doesn't count this as a failure.
-      return { skipped: true, reason: 'Datos de distribución de tráfico no disponibles para este dominio. Esto es habitual en dominios con menos presencia en paneles de medición internacionales.' };
+      return { skipped: true, reason: 'Datos de distribución de tráfico no disponibles para este dominio.' };
     }
 
     const metrics = resultCurrent.metrics || {};
@@ -88,7 +100,7 @@ export async function runTraffic(url: string): Promise<TrafficResult> {
       }
     }
 
-    // Year-over-year growth
+    // Period-over-period growth
     let visitsGrowth: number | undefined;
     if (resultPrev) {
       const prevMetrics = resultPrev.metrics || {};
@@ -113,6 +125,8 @@ export async function runTraffic(url: string): Promise<TrafficResult> {
     // Use organic metrics for bounce rate / pages / duration (most reliable)
     const organic = metrics.organic || metrics.direct || {};
 
+    console.log(`[traffic] ${domain}: OK — ${totalVisits} visits, ${Object.keys(channels).length} channels`);
+
     return {
       visits: totalVisits || undefined,
       visitsGrowth,
@@ -123,6 +137,7 @@ export async function runTraffic(url: string): Promise<TrafficResult> {
       topCountries: topCountries.length > 0 ? topCountries : undefined,
     };
   } catch (err: any) {
+    console.error(`[traffic] ${domain}: ${err.message}`);
     return { skipped: true, reason: err.message?.slice(0, 100) };
   }
 }
