@@ -16,8 +16,8 @@ export async function runSEO(url: string): Promise<SEOResult> {
   const timer = setTimeout(() => controller.abort(), 45000);
 
   try {
-    // ── Tier 1 + Tier 2 + Backlinks + Organic Competitors + History in parallel ──
-    const [overviewRes, kwRes, blRes, compRes, histRes] = await Promise.all([
+    // ── Tier 1 + Tier 2 + Organic Competitors + History in parallel ──
+    const [overviewRes, kwRes, compRes, histRes] = await Promise.all([
       fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live', {
         method: 'POST',
         signal: controller.signal,
@@ -39,12 +39,6 @@ export async function runSEO(url: string): Promise<SEOResult> {
           order_by: ['ranked_serp_element.serp_item.etv,desc'],
           filters: ['ranked_serp_element.serp_item.rank_absolute', '<=', 10],
         }]),
-      }),
-      fetch('https://api.dataforseo.com/v3/backlinks/summary/live', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-        body: JSON.stringify([{ target: domain, include_subdomains: true }]),
       }),
       // Organic competitors — domains competing for the same keywords in Spain.
       // These are guaranteed to have DataForSEO data (unlike LLM-guessed URLs).
@@ -75,10 +69,9 @@ export async function runSEO(url: string): Promise<SEOResult> {
       return { skipped: true, reason: `DataForSEO: ${msg}`.slice(0, 120) };
     }
 
-    const [data, kwData, blData, compData, histData] = await Promise.all([
+    const [data, kwData, compData, histData] = await Promise.all([
       overviewRes.json(),
       kwRes.ok ? kwRes.json() : Promise.resolve(null),
-      blRes.ok ? blRes.json() : Promise.resolve(null),
       compRes.ok ? compRes.json() : Promise.resolve(null),
       histRes.ok ? histRes.json() : Promise.resolve(null),
     ]);
@@ -126,29 +119,7 @@ export async function runSEO(url: string): Promise<SEOResult> {
       isInvestingPaid: paidKeywordsTotal > 0 || undefined,
     };
 
-    // ── Backlinks / Domain Authority (Tier 1 — already fetched above) ──
     const _logParts: string[] = [`kw:${keywordsTop10} etv:${m?.etv != null ? Math.round(m.etv) : 0}`];
-    try {
-      const blTask = blData?.tasks?.[0];
-      if (!blRes.ok) {
-        _logParts.push(`bl:http${blRes.status}`);
-      } else if (!blTask || blTask.status_code !== 20000) {
-        _logParts.push(`bl:err${blTask?.status_code ?? '?'}`);
-      } else if (!blTask.result_count) {
-        _logParts.push('bl:empty');
-      } else {
-        const blItem = blTask.result?.[0];
-        if (blItem) {
-          if (blItem.referring_domains != null) baseResult.referringDomains = blItem.referring_domains;
-          if (blItem.backlinks != null) baseResult.backlinksTotal = blItem.backlinks;
-          if (blItem.rank != null) baseResult.domainRank = blItem.rank;
-          if (blItem.spam_score != null) baseResult.spamScore = blItem.spam_score;
-          _logParts.push(`bl:ok dr=${blItem.rank ?? 0} rd=${blItem.referring_domains ?? 0}`);
-        } else {
-          _logParts.push('bl:no-item');
-        }
-      }
-    } catch { _logParts.push('bl:except'); }
 
     // ── Organic competitors from DataForSEO ───────────────────────────
     // Blocklist: generic/media domains that share informational keywords but aren't real competitors

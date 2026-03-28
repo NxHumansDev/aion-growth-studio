@@ -1,0 +1,34 @@
+name: Build Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Check (Node 18)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy env vars so build doesn't fail on missing imports
+          NOTION_TOKEN: dummy
+          NOTION_DATABASE_ID: dummy
+          NOTION_AUDITS_DB_ID: dummy
+          SUPABASE_URL: https://dummy.supabase.co
+          SUPABASE_SERVICE_KEY: dummy

@@ -4,6 +4,7 @@ import type { APIRoute } from 'astro';
 import { getAuditPage, saveModuleResult, savePhaseResults, markAuditError } from '../../../../lib/audit/notion';
 import { executeStep, executePhase, PHASE_ENTRY_STEPS } from '../../../../lib/audit/runner';
 import { evaluateCoverage } from '../../../../lib/audit/coverage';
+import { logAuditRun } from '../../../../lib/audit/audit-logger';
 import { STEP_PROGRESS } from '../../../../lib/audit/types';
 import type { AuditStep } from '../../../../lib/audit/types';
 import { validateApiKey, mapResultsForPlatform } from '../../../../lib/api-auth';
@@ -143,6 +144,8 @@ export const GET: APIRoute = async ({ params, request }) => {
       const finalResults = { ...audit.results, [moduleKey]: result };
       const coverage = evaluateCoverage(finalResults);
       console.log(`[audit:coverage] ${coverage.coveragePct}% (${coverage.successfulPoints}/${coverage.totalPoints}) | critical missing: ${coverage.criticalMissing.join(',') || 'none'}`);
+      // Log to Supabase (non-blocking)
+      logAuditRun(audit.url, id, finalResults, Date.now()).catch(() => {});
     }
 
     const progress = isCompleted
