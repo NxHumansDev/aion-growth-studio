@@ -426,7 +426,8 @@ export interface SEOResult extends ModuleResult {
   paidTrafficValue?: number;
   paidTop3Keywords?: number;
   isInvestingPaid?: boolean;
-  paidTopKeywords?: Array<{ keyword: string; position: number; volume: number }>;
+  paidDetectionMethod?: string; // 'labs' | 'google_ads_competition'
+  paidTopKeywords?: Array<{ keyword: string; position?: number; volume: number; cpc?: number; competition?: string }>;
   // Backlinks / Domain Authority (DataForSEO Backlinks API)
   referringDomains?: number;
   backlinksTotal?: number;

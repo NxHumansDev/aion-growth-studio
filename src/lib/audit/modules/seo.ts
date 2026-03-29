@@ -218,84 +218,60 @@ export async function runSEO(url: string): Promise<SEOResult> {
       }
     } catch { /* non-fatal */ }
 
-    // ── Tier 3: paid keywords — always try ranked_keywords with paid filter ──
-    // The domain_rank_overview often returns 0 for paid even when Google Ads are active,
-    // so we no longer gate this call on paidKeywordsTotal > 0.
-    try {
-      const pkRes = await fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-        body: JSON.stringify([{
-          target: domain,
-          location_code: 2724,
-          language_code: 'es',
-          filters: ['ranked_serp_element.serp_item.is_paid', '=', true],
-          order_by: ['ranked_serp_element.serp_item.etv,desc'],
-          limit: 6,
-        }]),
-      });
-
-      if (pkRes.ok) {
-        const pkData = await pkRes.json();
-        const pkTask = pkData?.tasks?.[0];
-        if (pkTask?.status_code === 20000 && pkTask.result_count > 0) {
-          const pkItems: any[] = pkTask.result[0]?.items || [];
-          const topPaidKeywords = pkItems
-            .map((it: any) => ({
-              keyword: it.keyword_data?.keyword || '',
-              position: it.ranked_serp_element?.serp_item?.rank_absolute ?? 0,
-              volume: it.keyword_data?.keyword_info?.search_volume ?? 0,
-              etv: Math.round(it.ranked_serp_element?.serp_item?.etv ?? 0),
-            }))
-            .filter((kw) => kw.keyword);
-
-          if (topPaidKeywords.length > 0) {
-            baseResult.paidTopKeywords = topPaidKeywords;
-            // Fix metrics if overview missed them
-            if (!baseResult.paidKeywordsTotal) {
-              baseResult.paidKeywordsTotal = pkTask.result[0]?.total_count ?? topPaidKeywords.length;
-              baseResult.isInvestingPaid = true;
-              const totalPaidEtv = topPaidKeywords.reduce((s, k) => s + (k.etv || 0), 0);
-              if (!baseResult.paidTrafficEstimate && totalPaidEtv > 0) {
-                baseResult.paidTrafficEstimate = totalPaidEtv;
-              }
-              _logParts.push(`paid:fix(${baseResult.paidKeywordsTotal}kw)`);
-            }
-          }
-        }
-      }
-    } catch { /* non-fatal */ }
-
-    // ── Tier 3b: SERP fallback for paid detection ──
-    // If still no paid data, do a quick brand SERP check to see live ads
+    // ── Tier 3: Paid detection via Google Ads keyword data ──────
+    // DataForSEO Labs paid data is often empty (their SERP scraper doesn't capture ads
+    // reliably). Instead, use Google Ads keyword_data to detect paid activity via CPC
+    // and competition level for brand + top organic keywords.
     if (!baseResult.isInvestingPaid) {
       try {
         const brandKw = domain.replace(/\.[a-z]{2,6}$/i, '').replace(/[-_.]/g, ' ');
-        const serpRes = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
-          method: 'POST',
-          signal: controller.signal,
-          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-          body: JSON.stringify([{
-            keyword: brandKw,
-            location_code: 2724,
-            language_code: 'es',
-            depth: 10,
-          }]),
-        });
-        if (serpRes.ok) {
-          const serpData = await serpRes.json();
-          const serpItems: any[] = serpData?.tasks?.[0]?.result?.[0]?.items || [];
-          const paidItems = serpItems.filter((it: any) =>
-            it.type === 'paid' && (it.domain || '').includes(domain)
-          );
-          if (paidItems.length > 0) {
-            baseResult.isInvestingPaid = true;
-            baseResult.paidKeywordsTotal = baseResult.paidKeywordsTotal || 1; // at least 1
-            _logParts.push('paid:serp-detected');
+        const topOrgKw = (baseResult as any).topKeywords?.slice(0, 3)?.map((k: any) => k.keyword) || [];
+        const checkKeywords = [brandKw, ...topOrgKw].filter(Boolean).slice(0, 5);
+
+        if (checkKeywords.length > 0) {
+          const adsRes = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+            body: JSON.stringify([{
+              keywords: checkKeywords,
+              location_code: 2724,
+              language_code: 'es',
+            }]),
+          });
+
+          if (adsRes.ok) {
+            const adsData = await adsRes.json();
+            const kwResults: any[] = adsData?.tasks?.[0]?.result || [];
+            // Brand keyword competition level
+            const brandResult = kwResults.find((kw: any) =>
+              kw.keyword?.toLowerCase() === brandKw.toLowerCase()
+            );
+            const brandCompetition = brandResult?.competition || 'UNSPECIFIED';
+            const brandCpc = brandResult?.cpc ?? 0;
+
+            // Detect paid: brand kw has HIGH/MEDIUM competition AND CPC > 0
+            if ((brandCompetition === 'HIGH' || brandCompetition === 'MEDIUM') && brandCpc > 0) {
+              baseResult.isInvestingPaid = true;
+              baseResult.paidDetectionMethod = 'google_ads_competition';
+              _logParts.push(`paid:cpc(${brandKw}=${brandCpc}€,${brandCompetition})`);
+            }
+
+            // Store CPC data for top keywords (useful for report)
+            const paidKwData = kwResults
+              .filter((kw: any) => kw.cpc > 0 && kw.competition !== 'UNSPECIFIED')
+              .map((kw: any) => ({
+                keyword: kw.keyword,
+                volume: kw.search_volume ?? 0,
+                cpc: kw.cpc,
+                competition: kw.competition,
+              }));
+            if (paidKwData.length > 0) {
+              baseResult.paidTopKeywords = paidKwData;
+            }
           }
         }
-      } catch { /* non-fatal */ }
+      } catch { _logParts.push('paid:cpc-except'); }
     }
 
     // ── Historical organic trend (12 months) ────────────────────────
