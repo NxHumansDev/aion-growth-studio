@@ -1,7 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { createAuditPage } from '../../../lib/audit/notion';
+import { createAuditPage } from '../../../lib/audit/supabase-storage';
 import { validateApiKey } from '../../../lib/api-auth';
 
 const PLATFORM_EMAIL = 'platform-internal@aiongrowth.com';
@@ -61,8 +61,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    if (!import.meta.env.NOTION_AUDITS_DB_ID && !process.env.NOTION_AUDITS_DB_ID) {
-      console.error('NOTION_AUDITS_DB_ID is not configured');
+    if (!import.meta.env.SUPABASE_URL && !process.env.SUPABASE_URL) {
+      console.error('SUPABASE_URL is not configured');
       return new Response(JSON.stringify({ error: 'Audit service not configured' }), {
         status: 503,
         headers: { 'Content-Type': 'application/json' },

@@ -317,6 +317,13 @@ export async function runSEO(url: string): Promise<SEOResult> {
       const mid = Math.ceil(domainBase.length * 0.5);
       brandTerms.push(domainBase.slice(0, mid));
       if (domainBase.length - mid >= 4) brandTerms.push(domainBase.slice(mid));
+      // Also add a shorter prefix for broader API matching — catches rearranged
+      // brand keywords (e.g. "inmobiliarias comillas" for "comillasinmobiliaria")
+      const prefixLen = Math.min(7, mid);
+      if (prefixLen >= 4) {
+        const prefix = domainBase.slice(0, prefixLen);
+        if (!brandTerms.includes(prefix)) brandTerms.push(prefix);
+      }
     }
 
     // For API filter, use the SHORTEST distinctive term (≥4 chars) to catch
@@ -372,8 +379,15 @@ export async function runSEO(url: string): Promise<SEOResult> {
             const kw = (it.keyword_data?.keyword || '').toLowerCase();
             // Match: full compound OR 2+ brand parts present in the keyword
             const matchCount = brandTerms.filter(t => kw.includes(t)).length;
+            // Reverse check: ≥2 significant keyword words have stems in the domain
+            const kwWords = kw.split(/\s+/).filter(w => w.length >= 5);
+            const reverseMatch = kwWords.length >= 2 &&
+              kwWords.filter(w => {
+                const stem = w.slice(0, Math.max(5, Math.min(w.length - 1, 8)));
+                return domainBase.includes(stem);
+              }).length >= 2;
             const isBrand = kw.includes(domainBase) || matchCount >= 2 ||
-              (brandTerms.length === 1 && matchCount >= 1);
+              (brandTerms.length === 1 && matchCount >= 1) || reverseMatch;
             if (isBrand) {
               brandEtv += it.ranked_serp_element?.serp_item?.etv ?? 0;
               brandKwCount++;
@@ -401,17 +415,39 @@ export async function runSEO(url: string): Promise<SEOResult> {
         }
       }
 
-      // Sitemap URL count
+      // Sitemap URL count — follow sitemap index if needed
       if (sitemapRes && sitemapRes.ok) {
         const sitemapText = await sitemapRes.text();
-        // Count <url> or <loc> tags
-        const locCount = (sitemapText.match(/<loc>/gi) || []).length;
-        if (locCount > 0) {
-          baseResult.sitemapPages = locCount;
-          if (baseResult.indexedPages != null) {
-            baseResult.indexationRatio = Math.min(100, Math.round((baseResult.indexedPages / locCount) * 100));
+        let totalLocCount = 0;
+        const isSitemapIndex = /<sitemapindex[\s>]/i.test(sitemapText);
+
+        if (isSitemapIndex) {
+          // Extract sub-sitemap URLs (limit to 5 to avoid excessive fetches)
+          const subUrls = (sitemapText.match(/<loc>\s*(https?:\/\/[^<]+)\s*<\/loc>/gi) || [])
+            .map(m => m.replace(/<\/?loc>/gi, '').trim())
+            .slice(0, 5);
+          const subResults = await Promise.allSettled(
+            subUrls.map(u => fetch(u, {
+              signal: AbortSignal.timeout(8000),
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+            }).then(r => r.ok ? r.text() : ''))
+          );
+          for (const r of subResults) {
+            if (r.status === 'fulfilled' && r.value) {
+              totalLocCount += (r.value.match(/<loc>/gi) || []).length;
+            }
           }
-          _logParts.push(`sitemap:${locCount} ratio:${baseResult.indexationRatio ?? '?'}%`);
+          _logParts.push(`sitemap:index(${subUrls.length}subs)`);
+        } else {
+          totalLocCount = (sitemapText.match(/<loc>/gi) || []).length;
+        }
+
+        if (totalLocCount > 0) {
+          baseResult.sitemapPages = totalLocCount;
+          if (baseResult.indexedPages != null) {
+            baseResult.indexationRatio = Math.min(100, Math.round((baseResult.indexedPages / totalLocCount) * 100));
+          }
+          _logParts.push(`sitemap:${totalLocCount} ratio:${baseResult.indexationRatio ?? '?'}%`);
         }
       }
     } catch { _logParts.push('brand/index:except'); }

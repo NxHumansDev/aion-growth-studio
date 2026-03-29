@@ -542,7 +542,7 @@ export interface ReputationResult extends ModuleResult {
 }
 
 export interface AuditPageData {
-  notionPageId: string;
+  id: string;
   url: string;
   email: string;
   status: AuditStatus;

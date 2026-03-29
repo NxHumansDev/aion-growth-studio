@@ -1,6 +1,6 @@
 ---
 export const prerender = false;
-import { getAuditPage } from '../../../../lib/audit/notion';
+import { getAuditPage } from '../../../../lib/audit/supabase-storage';
 import { computeHealthScore, scoreColor, scoreLabel, scoreEmoji } from '../../../../lib/audit/report/health-score';
 import {
   diagnosisHealthSummary, diagnosisSEO, diagnosisGEO, diagnosisTrafficMix,
@@ -359,34 +359,8 @@ const fallbackQuickWins: QuickWin[] = [
 const displayQuickWins: QuickWin[] = quickWins.length>0
   ? quickWins.map((w: string) => ({ title: w, problem: '', impact: 'medio' as const }))
   : fallbackQuickWins.slice(0,4);
-// Build data-driven strategic initiatives when LLM fails
-const fallbackStrategic = [
-  // Initiative 1: based on biggest gap
-  seo && (seo.keywordsPos4to10 ?? 0) > 0
-    ? { title: `Optimizar las ${fmt(seo.keywordsPos4to10)} keywords en posición 4-10`, description: `Tenéis ${fmt(seo.keywordsPos4to10)} keywords a un paso del top 3 de Google. Mejorar el contenido de esas páginas (más profundidad, mejor estructura, datos actualizados) puede multiplicar el tráfico orgánico sin crear contenido nuevo. Resultado esperado: +30-50% de tráfico orgánico en 3-4 meses.` }
-    : { title: 'Construir base de posicionamiento orgánico', description: `Con ${fmt(seo?.keywordsTop10 ?? 0)} keywords en top 10 y ${fmt(seo?.organicTrafficEstimate ?? 0)} visitas/mes, hay que crear contenido optimizado para las búsquedas clave del sector ${sector || ''} para empezar a captar demanda orgánica.` },
-  // Initiative 2: based on GEO data
-  geo && (geo.mentionRate ?? 0) < 50
-    ? { title: `Aumentar visibilidad en IA del ${geo.mentionRate ?? 0}% al 50%+`, description: `Vuestra marca aparece en solo el ${geo.mentionRate ?? 0}% de las consultas que los usuarios hacen a ChatGPT y Perplexity sobre ${sector || 'vuestro sector'}. Publicar contenido de autoridad (guías, FAQs, comparativas) que la IA pueda usar como fuente es la palanca para aparecer en estas respuestas. Resultado: incremento progresivo de visibilidad en IA en 3-6 meses.` }
-    : geo
-    ? { title: 'Consolidar liderazgo en IA generativa', description: `Con un ${geo.mentionRate ?? 0}% de mención en IA, estáis bien posicionados. El objetivo es mantener y expandir: crear contenido que responda nuevas consultas del sector antes que la competencia.` }
-    : { title: 'Prepararse para la búsqueda por IA', description: 'Los motores de IA (ChatGPT, Perplexity, Gemini) están reemplazando búsquedas tradicionales. Crear contenido estructurado y autoritativo posiciona la marca para este canal emergente.' },
-  // Initiative 3: based on conversion/web
-  cv && (cv.funnelScore ?? 0) < 50
-    ? { title: `Mejorar el funnel de conversión (ahora ${cv.funnelScore}/100)`, description: `La web ${!cv.hasContactForm ? 'no tiene formulario de contacto visible' : !cv.hasCTA ? 'carece de CTAs claros' : 'tiene elementos básicos pero le falta optimización'}. ${isB2B ? 'Para un negocio B2B, un formulario de solicitud de demo o consultoría con 3-5 campos es la acción de mayor impacto.' : 'Añadir prueba social visible, CTAs en cada página de producto y un proceso de compra más fluido puede aumentar la conversión un 20-40%.'} Resultado: más leads/ventas sin aumentar el tráfico.` }
-    : { title: 'Optimizar la experiencia de conversión', description: `Con un funnel score de ${cv?.funnelScore ?? '—'}/100, hay base. El siguiente paso es A/B testing de CTAs, personalización por segmento y optimización del formulario de captación para maximizar la tasa de conversión.` },
-  // Initiative 4: based on competitive position or tech stack
-  hasCompetitorData && ctItems.length > 0
-    ? (() => {
-        const avgTraffic = Math.round(ctItems.reduce((s: number, c: any) => s + (c.organicTrafficEstimate || 0), 0) / ctItems.length);
-        const leader = ctItems.sort((a: any, b: any) => (b.organicTrafficEstimate || 0) - (a.organicTrafficEstimate || 0))[0];
-        return { title: `Cerrar la brecha con ${leader?.name || 'el líder del sector'}`, description: `${leader?.name || 'El competidor principal'} genera ${fmt(leader?.organicTrafficEstimate ?? 0)} visitas orgánicas/mes frente a vuestras ${fmt(seo?.organicTrafficEstimate ?? 0)}. Analizar su estrategia de contenido, las keywords donde posiciona y vosotros no, y crear contenido mejor es la forma de capturar parte de ese tráfico. Resultado: acercaros a la media del sector (${fmt(avgTraffic)} vis/mes) en 6-12 meses.` };
-      })()
-    : ts && (ts.maturityScore ?? 0) < 50
-    ? { title: `Completar el stack de medición (${ts.maturityScore}/100)`, description: `${!ts.analytics?.length ? 'Sin analytics instalado no podéis medir nada.' : ''} ${!ts.tagManager?.length ? 'Sin Tag Manager, cada cambio de tracking requiere código.' : ''} ${!ts.conversionPixels?.length ? 'Sin píxeles de conversión, no podéis hacer remarketing ni medir ROI de campañas.' : ''} Implementar GA4 + GTM + píxeles de Meta/Google Ads es la base mínima para tomar decisiones de marketing basadas en datos.` }
-    : { title: 'Invertir en contenido de autoridad', description: `Publicar 2-4 artículos de fondo al mes sobre temas clave del sector ${sector || ''} — guías, casos de éxito, análisis comparativos. Este contenido alimenta el SEO, la visibilidad en IA y la autoridad de marca simultáneamente.` },
-].filter(Boolean);
-const displayStrategic = strategicActions.length > 0 ? strategicActions : fallbackStrategic.slice(0, 4);
+// Strategic initiatives: only LLM-generated, no hardcoded fallback
+const displayStrategic = strategicActions.length > 0 ? strategicActions.slice(0, 3) : [];
 
 // GEO cross-model
 const crossModel: any[] = geo?.crossModel||[];
@@ -1412,6 +1386,26 @@ const donutSVG = buildDonutSVG();
                   (STAGE_ORDER[a.stage] ?? 3) - (STAGE_ORDER[b.stage] ?? 3)
                 );
                 const mentionedCount = sorted.filter((q: any) => q.mentioned).length;
+                // Normalize engine data: support both full {name,mentioned} and compact {n,m}
+                const EXPAND = { G: 'ChatGPT', P: 'Perplexity', C: 'Claude' } as any;
+                for (const q of sorted) {
+                  if (Array.isArray(q.engines)) {
+                    q.engines = q.engines.map((e: any) => ({
+                      name: e.name || EXPAND[e.n] || e.n || '?',
+                      mentioned: e.mentioned ?? (e.m === 1 || e.m === true),
+                    }));
+                  }
+                }
+                // Detect which engines are present across all queries
+                const engineNames: string[] = [];
+                for (const q of sorted) {
+                  if (q.engines) {
+                    for (const e of q.engines) {
+                      if (!engineNames.includes(e.name)) engineNames.push(e.name);
+                    }
+                  }
+                }
+                const hasEngines = engineNames.length > 0;
                 return (
                   <div style="margin-bottom:14px;overflow-x:auto;">
                     <div style="font-size:0.75rem;font-weight:600;color:#5A6478;margin-bottom:8px;">
@@ -1422,8 +1416,12 @@ const donutSVG = buildDonutSVG();
                       <thead>
                         <tr>
                           <th style="width:60px;">Etapa</th>
-                          <th>Consulta realizada a ChatGPT / Perplexity / Claude</th>
-                          <th style="text-align:center;width:70px;">Mención</th>
+                          <th>Consulta</th>
+                          {hasEngines ? engineNames.map((en) => (
+                            <th style="text-align:center;width:55px;font-size:0.6rem;padding:6px 2px;">{en}</th>
+                          )) : (
+                            <th style="text-align:center;width:70px;">Mención</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -1435,11 +1433,23 @@ const donutSVG = buildDonutSVG();
                               </span>
                             </td>
                             <td style="font-size:11px;">{q.query}</td>
-                            <td style="text-align:center;">
-                              <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
-                                {q.mentioned ? '✓' : '✗'}
-                              </span>
-                            </td>
+                            {hasEngines ? engineNames.map((en) => {
+                              const eng = q.engines?.find((e: any) => e.name === en);
+                              const m = eng?.mentioned ?? false;
+                              return (
+                                <td style="text-align:center;">
+                                  <span style={`display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${m?'#E1F5EE':'#FCEBEB'};font-size:11px;color:${m?'#27500A':'#A32D2D'};font-weight:700;`}>
+                                    {m ? '✓' : '✗'}
+                                  </span>
+                                </td>
+                              );
+                            }) : (
+                              <td style="text-align:center;">
+                                <span style={`display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${q.mentioned?'#E1F5EE':'#FCEBEB'};font-size:12px;color:${q.mentioned?'#27500A':'#A32D2D'};font-weight:700;`}>
+                                  {q.mentioned ? '✓' : '✗'}
+                                </span>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

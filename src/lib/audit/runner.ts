@@ -25,8 +25,7 @@ import { runCompetitorPageSpeed } from './modules/competitor-pagespeed';
 import { NEXT_STEP } from './types';
 import type { AuditStep, AuditStepOrDone, ModuleResult, AuditPageData, CrawlResult } from './types';
 
-const APPS_SCRIPT_SOCIAL_WEBHOOK =
-  import.meta.env?.APPS_SCRIPT_SOCIAL_WEBHOOK || process.env.APPS_SCRIPT_SOCIAL_WEBHOOK;
+// APPS_SCRIPT_SOCIAL_WEBHOOK removed — social modules fetch directly in Phase 3
 
 // ── Phase definitions ─────────────────────────────────────────────
 // 4 phases: crawl runs alone, then 3 parallel phases, then synthesis (sequential).
@@ -77,19 +76,9 @@ const DEFAULT_TIMEOUT = 15_000;
 
 // ── Social prefetch ───────────────────────────────────────────────
 
-function triggerSocialPrefetch(pageId: string, crawl: CrawlResult): void {
-  if (!APPS_SCRIPT_SOCIAL_WEBHOOK) return;
-  if (!crawl.instagramHandle && !crawl.linkedinUrl) return;
-
-  fetch(APPS_SCRIPT_SOCIAL_WEBHOOK, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      pageId,
-      instagramHandle: crawl.instagramHandle || null,
-      linkedinUrl: crawl.linkedinUrl || null,
-    }),
-  }).catch(() => { /* intentionally ignored */ });
+// Social prefetch was a Notion-era optimization — modules fetch directly in Phase 3
+function triggerSocialPrefetch(_auditId: string, _crawl: CrawlResult): void {
+  // no-op: instagram/linkedin modules handle their own fetching
 }
 
 // ── Step execution ────────────────────────────────────────────────
@@ -312,7 +301,7 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
         console.log(`[audit] Domain redirected: ${audit.url} → ${crawlResult.finalUrl} — updating for downstream modules`);
         audit.url = crawlResult.finalUrl;
       }
-      triggerSocialPrefetch(audit.notionPageId, crawlResult);
+      triggerSocialPrefetch(audit.id, crawlResult);
     }
 
     // QA: if correctedInsights provided, update insights in results for downstream use

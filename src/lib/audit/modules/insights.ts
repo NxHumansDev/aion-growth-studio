@@ -354,7 +354,14 @@ C3. SECTOR-AWARE — OBLIGATORIO: Las recomendaciones DEBEN adaptarse al tipo de
   - Ecommerce: SÍ formulario, carrito, chat de soporte, valoraciones de producto.
   - Servicios B2B: prioriza credibilidad, casos de éxito, solicitar presupuesto / agendar llamada.
 
-C4. ACCIONES, NO DIAGNÓSTICOS: Los títulos de iniciativas deben ser verbos imperativos orientados a resultado. MAL: "Tu presencia digital obtiene un 57/100". BIEN: "Optimizar 37 keywords en posición 4–10 para doblar el tráfico".
+C4. INICIATIVAS = LAS 3 ACCIONES DE MAYOR IMPACTO PARA ESTE NEGOCIO CONCRETO:
+  - NO son una por temática (SEO, GEO, conversión). Son las 3 que MÁS moverían la aguja para ESTA empresa.
+  - Si el mayor problema es la velocidad web → la primera iniciativa es velocidad, aunque ya haya una de SEO.
+  - Si la empresa tiene 0 presencia orgánica → las 3 pueden ser de SEO. No repartas por categoría.
+  - PRIORIZA por impacto de negocio: ¿qué acción generaría más ingresos/leads en menos tiempo?
+  - Cada título es un verbo imperativo + resultado. MAL: "Tu presencia digital obtiene un 57/100". BIEN: "Optimizar 37 keywords en posición 4–10 para doblar el tráfico".
+  - Cada descripción: problema con dato → qué hacer concretamente → resultado esperado con timeline.
+  - ADAPTA al sector y al tamaño: un ecommerce necesita conversión, un despacho de abogados necesita credibilidad, un hotel necesita reviews.
 
 C5. KEYWORDS GAP HONESTO: Si keyword_gap tiene 0 items o está vacío, NO recomiendes "atacar el gap de keywords". Recomenda en su lugar optimizar las keywords en posición 4-10 o crear contenido nuevo.
 
@@ -428,11 +435,17 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin texto fuera d
   ],
   "initiatives": [
     {
-      "title": "Título de la iniciativa (máx. 6 palabras, orientado a resultado)",
-      "description": "2-3 frases. La primera señala el problema con el dato que lo demuestra. La segunda explica qué harías. La tercera proyecta el resultado esperado en términos de negocio (leads, visibilidad, clientes)."
+      "title": "La acción #1 de mayor impacto para ESTE negocio (verbo + resultado)",
+      "description": "2-3 frases: dato que demuestra el problema → qué hacer concretamente → resultado esperado con timeline"
     },
-    { "title": "...", "description": "..." },
-    { "title": "...", "description": "..." }
+    {
+      "title": "Acción #2 por prioridad de impacto",
+      "description": "..."
+    },
+    {
+      "title": "Acción #3 por prioridad de impacto",
+      "description": "..."
+    }
   ]
 }`;
 }

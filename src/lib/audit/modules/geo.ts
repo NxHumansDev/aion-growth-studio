@@ -484,6 +484,7 @@ export async function runGEO(
       stage: r.spec.stage,
       category: r.spec.category,
       isBrandQuery: r.spec.isBrandQuery,
+      engines: r.engineOutputs.map((e) => ({ name: e.engineName, mentioned: e.mentioned })),
     }));
 
     const total        = queries.length;

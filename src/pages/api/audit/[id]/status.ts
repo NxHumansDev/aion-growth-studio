@@ -1,7 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { getAuditPage, saveModuleResult, savePhaseResults, markAuditError } from '../../../../lib/audit/notion';
+import { getAuditPage, saveModuleResult, savePhaseResults, markAuditError } from '../../../../lib/audit/supabase-storage';
 import { executeStep, executePhase, PHASE_ENTRY_STEPS } from '../../../../lib/audit/runner';
 import { evaluateCoverage } from '../../../../lib/audit/coverage';
 import { logAuditRun } from '../../../../lib/audit/audit-logger';

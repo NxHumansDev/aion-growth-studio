@@ -6,7 +6,7 @@ export async function runAuditForQA(domain: string): Promise<Record<string, any>
   const url = domain.startsWith('http') ? domain : `https://${domain}`;
 
   const audit: AuditPageData = {
-    notionPageId: `qa-${Date.now()}`,
+    id: `qa-${Date.now()}`,
     url,
     email: 'qa@aiongrowth.studio',
     status: 'processing',
@@ -56,7 +56,7 @@ export async function runAuditForQA(domain: string): Promise<Record<string, any>
 
   // Log to Supabase
   const { logAuditRun } = await import('../audit/audit-logger');
-  await logAuditRun(domain, audit.notionPageId, audit.results, Date.now()).catch(() => {});
+  await logAuditRun(domain, audit.id, audit.results, Date.now()).catch(() => {});
 
   return audit.results;
 }

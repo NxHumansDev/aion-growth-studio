@@ -1,3 +1,4 @@
+// @deprecated — Replaced by supabase-storage.ts. Kept for reference / reading old Notion audits.
 import { Client } from '@notionhq/client';
 import type { AuditStatus, AuditStepOrDone, ModuleResult, AuditPageData } from './types';
 
@@ -108,7 +109,7 @@ export async function getAuditPage(pageId: string): Promise<AuditPageData> {
     }
   }
 
-  return { notionPageId: pageId, url, email, status, currentStep, score, sector, userInstagram, userLinkedin, userCompetitors, results };
+  return { id: pageId, url, email, status, currentStep, score, sector, userInstagram, userLinkedin, userCompetitors, results };
 }
 
 export async function saveModuleResult(
@@ -328,6 +329,16 @@ function truncateGeo(data: any): any {
     result.competitorMentions = result.competitorMentions.slice(0, 3).map((c: any) => ({
       name: c.name, domain: c.domain, mentions: c.mentions, total: c.total, mentionRate: c.mentionRate,
     }));
+  }
+
+  // Compact per-query engines: shorten names to save chars (ChatGPT→G, Perplexity→P, Claude→C)
+  if (Array.isArray(result.queries)) {
+    const SHORT: Record<string, string> = { ChatGPT: 'G', Perplexity: 'P', Claude: 'C' };
+    for (const q of result.queries) {
+      if (Array.isArray(q.engines)) {
+        q.engines = q.engines.map((e: any) => ({ n: SHORT[e.name] || e.name.slice(0, 2), m: e.mentioned ? 1 : 0 }));
+      }
+    }
   }
 
   return result;
