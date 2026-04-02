@@ -1067,7 +1067,7 @@ const donutSVG = buildDonutSVG();
       <!-- TOP BAR -->
       <div class="top-bar no-print">
         <div class="top-bar-left">
-          <img src="/images/aion-logo-transparent.png" height="28" alt="AION" style="height:28px;opacity:0.8;" />
+          <img src="/images/aion-logo-dark.png" height="28" alt="AION" style="height:28px;" />
           <span style="width:1px;height:18px;background:rgba(141,144,155,0.2);display:inline-block;"></span>
           <span class="top-bar-title">{domain}</span>
         </div>
@@ -1392,20 +1392,10 @@ const donutSVG = buildDonutSVG();
             </div>
           )}
         </div><!-- END #seo overview -->
-        </div><!-- END carousel-page #seo overview -->
 
-        <!-- ================================================================
-             Page 3 (mobile) - #seo-detail - SEO Detail (keywords, tables)
-        ================================================================ -->
-        <div class="carousel-page" id="seo-detail-page">
-
-          <!-- SEO metrics -->
+          <!-- SEO metrics (same slide, scrollable) -->
           {seo ? (
             <div>
-              <div class="mobile-only" style="margin-bottom:16px;">
-                <div class="section-label">Visibilidad Digital</div>
-                <h2 class="section-title" style="font-size:1.4rem;">SEO Organico — Detalle</h2>
-              </div>
               <div class="grid-4" style="margin-bottom:1rem;">
                 <div class="metric-card-dark">
                   <div class="metric-value-lg" style="color:#aac7ff;">{fmt(seo.keywordsTop10)}</div>
@@ -1553,6 +1543,7 @@ const donutSVG = buildDonutSVG();
             <div class="callout callout-warning">No se han podido obtener datos de SEO organico para este dominio.</div>
           )}
         </div>
+        </div><!-- END carousel-page #seo (single slide with all SEO content) -->
 
         <div class="section-sep"></div>
 
@@ -2304,7 +2295,7 @@ const donutSVG = buildDonutSVG();
         <!-- ================================================================
              BLOCK 4 - #experiencia - Web, Velocidad & Conversion
         ================================================================ -->
-        <div class="carousel-page light-page">
+        <div class="carousel-page">
         <div id="experiencia" class="reveal" style="margin-bottom:2.5rem;">
           <div class="block-header">
             <div class="section-label">Web & Rendimiento</div>
