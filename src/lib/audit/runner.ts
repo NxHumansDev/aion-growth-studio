@@ -72,6 +72,7 @@ export const STEP_TIMEOUTS: Record<string, number> = {
   qa: 40_000,
   score: 10_000,
   competitors: 20_000,
+  competitor_pagespeed: 45_000,
 };
 const DEFAULT_TIMEOUT = 15_000;
 

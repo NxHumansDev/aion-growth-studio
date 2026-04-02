@@ -365,6 +365,9 @@ function detectBusinessType(
     if (links.some(l => /\/(cart|carrito|checkout|cesta|bag|basket)/.test(l))) scores.ecommerce += 3;
     if (/"@type"\s*:\s*"product"|"@type"\s*:\s*"offer"/.test(text)) scores.ecommerce += 3;
     if (/a\u00f1adir al carrito|add to cart|comprar ahora|buy now|agregar al carrito/.test(text)) scores.ecommerce += 3;
+    if (links.some(l => /\/(product|producto|shop|tienda|collections|colecciones)\//.test(l))) scores.ecommerce += 3;
+    if (/\d+[.,]\d{2}\s*€|€\s*\d+[.,]\d{2}|\$\s*\d+[.,]\d{2}/.test(text)) scores.ecommerce += 2;
+    if (/envío gratis|free shipping|gastos de envío|shipping/.test(text)) scores.ecommerce += 2;
 
     // ── SaaS ───────────────────────────────────────────────────────
     if (/free trial|prueba gratis|start for free|empieza gratis/.test(text)) scores.saas += 4;

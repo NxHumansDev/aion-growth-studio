@@ -87,8 +87,8 @@ export const NEXT_STEP: Record<AuditStep, AuditStepOrDone> = {
   techstack: 'conversion',
   conversion: 'score',
   score: 'insights',
-  insights: 'meta_ads',
-  meta_ads: 'google_shopping',
+  insights: 'qa',       // meta_ads & google_shopping already run in Phase 3 (parallel)
+  meta_ads: 'google_shopping',  // kept for reference but not reached in normal flow
   google_shopping: 'qa',
   qa: 'done',
 };

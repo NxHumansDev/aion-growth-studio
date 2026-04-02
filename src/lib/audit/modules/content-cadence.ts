@@ -3,9 +3,9 @@ import * as cheerio from 'cheerio';
 import type { ContentCadenceResult } from '../types';
 
 // Expanded blog path patterns
-const BLOG_PATH_RE = /\/(blog|noticias|news|post|posts|articles|articulos|actualidad|magazine|journal|recursos|insights|stories|publications|publicaciones|novedades|press|prensa)\//i;
+const BLOG_PATH_RE = /\/(blog|noticias|news|post|posts|articles|articulos|actualidad|magazine|journal|recursos|insights|stories|publications|publicaciones|novedades|press|prensa|beauty|tips|guide|guides|consejos|the-mag|revista|community|comunidad|learn|aprende)\//i;
 
-const BLOG_LINK_RE = /\/(blog|noticias|news|articulos|articles|actualidad|magazine|insights|recursos|stories|publicaciones|novedades|press|prensa)\/?$/i;
+const BLOG_LINK_RE = /\/(blog|noticias|news|articulos|articles|actualidad|magazine|insights|recursos|stories|publicaciones|novedades|press|prensa|beauty|tips|guide|guides|consejos|the-mag|revista|community|comunidad|learn|aprende|journal)\/?$/i;
 
 async function fetchSitemapXml(url: string): Promise<string | null> {
   const controller = new AbortController();
@@ -78,7 +78,7 @@ async function findBlogByCrawl(origin: string): Promise<{ blogUrl?: string; post
 
     // If no link found, try common paths directly
     if (!blogUrl) {
-      const commonPaths = ['/blog', '/noticias', '/news', '/articulos', '/insights', '/recursos', '/magazine', '/actualidad'];
+      const commonPaths = ['/blog', '/noticias', '/news', '/articulos', '/insights', '/recursos', '/magazine', '/actualidad', '/journal', '/the-mag', '/stories', '/beauty', '/tips', '/consejos', '/guides', '/community', '/learn'];
       for (const path of commonPaths) {
         try {
           const check = await axios.head(`${origin}${path}`, {

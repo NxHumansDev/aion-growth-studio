@@ -18,7 +18,7 @@ export async function runSeoPages(url: string): Promise<SeoPagesResult> {
 
   try {
     const res = await fetch(
-      'https://api.dataforseo.com/v3/dataforseo_labs/google/pages_for_site/live',
+      'https://api.dataforseo.com/v3/dataforseo_labs/google/relevant_pages/live',
       {
         method: 'POST',
         signal: controller.signal,
@@ -32,7 +32,7 @@ export async function runSeoPages(url: string): Promise<SeoPagesResult> {
             location_code: 2724,
             language_code: 'es',
             limit: 5,
-            order_by: [{ field: 'metrics.organic.etv', type: 'desc' }],
+            order_by: ['metrics.organic.etv,desc'],
           },
         ]),
       },

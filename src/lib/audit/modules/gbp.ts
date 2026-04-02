@@ -2,20 +2,36 @@ import type { GBPResult, CrawlResult } from '../types';
 
 const API_KEY = import.meta.env?.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 
+async function searchPlace(query: string): Promise<any | null> {
+  const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${API_KEY}`;
+  const res = await fetch(searchUrl);
+  const data = await res.json();
+  return data.results?.[0] || null;
+}
+
 export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult> {
   if (!API_KEY) {
     return { skipped: true, reason: 'GOOGLE_PLACES_API_KEY not configured' };
   }
 
   const domain = new URL(url).hostname.replace(/^www\./, '');
-  const searchName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
+  const titleName = crawl.title?.split(/[-|–—·:]/)[0]?.trim() || '';
 
   try {
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchName)}&key=${API_KEY}`;
-    const res = await fetch(searchUrl);
-    const data = await res.json();
+    // Strategy 1: Search by title name (most common)
+    let place = titleName ? await searchPlace(titleName) : null;
 
-    const place = data.results?.[0];
+    // Strategy 2: Search by domain name if title didn't work
+    if (!place) {
+      const domainName = domain.split('.')[0].replace(/-/g, ' ');
+      place = await searchPlace(domainName);
+    }
+
+    // Strategy 3: Search with "empresa" + domain for better context
+    if (!place && titleName) {
+      place = await searchPlace(`${titleName} empresa`);
+    }
+
     if (!place) {
       return { found: false };
     }

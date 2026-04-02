@@ -7,7 +7,7 @@ const ANTHROPIC_API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTH
 export async function runConversion(url: string, crawlData: CrawlResult): Promise<ConversionResult> {
   try {
     const res = await axios.get(url, {
-      timeout: 10000,
+      timeout: 15000,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
       maxRedirects: 5,
       validateStatus: (s) => s < 500,

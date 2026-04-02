@@ -30,7 +30,15 @@ export async function runLinkedIn(
   competitorUrls: string[] = [],
   userLinkedinUrl?: string,
 ): Promise<LinkedInResult> {
-  const linkedinUrl = userLinkedinUrl || crawlData.linkedinUrl;
+  let linkedinUrl = userLinkedinUrl || crawlData.linkedinUrl;
+
+  // Fallback: try to extract LinkedIn URL from the site directly
+  if (!linkedinUrl && crawlData.finalUrl) {
+    const extracted = await extractLinkedInFromSite(crawlData.finalUrl);
+    if (extracted) {
+      return { found: true, ...extracted };
+    }
+  }
 
   if (!linkedinUrl) {
     return { found: false, reason: 'No LinkedIn link found on the website' };

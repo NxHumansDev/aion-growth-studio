@@ -14,7 +14,7 @@ export interface ApiKeyValidation {
  * 5. Otherwise → rejected (valid: false)
  */
 export function validateApiKey(request: Request, body?: Record<string, any>): ApiKeyValidation {
-  const envKey = process.env.STUDIO_API_KEY;
+  const envKey = import.meta.env?.STUDIO_API_KEY || process.env.STUDIO_API_KEY;
 
   // Dev mode: key not configured → open access
   if (!envKey) {
@@ -48,12 +48,11 @@ export function mapResultsForPlatform(raw: Record<string, any>): Record<string, 
     score: {
       total: raw.score?.total,
       breakdown: {
-        technical: raw.score?.breakdown?.technical,
-        seo_visibility: raw.score?.breakdown?.seoVisibility,
-        content: raw.score?.breakdown?.content,
-        social_reputation: raw.score?.breakdown?.socialReputation,
+        seo: raw.score?.breakdown?.seo,
+        geo: raw.score?.breakdown?.geo,
+        web: raw.score?.breakdown?.web,
         conversion: raw.score?.breakdown?.conversion,
-        measurement: raw.score?.breakdown?.measurement,
+        reputation: raw.score?.breakdown?.reputation,
       },
     },
     seo: {

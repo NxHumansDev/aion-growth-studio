@@ -32,7 +32,12 @@ export async function runInstagram(
   competitorUrls: string[] = [],
   userHandle?: string,
 ): Promise<InstagramResult> {
-  const handle = userHandle || crawlData.instagramHandle;
+  let handle = userHandle || crawlData.instagramHandle;
+
+  // Fallback: try to extract handle from the site directly
+  if (!handle && crawlData.finalUrl) {
+    handle = await extractHandleFromSite(crawlData.finalUrl) || undefined;
+  }
 
   if (!handle) {
     return { found: false, reason: 'No Instagram account link found on the website' };

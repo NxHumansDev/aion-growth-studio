@@ -12,7 +12,7 @@ export async function runCompetitorPageSpeed(
   }
 
   const items = await Promise.all(
-    competitors.slice(0, 3).map(async (comp) => {
+    competitors.slice(0, 2).map(async (comp) => {
       try {
         const targetUrl = comp.url.startsWith('http') ? comp.url : `https://${comp.url}`;
         const apiUrl =

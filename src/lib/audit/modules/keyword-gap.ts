@@ -3,43 +3,6 @@ import type { KeywordGapResult, KeywordGapItem } from '../types';
 const DFS_LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
 const DFS_PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
-const BASE_URL = 'https://api.dataforseo.com/v3/dataforseo_labs/google/keywords_for_site/live';
-
-async function fetchKeywords(
-  domain: string,
-  auth: string,
-  limit: number,
-  signal: AbortSignal,
-): Promise<Array<{ keyword: string; position: number; searchVolume?: number }>> {
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-    body: JSON.stringify([
-      {
-        target: domain,
-        location_code: 2724,
-        language_code: 'es',
-        limit,
-        order_by: [{ field: 'keyword_data.keyword_info.search_volume', type: 'desc' }],
-        filters: [['ranked_serp_element.serp_item.rank_group', '<=', 30]],
-      },
-    ]),
-  });
-
-  if (!res.ok) return [];
-
-  const data = await res.json();
-  const items = data?.tasks?.[0]?.result?.[0]?.items;
-  if (!items?.length) return [];
-
-  return items.map((item: any) => ({
-    keyword: item.keyword_data?.keyword || '',
-    position: item.ranked_serp_element?.serp_item?.rank_group || 99,
-    searchVolume: item.keyword_data?.keyword_info?.search_volume || 0,
-  })).filter((k: any) => k.keyword);
-}
-
 export async function runKeywordGap(
   url: string,
   competitorUrl: string,
@@ -63,37 +26,93 @@ export async function runKeywordGap(
   const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const [ownKws, compKws] = await Promise.all([
-      fetchKeywords(ownDomain, auth, 50, controller.signal),
-      fetchKeywords(compDomain, auth, 100, controller.signal),
-    ]);
+    // Use domain_intersection: keywords competitor ranks for but we don't
+    const res = await fetch(
+      'https://api.dataforseo.com/v3/dataforseo_labs/google/domain_intersection/live',
+      {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+        body: JSON.stringify([
+          {
+            target1: compDomain,
+            target2: ownDomain,
+            intersection_mode: 'first_target_only',
+            location_code: 2724,
+            language_code: 'es',
+            limit: 15,
+            order_by: ['keyword_data.keyword_info.search_volume,desc'],
+          },
+        ]),
+      },
+    );
 
-    // Build set of own keywords (normalize to lowercase)
-    const ownSet = new Set(ownKws.map((k) => k.keyword.toLowerCase()));
-
-    // Find competitor keywords NOT in own set, where competitor ranks in top 10
-    const gapItems: KeywordGapItem[] = compKws
-      .filter((k) => !ownSet.has(k.keyword.toLowerCase()) && k.position <= 10)
-      .sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0))
-      .slice(0, 10)
-      .map((k) => ({
-        keyword: k.keyword,
-        searchVolume: k.searchVolume || undefined,
-        competitorPosition: k.position,
-      }));
-
-    if (gapItems.length === 0) {
-      return { skipped: true, reason: 'No se encontraron keywords gap con los datos disponibles' };
+    if (!res.ok) {
+      console.error(`[keyword-gap] API HTTP ${res.status}`);
+      // Fallback: try without location filter (global)
+      const resFallback = await fetch(
+        'https://api.dataforseo.com/v3/dataforseo_labs/google/domain_intersection/live',
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+          body: JSON.stringify([
+            {
+              target1: compDomain,
+              target2: ownDomain,
+              intersection_mode: 'first_target_only',
+              limit: 15,
+              order_by: ['keyword_data.keyword_info.search_volume,desc'],
+            },
+          ]),
+        },
+      );
+      if (!resFallback.ok) {
+        return { skipped: true, reason: `DataForSEO keyword gap API error: ${resFallback.status}` };
+      }
+      return processResponse(await resFallback.json(), compDomain);
     }
 
-    return {
-      competitor: compDomain,
-      items: gapItems,
-    };
+    return processResponse(await res.json(), compDomain);
   } catch (err: any) {
     const msg = err.name === 'AbortError' ? 'DataForSEO keyword gap timed out (30s)' : err.message?.slice(0, 100);
     return { skipped: true, reason: msg };
   } finally {
     clearTimeout(timer);
   }
+}
+
+function processResponse(data: any, compDomain: string): KeywordGapResult {
+  const task = data?.tasks?.[0];
+
+  if (task?.status_code !== 20000) {
+    const msg = task?.status_message || 'Unknown error';
+    console.error(`[keyword-gap] DFS error: ${msg}`);
+    return { skipped: true, reason: `DataForSEO: ${msg.slice(0, 100)}` };
+  }
+
+  const items = task?.result?.[0]?.items;
+  if (!items?.length) {
+    return { skipped: true, reason: 'No keyword gap opportunities found for this competitor pair' };
+  }
+
+  const gapItems: KeywordGapItem[] = items
+    .map((item: any) => ({
+      keyword: item.keyword_data?.keyword || '',
+      searchVolume: item.keyword_data?.keyword_info?.search_volume || undefined,
+      competitorPosition: item.first_target_serp_element?.serp_item?.rank_group || undefined,
+    }))
+    .filter((k: KeywordGapItem) => k.keyword && (k.competitorPosition == null || k.competitorPosition <= 20))
+    .slice(0, 10);
+
+  if (gapItems.length === 0) {
+    return { skipped: true, reason: 'No keyword gap opportunities after filtering' };
+  }
+
+  console.log(`[keyword-gap] Found ${gapItems.length} gap keywords vs ${compDomain}`);
+
+  return {
+    competitor: compDomain,
+    items: gapItems,
+  };
 }
