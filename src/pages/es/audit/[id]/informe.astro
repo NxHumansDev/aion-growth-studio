@@ -691,8 +691,16 @@ const donutSVG = buildDonutSVG();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Presencia Digital — {domain}</title>
+  <meta name="description" content={`Diagnóstico completo de presencia digital de ${domain}. Score: ${totalScore}/100. Análisis SEO, visibilidad IA, competidores y plan de acción.`} />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <meta name="robots" content="noindex,nofollow" />
+
+  <!-- Open Graph (for sharing audit links) -->
+  <meta property="og:title" content={`Informe de Presencia Digital — ${domain}`} />
+  <meta property="og:description" content={`Score: ${totalScore}/100. Diagnóstico completo de SEO, visibilidad IA, competidores y oportunidades de crecimiento.`} />
+  <meta property="og:image" content="/images/og-report.png" />
+  <meta property="og:type" content="article" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />

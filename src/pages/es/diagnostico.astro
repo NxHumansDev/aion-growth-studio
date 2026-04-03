@@ -373,6 +373,14 @@ const lang = 'es';
     });
   }
 
+  // Capture UTM params from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const utmData = {
+    utm_source: urlParams.get('utm_source') || undefined,
+    utm_medium: urlParams.get('utm_medium') || undefined,
+    utm_campaign: urlParams.get('utm_campaign') || undefined,
+  };
+
   // STEP 1: Validate URL + name + email → fetch competitors → show step 2
   document.getElementById('btn-step1')?.addEventListener('click', async () => {
     hideError('error-step1');
@@ -488,7 +496,7 @@ const lang = 'es';
       const res = await fetch('/api/audit/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: userData.url, email: userData.email, name: userData.name, selectedCompetitors: allCompetitors }),
+        body: JSON.stringify({ url: userData.url, email: userData.email, name: userData.name, selectedCompetitors: allCompetitors, ...utmData }),
       });
       const result = await res.json();
       if (res.ok && result.audit_id) {

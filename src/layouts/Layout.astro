@@ -5,13 +5,22 @@ interface Props {
   title: string;
   description?: string;
   lang?: 'es' | 'en';
+  ogImage?: string;
+  ogType?: string;
+  canonicalUrl?: string;
 }
 
 const {
   title,
   description = 'AION Growth Studio — Infraestructura de crecimiento con IA agentiva',
   lang = 'es',
+  ogImage = '/images/og-default.png',
+  ogType = 'website',
+  canonicalUrl,
 } = Astro.props;
+
+const fullUrl = canonicalUrl || Astro.url.href;
+const ogImageUrl = ogImage.startsWith('http') ? ogImage : `${Astro.url.origin}${ogImage}`;
 ---
 
 <!doctype html>
@@ -22,6 +31,23 @@ const {
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="generator" content={Astro.generator} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:url" content={fullUrl} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="AION Growth Studio" />
+    <meta property="og:locale" content={lang === 'es' ? 'es_ES' : 'en_US'} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

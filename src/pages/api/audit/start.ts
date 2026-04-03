@@ -83,7 +83,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     const auditId = await createAuditPage(normalizedUrl, email, opts);
 
-    // Save lead (non-blocking)
+    // Save lead with UTM data (non-blocking)
     saveLead({
       email,
       url: normalizedUrl,
@@ -92,6 +92,9 @@ export const POST: APIRoute = async ({ request }) => {
       audit_id: auditId,
       status: 'audit_started',
       source: auth.source === 'platform' ? 'api' : 'diagnostic',
+      utm_source: body.utm_source || undefined,
+      utm_medium: body.utm_medium || undefined,
+      utm_campaign: body.utm_campaign || undefined,
     }).catch(() => {});
 
     return new Response(JSON.stringify({ audit_id: auditId, status: 'processing', url: normalizedUrl }), {
