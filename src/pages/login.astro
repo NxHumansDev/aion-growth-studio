@@ -59,8 +59,27 @@ const error = Astro.url.searchParams.get('error');
       <div style="flex:1;height:1px;background:#c3c6ce;"></div>
     </div>
 
-    <!-- Form -->
-    <form method="POST" action="/api/auth/login" style="display:flex;flex-direction:column;gap:16px;background:white;padding:32px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <!-- Magic Link (primary) -->
+    <div id="magic-link-form" style="background:white;padding:32px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:16px;">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:#434750;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Email</label>
+        <input type="email" id="magic-email" placeholder="tu@empresa.com" required autocomplete="email" />
+      </div>
+      <button type="button" id="magic-btn" style="width:100%;padding:14px;border-radius:10px;background:#69ff87;color:#000e41;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+        Enviar enlace de acceso
+      </button>
+      <div id="magic-status" style="display:none;margin-top:12px;padding:12px;border-radius:8px;font-size:13px;text-align:center;"></div>
+    </div>
+
+    <!-- Password toggle -->
+    <div style="text-align:center;margin-bottom:16px;">
+      <button type="button" id="toggle-password" style="background:none;border:none;color:#9ca3af;font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline;">
+        Acceder con contraseña
+      </button>
+    </div>
+
+    <!-- Password form (hidden by default) -->
+    <form id="password-form" method="POST" action="/api/auth/login" style="display:none;flex-direction:column;gap:16px;background:white;padding:32px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
       <div>
         <label style="display:block;font-size:12px;font-weight:700;color:#434750;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Email</label>
         <input type="email" name="email" placeholder="tu@empresa.com" required autocomplete="email" />
@@ -71,6 +90,55 @@ const error = Astro.url.searchParams.get('error');
       </div>
       <button type="submit">Entrar →</button>
     </form>
+
+    <script>
+      const magicBtn = document.getElementById('magic-btn') as HTMLButtonElement;
+      const magicEmail = document.getElementById('magic-email') as HTMLInputElement;
+      const magicStatus = document.getElementById('magic-status') as HTMLDivElement;
+      const toggleBtn = document.getElementById('toggle-password') as HTMLButtonElement;
+      const passwordForm = document.getElementById('password-form') as HTMLFormElement;
+      const magicForm = document.getElementById('magic-link-form') as HTMLDivElement;
+
+      magicBtn.addEventListener('click', async () => {
+        const email = magicEmail.value.trim();
+        if (!email || !email.includes('@')) {
+          magicStatus.style.display = 'block';
+          magicStatus.style.background = '#ffdad6';
+          magicStatus.style.color = '#ba1a1a';
+          magicStatus.textContent = 'Introduce un email valido';
+          return;
+        }
+        magicBtn.disabled = true;
+        magicBtn.textContent = 'Enviando...';
+
+        const res = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        magicStatus.style.display = 'block';
+        if (res.ok) {
+          magicStatus.style.background = '#d4edda';
+          magicStatus.style.color = '#155724';
+          magicStatus.textContent = 'Enlace enviado a ' + email + '. Revisa tu bandeja de entrada.';
+          magicBtn.textContent = 'Enviado';
+        } else {
+          magicStatus.style.background = '#ffdad6';
+          magicStatus.style.color = '#ba1a1a';
+          magicStatus.textContent = 'Error al enviar. Intentalo de nuevo.';
+          magicBtn.disabled = false;
+          magicBtn.textContent = 'Enviar enlace de acceso';
+        }
+      });
+
+      toggleBtn.addEventListener('click', () => {
+        const showingPassword = passwordForm.style.display === 'flex';
+        passwordForm.style.display = showingPassword ? 'none' : 'flex';
+        magicForm.style.display = showingPassword ? 'block' : 'none';
+        toggleBtn.textContent = showingPassword ? 'Acceder con contraseña' : 'Acceder con magic link';
+      });
+    </script>
   </div>
 </body>
 </html>

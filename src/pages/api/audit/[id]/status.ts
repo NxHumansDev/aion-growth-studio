@@ -2,6 +2,7 @@ export const prerender = false;
 
 import type { APIRoute } from 'astro';
 import { getAuditPage, saveModuleResult, savePhaseResults, markAuditError } from '../../../../lib/audit/supabase-storage';
+import { updateLeadStatus } from '../../../../lib/db';
 import { executeStep, executePhase, PHASE_ENTRY_STEPS } from '../../../../lib/audit/runner';
 import { evaluateCoverage } from '../../../../lib/audit/coverage';
 import { logAuditRun } from '../../../../lib/audit/audit-logger';
@@ -146,6 +147,10 @@ export const GET: APIRoute = async ({ params, request }) => {
       console.log(`[audit:coverage] ${coverage.coveragePct}% (${coverage.successfulPoints}/${coverage.totalPoints}) | critical missing: ${coverage.criticalMissing.join(',') || 'none'}`);
       // Log to Supabase (non-blocking)
       logAuditRun(audit.url, id, finalResults, Date.now()).catch(() => {});
+      // Update lead status (non-blocking)
+      if (audit.email) {
+        updateLeadStatus(audit.email, audit.url, 'audit_completed', id).catch(() => {});
+      }
     }
 
     const progress = isCompleted

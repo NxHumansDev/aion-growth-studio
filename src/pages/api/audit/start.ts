@@ -3,6 +3,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { createAuditPage } from '../../../lib/audit/supabase-storage';
 import { validateApiKey } from '../../../lib/api-auth';
+import { saveLead } from '../../../lib/db';
 
 const PLATFORM_EMAIL = 'platform-internal@aiongrowth.com';
 
@@ -81,6 +82,17 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const auditId = await createAuditPage(normalizedUrl, email, opts);
+
+    // Save lead (non-blocking)
+    saveLead({
+      email,
+      url: normalizedUrl,
+      name: name || undefined,
+      company: company || undefined,
+      audit_id: auditId,
+      status: 'audit_started',
+      source: auth.source === 'platform' ? 'api' : 'diagnostic',
+    }).catch(() => {});
 
     return new Response(JSON.stringify({ audit_id: auditId, status: 'processing', url: normalizedUrl }), {
       status: 200,

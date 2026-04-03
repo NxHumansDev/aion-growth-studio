@@ -1,15 +1,17 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { Client } from '@notionhq/client';
+import { saveLead } from '../../lib/db';
 
-const notion = new Client({ auth: import.meta.env.NOTION_TOKEN });
-const databaseId = import.meta.env.NOTION_LEADS_DB_ID;
-
+/**
+ * POST /api/diagnostic-leads
+ * Saves a lead from the diagnostic page.
+ * Now writes to Supabase instead of Notion.
+ */
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const { email, company, name } = body;
+    const { email, company, name, url } = body;
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return new Response(JSON.stringify({ error: 'Email is required' }), {
@@ -18,33 +20,13 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    if (!databaseId) {
-      console.error('NOTION_LEADS_DB_ID is not configured');
-      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    await notion.pages.create({
-      parent: { database_id: databaseId },
-      properties: {
-        Email: {
-          title: [{ text: { content: email } }],
-        },
-        Company: {
-          rich_text: [{ text: { content: company || '' } }],
-        },
-        Name: {
-          rich_text: [{ text: { content: name || '' } }],
-        },
-        Source: {
-          select: { name: 'Diagnostic Page' },
-        },
-        Date: {
-          date: { start: new Date().toISOString().split('T')[0] },
-        },
-      },
+    await saveLead({
+      email,
+      url: url || '',
+      name: name || undefined,
+      company: company || undefined,
+      status: 'new',
+      source: 'diagnostic',
     });
 
     return new Response(JSON.stringify({ success: true }), {

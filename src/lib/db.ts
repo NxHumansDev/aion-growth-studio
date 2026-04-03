@@ -291,3 +291,38 @@ export function isOnboardingComplete(onboarding: ClientOnboarding | null): boole
   if (!onboarding) return false;
   return !!(onboarding.business_description && onboarding.primary_goal && onboarding.geo_scope);
 }
+
+// ─── Leads ────────────────────────────────────────────────────────────────────
+
+export interface Lead {
+  email: string;
+  url: string;
+  name?: string;
+  company?: string;
+  audit_id?: string;
+  status?: string;
+  source?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+}
+
+export async function saveLead(lead: Lead): Promise<void> {
+  if (IS_DEMO) return;
+  const sb = getSupabase();
+  const { error } = await sb
+    .from('leads')
+    .upsert({
+      ...lead,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'email,url' });
+  if (error) console.error('[leads] Save failed:', error.message);
+}
+
+export async function updateLeadStatus(email: string, url: string, status: string, auditId?: string): Promise<void> {
+  if (IS_DEMO) return;
+  const sb = getSupabase();
+  const update: Record<string, any> = { status, updated_at: new Date().toISOString() };
+  if (auditId) update.audit_id = auditId;
+  await sb.from('leads').update(update).eq('email', email).eq('url', url);
+}
