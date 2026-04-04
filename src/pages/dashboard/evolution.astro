@@ -3,14 +3,19 @@ export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import EvolutionLine from '../../components/charts/EvolutionLine.astro';
 import SparkLine from '../../components/dashboard/SparkLine.astro';
-import { getClient, getAllSnapshots, getContextEntries } from '../../lib/db';
+import { getClient, getAllSnapshots, getContextEntries, getAllRecommendations } from '../../lib/db';
+import { analyzeEvolution } from '../../lib/radar/diff-engine';
 import type { Tier } from '../../lib/demo-data';
 
 const client = Astro.locals.client ?? await getClient();
 const snapshots = await getAllSnapshots(client.id);
 const contextEntries = await getContextEntries(client.id);
+const allRecs = await getAllRecommendations(client.id);
 const tier: Tier = client.tier;
 const needsMoreData = snapshots.length < 2;
+
+// Diff engine: tendencias + correlaciones
+const diffResult = analyzeEvolution(snapshots, allRecs);
 
 // Build evolution data
 const chartData = snapshots.map(s => ({
@@ -39,7 +44,7 @@ const prev = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : undefined
 const lr = latest.pipeline_output || {};
 const pr = prev?.pipeline_output;
 
-interface SubScore { label: string; value: number | string; delta?: number; sparkValues: number[]; }
+interface SubScore { label: string; value: number | string; delta?: number; sparkValues: number[]; trend?: string; acceleration?: string; }
 const subScores: SubScore[] = [
   {
     label: 'SEO',
@@ -65,7 +70,10 @@ const subScores: SubScore[] = [
     delta: prev ? latest.score - prev.score : undefined,
     sparkValues: snapshots.map(s => s.score),
   },
-];
+].map(s => {
+  const timeline = diffResult.timelines.find(t => t.label === s.label);
+  return { ...s, trend: timeline?.trend, acceleration: timeline?.acceleration };
+});
 
 function fmtMonth(m: string): string {
   const [name, year] = m.split('-');
@@ -118,12 +126,69 @@ function deltaColor(d: number | null | undefined): string {
               </span>
             )}
           </div>
-          <div style="margin-top:12px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
             <SparkLine values={s.sparkValues} width={100} height={32} />
+            {s.trend && (
+              <span style={`font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:${s.trend === 'up' ? '#e1f5ee' : s.trend === 'down' ? '#fcebeb' : '#f0f0f0'};color:${s.trend === 'up' ? '#1D9E75' : s.trend === 'down' ? '#E24B4A' : '#888'};`}>
+                {s.trend === 'up' ? '↑' : s.trend === 'down' ? '↓' : '→'}
+                {s.acceleration === 'accelerating' ? '↑' : s.acceleration === 'decelerating' ? '↓' : ''}
+              </span>
+            )}
           </div>
         </div>
       ))}
     </section>
+
+    <!-- Correlaciones acciones ↔ KPIs -->
+    {diffResult.correlations.length > 0 && (
+      <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:8px;">Impacto de tus acciones</h2>
+        <p style="font-size:12px;color:#888;margin-bottom:20px;">Correlaciones detectadas entre acciones completadas y cambios en KPIs</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          {diffResult.correlations.map(c => (
+            <div style={`display:flex;align-items:flex-start;gap:12px;padding:16px;border-radius:10px;background:${c.correlationType === 'probable_cause' ? '#e1f5ee' : '#f7f9ff'};border-left:4px solid ${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};`}>
+              <span class="material-symbols-outlined" style={`font-size:20px;color:${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};flex-shrink:0;margin-top:2px;`}>
+                {c.correlationType === 'probable_cause' ? 'verified' : 'help'}
+              </span>
+              <div style="flex:1;">
+                <p style="font-size:14px;font-weight:600;color:#1A1A2E;margin:0 0 4px;">{c.explanation}</p>
+                <div style="display:flex;gap:16px;font-size:12px;color:#888;">
+                  <span>Antes: {c.deltaBefore}</span>
+                  <span>Después: {c.deltaAfter}</span>
+                  <span style={`color:${c.deltaAfter > c.deltaBefore ? '#1D9E75' : '#E24B4A'};font-weight:600;`}>
+                    {c.deltaAfter > c.deltaBefore ? '+' : ''}{c.deltaAfter - c.deltaBefore}
+                  </span>
+                </div>
+              </div>
+              <span style={`padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;flex-shrink:0;background:${c.correlationType === 'probable_cause' ? '#d4edda' : '#d6e3ff'};color:${c.correlationType === 'probable_cause' ? '#155724' : '#1A4B8C'};`}>
+                {c.correlationType === 'probable_cause' ? 'Correlación alta' : 'Posible'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Acciones completadas (timeline) -->
+    {diffResult.completedActions.length > 0 && (
+      <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:20px;">Acciones ejecutadas</h2>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          {diffResult.completedActions.map((a, i) => (
+            <div style={`display:flex;gap:16px;padding-bottom:${i < diffResult.completedActions.length - 1 ? '20px' : '0'};position:relative;`}>
+              <div style="display:flex;flex-direction:column;align-items:center;">
+                <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#1d9e75;"></div>
+                {i < diffResult.completedActions.length - 1 && <div style="width:2px;flex:1;background:#e1f5ee;margin-top:4px;"></div>}
+              </div>
+              <div style="flex:1;">
+                <p style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0 0 2px;">{a.title}</p>
+                <p style="font-size:12px;color:#94a3b8;margin:0;">{new Date(a.completedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
 
     <!-- Timeline of context entries -->
     {contextEntries.length > 0 && (

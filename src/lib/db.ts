@@ -404,6 +404,18 @@ export async function getActiveRecommendations(clientId: string): Promise<Recomm
   return data as Recommendation[];
 }
 
+export async function getAllRecommendations(clientId: string): Promise<Recommendation[]> {
+  if (IS_DEMO) return [];
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('recommendations_log')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data as Recommendation[];
+}
+
 export async function updateRecommendationStatus(
   recId: string,
   status: string,
