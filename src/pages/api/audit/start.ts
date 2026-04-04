@@ -35,7 +35,8 @@ export const POST: APIRoute = async ({ request }) => {
       email = body.email || PLATFORM_EMAIL;
     } else {
       // Public flow: email is required
-      if (!body.email || typeof body.email !== 'string' || !body.email.includes('@')) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!body.email || typeof body.email !== 'string' || !emailRegex.test(body.email.trim())) {
         return new Response(JSON.stringify({ error: 'Valid email is required' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },

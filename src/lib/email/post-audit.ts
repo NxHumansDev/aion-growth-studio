@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { isTestEmail } from './config';
 
 const RESEND_API_KEY = import.meta.env?.RESEND_API_KEY || process.env.RESEND_API_KEY;
 const SITE_URL = import.meta.env?.PUBLIC_SITE_URL || process.env.PUBLIC_SITE_URL || 'https://aiongrowth.studio';
@@ -136,6 +137,11 @@ function buildEmailHtml(data: PostAuditEmailData): string {
 export async function sendPostAuditEmail(data: PostAuditEmailData): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.log('[email:post-audit] RESEND_API_KEY not configured — skipping');
+    return false;
+  }
+
+  if (isTestEmail(data.to)) {
+    console.log(`[email:post-audit] Skipped (test email): ${data.to}`);
     return false;
   }
 

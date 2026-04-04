@@ -392,7 +392,8 @@ const lang = 'es';
     const isValidUrl = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
     if (!isValidUrl) return showError('error-step1', 'Introduce una URL válida (ej: ejemplo.com).');
     if (!name) return showError('error-step1', 'Introduce tu nombre.');
-    if (!email || !email.includes('@')) return showError('error-step1', 'Introduce un email válido.');
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email || !emailRegex.test(email)) return showError('error-step1', 'Introduce un email válido (ej: tu@empresa.com).');
 
     userData = { url, name, email };
     setBtn('btn-step1', 'Buscando competidores…', true);
