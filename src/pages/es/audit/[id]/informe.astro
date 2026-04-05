@@ -876,6 +876,37 @@ const donutSVG = buildDonutSVG();
       .report [style*="grid-template-columns: repeat"]{grid-template-columns:1fr 1fr!important}
       .report [style*="grid-template-columns:repeat"]{grid-template-columns:1fr 1fr!important}
 
+      /* Estado por Area: stack vertically on mobile */
+      #hero .surface-card:has([style*="flex-direction:column"]) > div > div{
+        flex-wrap:wrap!important;
+        gap:6px!important;
+        padding:10px!important;
+      }
+      /* Target area rows - make them vertical cards */
+      #hero .surface-card > div > div[style*="display:flex"][style*="align-items:center"][style*="gap:12px"]{
+        flex-wrap:wrap!important;
+        gap:4px 8px!important;
+        padding:10px 12px!important;
+      }
+      /* Area name takes full width, status below */
+      #hero .surface-card > div > div[style*="display:flex"][style*="align-items:center"][style*="gap:12px"] > span[style*="min-width:130px"]{
+        min-width:0!important;
+        width:auto!important;
+        font-size:0.78rem!important;
+      }
+      /* Summary takes full width */
+      #hero .surface-card > div > div[style*="display:flex"][style*="align-items:center"][style*="gap:12px"] > span[style*="flex:1"]{
+        width:100%!important;
+        flex:none!important;
+        font-size:0.72rem!important;
+        order:3;
+      }
+      /* Ver detalle aligned right */
+      #hero .surface-card > div > div[style*="display:flex"][style*="align-items:center"][style*="gap:12px"] > a{
+        margin-left:auto!important;
+        order:4;
+      }
+
       /* Hero: column layout, gauge centered */
       #hero .surface-card > div{flex-direction:column!important;align-items:center!important;text-align:center!important}
       #hero .surface-card > div > div{min-width:0!important;align-items:center!important}
