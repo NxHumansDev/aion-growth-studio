@@ -3,6 +3,47 @@ import * as cheerio from 'cheerio';
 import type { LinkedInResult, LinkedInCompetitor, CrawlResult } from '../types';
 
 const APIFY_TOKEN = import.meta.env?.APIFY_TOKEN || process.env.APIFY_TOKEN;
+const DFS_LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
+const DFS_PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
+
+/** Search Google for "site:linkedin.com/company {brand}" to find LinkedIn page */
+async function searchLinkedInUrl(crawl: CrawlResult): Promise<string | null> {
+  if (!DFS_LOGIN || !DFS_PASSWORD) return null;
+
+  const brand = crawl.title?.split(/[-|–—·:]/)[0]?.trim();
+  if (!brand || brand.length < 2) return null;
+
+  const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify([{
+        keyword: `site:linkedin.com/company ${brand}`,
+        location_code: 2724,
+        language_code: 'es',
+        depth: 5,
+      }]),
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.tasks?.[0]?.result?.[0]?.items || [];
+
+    for (const item of items) {
+      const url = item.url || '';
+      if (url.includes('linkedin.com/company/') || url.includes('linkedin.com/in/')) {
+        console.log(`[linkedin] Found via Google search: ${url} for "${brand}"`);
+        return url.split('?')[0];
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 // LinkedIn serves HTML to Googlebot — enough to extract og: meta tags
 const HEADERS = {
@@ -40,8 +81,13 @@ export async function runLinkedIn(
     }
   }
 
+  // Fallback 2: search Google for "site:linkedin.com/company {brand}"
   if (!linkedinUrl) {
-    return { found: false, reason: 'No LinkedIn link found on the website' };
+    linkedinUrl = await searchLinkedInUrl(crawlData) || undefined;
+  }
+
+  if (!linkedinUrl) {
+    return { found: false, reason: 'No LinkedIn page found via website or search' };
   }
 
   // Normalise to absolute URL

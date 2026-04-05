@@ -3,6 +3,50 @@ import * as cheerio from 'cheerio';
 import type { InstagramResult, InstagramCompetitor, CrawlResult } from '../types';
 
 const APIFY_TOKEN = import.meta.env?.APIFY_TOKEN || process.env.APIFY_TOKEN;
+const DFS_LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
+const DFS_PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
+
+const IG_BLACKLIST_HANDLES = ['explore', 'reels', 'stories', 'p', 'tv', 'share', 'reel', 'accounts', 'about', 'directory'];
+
+/** Search Google for "site:instagram.com {brand}" to find IG handle */
+async function searchInstagramHandle(crawl: CrawlResult): Promise<string | null> {
+  if (!DFS_LOGIN || !DFS_PASSWORD) return null;
+
+  const brand = crawl.title?.split(/[-|–—·:]/)[0]?.trim();
+  if (!brand || brand.length < 2) return null;
+
+  const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify([{
+        keyword: `site:instagram.com ${brand}`,
+        location_code: 2724,
+        language_code: 'es',
+        depth: 5,
+      }]),
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.tasks?.[0]?.result?.[0]?.items || [];
+
+    for (const item of items) {
+      const url = item.url || '';
+      const match = url.match(/instagram\.com\/([A-Za-z0-9_.]{3,30})\/?$/);
+      if (match && !IG_BLACKLIST_HANDLES.includes(match[1].toLowerCase())) {
+        console.log(`[instagram] Found via Google search: @${match[1]} for "${brand}"`);
+        return match[1];
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 // Instagram internal web API headers
 const IG_HEADERS = {
@@ -34,13 +78,18 @@ export async function runInstagram(
 ): Promise<InstagramResult> {
   let handle = userHandle || crawlData.instagramHandle;
 
-  // Fallback: try to extract handle from the site directly
+  // Fallback 1: try to extract handle from the site directly
   if (!handle && crawlData.finalUrl) {
     handle = await extractHandleFromSite(crawlData.finalUrl) || undefined;
   }
 
+  // Fallback 2: search Google for "site:instagram.com {brand}"
   if (!handle) {
-    return { found: false, reason: 'No Instagram account link found on the website' };
+    handle = await searchInstagramHandle(crawlData) || undefined;
+  }
+
+  if (!handle) {
+    return { found: false, reason: 'No Instagram account found via website or search' };
   }
 
   const profileData = await fetchProfile(handle);
