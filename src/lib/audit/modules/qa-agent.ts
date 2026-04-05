@@ -208,7 +208,7 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60_000);
+  const timer = setTimeout(() => controller.abort(), 45_000);
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
