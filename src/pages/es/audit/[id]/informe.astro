@@ -817,25 +817,30 @@ const donutSVG = buildDonutSVG();
         -webkit-overflow-scrolling:touch;
         scrollbar-width:none;
         padding:0!important;
+        margin:0!important;
         max-width:100vw!important;
+        width:100vw!important;
         gap:0;
       }
       .report::-webkit-scrollbar{display:none}
 
-      /* Each section becomes a carousel page */
+      /* Each section becomes a full-screen carousel page */
       .report > div[id]{
-        min-width:100vw;
-        width:100vw;
-        max-width:100vw;
+        min-width:100vw!important;
+        width:100vw!important;
+        max-width:100vw!important;
         scroll-snap-align:start;
-        padding:20px 16px 120px;
+        padding:20px 16px 120px!important;
         overflow-y:auto;
         overflow-x:hidden;
         max-height:calc(100vh - 52px);
-        margin-bottom:0!important;
+        margin:0!important;
         flex-shrink:0;
         box-sizing:border-box;
       }
+
+      /* Main content area full width */
+      .main-content{margin-left:0!important;width:100vw!important;max-width:100vw!important;overflow:hidden!important}
 
       /* Hide separators between sections */
       .report > .section-sep{display:none}
