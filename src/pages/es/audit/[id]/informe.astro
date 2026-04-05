@@ -200,12 +200,17 @@ const presentLower = schemaTypes.map((t: string) => t.toLowerCase());
 const missingSchemas = recommendedSchemas.filter(s => !presentLower.includes(s.toLowerCase()));
 
 // Keyword data
-const kwGapItems: any[] = (kwGap?.items || []).slice(0, 8).map((k: any) => ({
+// Keyword gap: only show if we have competitor positions AND keywords look relevant (≥2 words, volume > 100)
+const kwGapItemsRaw: any[] = (kwGap?.items || []).map((k: any) => ({
   keyword: k.keyword,
   volume: k.searchVolume || k.volume || 0,
   clientPosition: k.clientPosition || null,
   competitorPosition: k.competitorPosition || null,
 }));
+// Quality gate: suppress if no competitor positions or if most keywords lack sector relevance
+const hasPositions = kwGapItemsRaw.some((k: any) => k.competitorPosition != null);
+const hasMinVolume = kwGapItemsRaw.filter((k: any) => k.volume >= 500).length >= 3;
+const kwGapItems: any[] = (hasPositions || hasMinVolume) ? kwGapItemsRaw.filter((k: any) => k.volume >= 100).slice(0, 8) : [];
 const pos4to10Keywords: any[] = (seo?.topKeywords || []).filter((k: any) => k.position >= 4 && k.position <= 10).slice(0, 5);
 // seoToAiGap removed — data was incorrect (all SEO keywords shown as IA misses regardless)
 
@@ -1425,16 +1430,16 @@ const donutSVG = buildDonutSVG();
 
               {kwGapItems.length > 0 && (
                 <div class="surface-card" style="margin-bottom:1rem;">
-                  <div style="font-size:0.78rem;font-weight:700;color:#e2e0fc;margin-bottom:4px;">Gap de keywords vs competencia</div>
+                  <div style="font-size:0.78rem;font-weight:700;color:#e2e0fc;margin-bottom:4px;">Oportunidades de keywords vs {kg?.competitor || 'competencia'}</div>
                   <p style="font-size:0.72rem;color:#8d909b;margin-bottom:12px;">
-                    Keywords donde {kg?.competitor || 'tu competidor'} posiciona en top 20 y tú no. Oportunidades de captación orgánica.
+                    Keywords con demanda donde {kg?.competitor || 'tu competidor'} posiciona y tú no apareces.
                   </p>
                   <table>
                     <thead>
                       <tr>
                         <th>Keyword</th>
-                        <th style="text-align:right;">Volumen/mes</th>
-                        <th style="text-align:center;">Posicion competidor</th>
+                        <th style="text-align:right;">Busquedas/mes</th>
+                        {hasPositions && <th style="text-align:center;">Pos. competidor</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1442,13 +1447,13 @@ const donutSVG = buildDonutSVG();
                         <tr>
                           <td style="font-weight:600;color:#e2e0fc;">{kw.keyword}</td>
                           <td style="text-align:right;">{fmt(kw.volume)}</td>
-                          <td style="text-align:center;color:#69FF87;">{kw.competitorPosition ? `#${kw.competitorPosition}` : '—'}</td>
+                          {hasPositions && <td style="text-align:center;color:#69FF87;">{kw.competitorPosition ? `#${kw.competitorPosition}` : '—'}</td>}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                   <div class="callout callout-info" style="margin-top:12px;">
-                    Estas {kwGapItems.length} keywords representan tráfico que tu competidor capta y tú no. Prioriza las de mayor volumen para contenido o landing pages.
+                    {kwGapItems.length} keywords que tu competidor capta y tú no. Prioriza las de mayor volumen para contenido o landing pages.
                   </div>
                 </div>
               )}
