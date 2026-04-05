@@ -30,7 +30,21 @@ const geoTruncated = r.geo?._truncated === true;
 const geoApiError = !r.geo?.skipped && r.geo?.error && !geoTruncated ? r.geo.error : null;
 const geo = (!r.geo?.skipped && r.geo && !geoTruncated) ? r.geo : null;
 const traffic = (!r.traffic?.skipped && r.traffic) ? r.traffic : null;
-const ps = (!r.pagespeed?.skipped && r.pagespeed) ? r.pagespeed : null;
+const psRaw = (!r.pagespeed?.skipped && r.pagespeed) ? r.pagespeed : null;
+// PageSpeed 0 means Lighthouse couldn't complete analysis (heavy SPA) — treat as unmeasurable
+const ps = psRaw ? {
+  ...psRaw,
+  mobile: psRaw.mobile ? {
+    ...psRaw.mobile,
+    performance: (psRaw.mobile.performance === 0) ? null : psRaw.mobile.performance,
+    _unmeasurable: psRaw.mobile.performance === 0,
+  } : undefined,
+  desktop: psRaw.desktop ? {
+    ...psRaw.desktop,
+    performance: (psRaw.desktop.performance === 0) ? null : psRaw.desktop.performance,
+    _unmeasurable: psRaw.desktop.performance === 0,
+  } : undefined,
+} : null;
 const gbp = (!r.gbp?.skipped && r.gbp?.found) ? r.gbp : null;
 const ssl = (!r.ssl?.skipped && r.ssl) ? r.ssl : null;
 const ctItemsRaw: any[] = r.competitor_traffic?.items || [];

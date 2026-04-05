@@ -221,7 +221,7 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
       },
       body: JSON.stringify({
         model: 'claude-opus-4-6',
-        max_tokens: 2048,
+        max_tokens: 4096,
         temperature: 0,
         messages: [{ role: 'user', content: buildQAPrompt(results) }],
       }),
@@ -236,9 +236,14 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
     const data = await res.json();
     const text: string = data?.content?.[0]?.text || '';
 
-    const jsonStr = extractJSON(text);
+    // Try to extract JSON — Opus sometimes wraps in markdown ```json blocks
+    let cleanText = text;
+    const mdJsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (mdJsonMatch) cleanText = mdJsonMatch[1].trim();
+
+    const jsonStr = extractJSON(cleanText);
     if (!jsonStr) {
-      console.error('[qa-agent] No JSON found in Opus response');
+      console.error('[qa-agent] No JSON found in Opus response. First 500 chars:', text.slice(0, 500));
       return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: 'Invalid QA response' };
     }
 
@@ -246,8 +251,17 @@ export async function runQAAgent(results: Record<string, any>): Promise<QAResult
     try {
       qa = JSON.parse(jsonStr);
     } catch {
-      const fixed = jsonStr.replace(/,\s*([\]}])/g, '$1');
-      qa = JSON.parse(fixed);
+      try {
+        // Fix common JSON issues: trailing commas, unescaped quotes
+        const fixed = jsonStr
+          .replace(/,\s*([\]}])/g, '$1')
+          .replace(/\n/g, '\\n')
+          .replace(/\t/g, '\\t');
+        qa = JSON.parse(fixed);
+      } catch (e2) {
+        console.error('[qa-agent] JSON parse failed after cleanup:', (e2 as Error).message, 'First 300:', jsonStr.slice(0, 300));
+        return { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: 'QA JSON parse error' };
+      }
     }
 
     const result: QAResult = {
