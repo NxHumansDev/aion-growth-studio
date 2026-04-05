@@ -96,13 +96,22 @@ function processResponse(data: any, compDomain: string): KeywordGapResult {
     return { skipped: true, reason: 'No keyword gap opportunities found for this competitor pair' };
   }
 
+  // Filter: minimum 2 words (single words are usually generic/noise),
+  // must have search volume, competitor position ≤ 20
   const gapItems: KeywordGapItem[] = items
     .map((item: any) => ({
       keyword: item.keyword_data?.keyword || '',
       searchVolume: item.keyword_data?.keyword_info?.search_volume || undefined,
       competitorPosition: item.first_target_serp_element?.serp_item?.rank_group || undefined,
     }))
-    .filter((k: KeywordGapItem) => k.keyword && (k.competitorPosition == null || k.competitorPosition <= 20))
+    .filter((k: KeywordGapItem) => {
+      if (!k.keyword) return false;
+      if (k.competitorPosition != null && k.competitorPosition > 20) return false;
+      // Filter single-word generic keywords (too broad, usually noise)
+      const words = k.keyword.trim().split(/\s+/);
+      if (words.length < 2) return false;
+      return true;
+    })
     .slice(0, 10);
 
   if (gapItems.length === 0) {
