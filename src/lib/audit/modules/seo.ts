@@ -394,9 +394,12 @@ export async function runSEO(url: string): Promise<SEOResult> {
         if (brandTask?.status_code === 20000) {
           const brandItems: any[] = brandTask.result?.[0]?.items || [];
           let brandEtv = 0;
+          let totalSampledEtv = 0;
           let brandKwCount = 0;
           brandItems.forEach((it: any) => {
             const kw = (it.keyword_data?.keyword || '').toLowerCase();
+            const itemEtv = it.ranked_serp_element?.serp_item?.etv ?? 0;
+            totalSampledEtv += itemEtv;
             // Match: full compound OR 2+ brand parts present in the keyword
             const matchCount = brandTerms.filter(t => kw.includes(t)).length;
             // Reverse check: ≥2 significant keyword words have stems in the domain
@@ -409,16 +412,18 @@ export async function runSEO(url: string): Promise<SEOResult> {
             const isBrand = kw.includes(domainBase) || matchCount >= 2 ||
               (brandTerms.length === 1 && matchCount >= 1) || reverseMatch;
             if (isBrand) {
-              brandEtv += it.ranked_serp_element?.serp_item?.etv ?? 0;
+              brandEtv += itemEtv;
               brandKwCount++;
             }
           });
-          const totalEtv = baseResult.organicTrafficEstimate || 0;
+          // Use sampled total (from same dataset) instead of global total to avoid
+          // comparing partial brand ETV against full domain traffic
+          const comparableEtv = totalSampledEtv > 0 ? totalSampledEtv : (baseResult.organicTrafficEstimate || 0);
           baseResult.brandTrafficEtv = Math.round(brandEtv);
-          baseResult.nonBrandTrafficEtv = Math.max(0, totalEtv - Math.round(brandEtv));
-          baseResult.brandTrafficPct = totalEtv > 0 ? Math.round((brandEtv / totalEtv) * 100) : 0;
+          baseResult.nonBrandTrafficEtv = Math.max(0, (baseResult.organicTrafficEstimate || 0) - Math.round(brandEtv));
+          baseResult.brandTrafficPct = comparableEtv > 0 ? Math.round((brandEtv / comparableEtv) * 100) : 0;
           baseResult.brandKeywords = brandKwCount;
-          _logParts.push(`brand:${baseResult.brandTrafficPct}%(${brandKwCount}kw)`);
+          _logParts.push(`brand:${baseResult.brandTrafficPct}%(${brandKwCount}kw,sampled:${Math.round(totalSampledEtv)})`);
         }
       }
 
