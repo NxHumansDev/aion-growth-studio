@@ -876,6 +876,13 @@ const donutSVG = buildDonutSVG();
       .report [style*="grid-template-columns: repeat"]{grid-template-columns:1fr 1fr!important}
       .report [style*="grid-template-columns:repeat"]{grid-template-columns:1fr 1fr!important}
 
+      /* Hero: column layout, gauge centered */
+      #hero .surface-card > div{flex-direction:column!important;align-items:center!important;text-align:center!important}
+      #hero .surface-card > div > div{min-width:0!important;align-items:center!important}
+      #hero .surface-card > div > div p{max-width:100%!important}
+      #hero .surface-card > div > div:last-child{margin-top:8px}
+      #hero .surface-card{padding:1.5rem 1rem!important}
+
       /* Top bar compact */
       .top-bar{padding:0.5rem 12px!important}
       .top-bar-title{font-size:0.68rem!important;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
