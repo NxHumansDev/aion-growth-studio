@@ -191,7 +191,7 @@ const statusByArea: { area: string; status: AreaStatus; summary: string; anchor:
     if (linkedin?.followers) parts.push(`${fmt(linkedin.followers)} seguidores LI`);
     return parts.length > 0 ? parts.join(', ') : 'Sin datos de autoridad digital';
   })(), anchor: '#autoridad' },
-  { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competidores con datos` : 'Sin datos de competidores', anchor: '#competidores' },
+  { area: 'Benchmark', status: displayCompetitors.length > 0 ? ss(health.competitividad ?? 0) : 'bad', summary: displayCompetitors.length > 0 ? `${displayCompetitors.length} competidores analizados` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
   { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Sin analytics') : 'Sin datos', anchor: '#experiencia' },
@@ -314,16 +314,28 @@ function buildHorizontalBars(items: Array<{label:string;value:number;color:strin
   return `<svg width="${totalW}" height="${h}" viewBox="0 0 ${totalW} ${h}">${bars}</svg>`;
 }
 
-// displayCompetitors: ONLY competitors with real SEO/traffic data (no "sin datos" rows).
-// If a competitor was suggested by AI but has no DataForSEO data, it doesn't belong in the benchmark.
+// displayCompetitors: competitors with SEO data first, then fill with detected competitors (even without data).
+// This ensures the radar chart and cards always show when competitors were detected.
 const displayCompetitors: any[] = (() => {
   const seen = new Set<string>();
   const out: any[] = [];
+  // First: competitors with real traffic/keyword data
   for (const c of ctItems) {
-    // Only include if we have actual traffic or keyword data
     if (c.domain && !seen.has(c.domain) && (c.keywordsTop10 != null || c.organicTrafficEstimate != null)) {
       seen.add(c.domain);
       out.push(c);
+    }
+  }
+  // Then: fill with detected competitors that lack DFS data (still useful for radar)
+  if (out.length < 3) {
+    const allComps: any[] = competitors || [];
+    for (const c of allComps) {
+      const d = c.domain || (c.url ? new URL(c.url.startsWith('http') ? c.url : `https://${c.url}`).hostname.replace(/^www\./, '') : '');
+      if (d && !seen.has(d) && d !== domain) {
+        seen.add(d);
+        out.push({ name: c.name || d, domain: d, ...(c.url && { url: c.url }) });
+      }
+      if (out.length >= 4) break;
     }
   }
   return out.slice(0, 5);
