@@ -24,14 +24,16 @@ async function searchPlaces(query: string): Promise<any[]> {
     clearTimeout(timer);
 
     if (!res.ok) {
-      console.log(`[gbp] Places API error: ${res.status}`);
+      const body = await res.text().catch(() => '');
+      console.error(`[gbp] Places API error: ${res.status} — ${body.slice(0, 200)}`);
       return [];
     }
 
     const data = await res.json();
     return data.places || [];
-  } catch {
+  } catch (err) {
     clearTimeout(timer);
+    console.error(`[gbp] searchPlaces exception: ${(err as Error).message?.slice(0, 150)}`);
     return [];
   }
 }
@@ -95,18 +97,23 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
   const GENERIC = /^(home|inicio|welcome|bienvenid|index|main|page|untitled)$/i;
 
   try {
+    console.log(`[gbp] API_KEY present: ${!!API_KEY} (len=${API_KEY?.length}), companyName: "${crawl.companyName}", title: "${titleName}", domain: "${auditDomain}"`);
+
     // Strategy 1: Use companyName from crawl (most reliable — extracted from schema/og)
     let places = crawl.companyName ? await searchPlaces(crawl.companyName) : [];
+    console.log(`[gbp] Strategy 1 (companyName="${crawl.companyName}"): ${places.length} results`);
 
     // Strategy 2: Search by title name (if not generic like "Home")
     if (places.length === 0 && titleName && !GENERIC.test(titleName)) {
       places = await searchPlaces(titleName);
+      console.log(`[gbp] Strategy 2 (title="${titleName}"): ${places.length} results`);
     }
 
     // Strategy 3: Search by domain name
     if (places.length === 0) {
       const domainName = auditDomain.split('.')[0].replace(/-/g, ' ');
       places = await searchPlaces(domainName);
+      console.log(`[gbp] Strategy 3 (domain="${domainName}"): ${places.length} results`);
     }
 
     const place = pickBest(places, auditDomain);
