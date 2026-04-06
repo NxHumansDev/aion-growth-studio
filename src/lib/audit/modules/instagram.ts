@@ -127,9 +127,39 @@ export async function runInstagram(
 }
 
 async function fetchProfile(handle: string): Promise<InstagramResult> {
-  const igApiUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`;
+  // Method 1: Apify Instagram Profile Scraper Actor (most reliable)
+  if (APIFY_TOKEN) {
+    try {
+      const actorRes = await axios.post(
+        `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=25`,
+        { usernames: [handle] },
+        { timeout: 30000, headers: { 'Content-Type': 'application/json' } },
+      );
+      const items = actorRes.data;
+      if (Array.isArray(items) && items.length > 0) {
+        const p = items[0];
+        console.log(`[instagram] Apify Actor: @${handle} — ${p.followersCount} followers`);
+        return {
+          found: true,
+          handle,
+          url: `https://www.instagram.com/${handle}/`,
+          followers: p.followersCount,
+          following: p.followsCount,
+          posts: p.postsCount,
+          bio: (p.biography || '').slice(0, 200),
+          isVerified: p.verified,
+          isBusinessAccount: p.isBusinessAccount,
+          businessCategory: p.businessCategoryName || undefined,
+          externalUrl: p.externalUrl || undefined,
+        };
+      }
+    } catch (e) {
+      console.log(`[instagram] Apify Actor failed for @${handle}: ${(e as Error).message?.slice(0, 80)}`);
+    }
+  }
 
-  // Try Apify residential proxy first (bypasses cloud IP blocks), then direct
+  // Method 2: Direct Instagram web API with proxy
+  const igApiUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`;
   const attempts: object[] = [
     ...(APIFY_TOKEN ? [{ headers: IG_HEADERS, timeout: 15000, ...apifyProxyConfig() }] : []),
     { headers: IG_HEADERS, timeout: 10000 },
@@ -146,7 +176,7 @@ async function fetchProfile(handle: string): Promise<InstagramResult> {
     }
   }
 
-  // Final fallback: HTML scraping (limited data, but better than nothing)
+  // Method 3: HTML scraping fallback
   return await fetchProfileFallback(handle);
 }
 
