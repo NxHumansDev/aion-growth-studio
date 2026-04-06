@@ -3,7 +3,7 @@ export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import EvolutionLine from '../../components/charts/EvolutionLine.astro';
 import SparkLine from '../../components/dashboard/SparkLine.astro';
-import { getClient, getAllSnapshots, getContextEntries, getAllRecommendations } from '../../lib/db';
+import { getClient, getLatestSnapshot, getAllSnapshots, getContextEntries, getAllRecommendations } from '../../lib/db';
 import { analyzeEvolution } from '../../lib/radar/diff-engine';
 import type { Tier } from '../../lib/demo-data';
 
@@ -12,240 +12,280 @@ const snapshots = await getAllSnapshots(client.id);
 const contextEntries = await getContextEntries(client.id);
 const allRecs = await getAllRecommendations(client.id);
 const tier: Tier = client.tier;
+const latest = await getLatestSnapshot(client.id);
 const needsMoreData = snapshots.length < 2;
 
-// Diff engine: tendencias + correlaciones
 const diffResult = analyzeEvolution(snapshots, allRecs);
 
-// Build evolution data
 const chartData = snapshots.map(s => ({
-  month: s.month,
+  month: s.date,
   score: s.score,
 }));
 
-// Monthly table data
-const tableData = snapshots.map((s, i) => {
-  const prev = snapshots[i - 1];
-  const r = s.pipeline_output;
+// ─── 6 Pillar extraction (same logic as index.astro) ──────────────────────
+function extractPillar(snap: Record<string, any>, key: string): number {
+  switch (key) {
+    case 'seo': return Math.min(100, Math.round((snap.seo?.keywordsTop10 || 0) * 2));
+    case 'geo': return Math.round(((snap.geo?.mentions || 0) / Math.max(snap.geo?.totalQueries || 15, 1)) * 100);
+    case 'web': return snap.pagespeed?.mobile?.performance || 0;
+    case 'conversion': return snap.conversion?.funnelScore || 0;
+    case 'content': {
+      const posts = snap.content_cadence?.postsLast90Days || 0;
+      if (posts >= 8) return 85;
+      if (posts >= 4) return 60;
+      if (posts >= 2) return 40;
+      if (posts >= 1) return 20;
+      return 5;
+    }
+    case 'reputation': {
+      const rating = snap.reputation?.combinedRating ?? snap.reputation?.gbpRating;
+      const reviews = snap.reputation?.totalReviews || 0;
+      if (!rating && reviews === 0) return 0;
+      const components: Array<{ score: number; maxPts: number }> = [];
+      if (rating) components.push({ score: Math.round((rating / 5) * 100), maxPts: 50 });
+      if (reviews > 0) components.push({ score: Math.min(100, Math.round(reviews * 1.2)), maxPts: 30 });
+      const news = snap.reputation?.newsCount || 0;
+      if (news > 0) components.push({ score: Math.min(100, news * 25), maxPts: 20 });
+      if (components.length === 0) return 0;
+      const totalMax = components.reduce((s, c) => s + c.maxPts, 0);
+      return Math.min(100, Math.round(components.reduce((s, c) => s + (c.score / 100) * (c.maxPts / totalMax) * 100, 0)));
+    }
+    default: return 0;
+  }
+}
+
+const pillarDefs = [
+  { key: 'seo', label: 'SEO', icon: 'search', color: '#1A4B8C' },
+  { key: 'geo', label: 'GEO', icon: 'psychology', color: '#7C3AED' },
+  { key: 'web', label: 'Web', icon: 'speed', color: '#0891B2' },
+  { key: 'conversion', label: 'Conversión', icon: 'conversion_path', color: '#D97706' },
+  { key: 'content', label: 'Contenido', icon: 'article', color: '#059669' },
+  { key: 'reputation', label: 'Reputación', icon: 'star', color: '#DC2626' },
+];
+
+const pillarEvolution = pillarDefs.map(p => {
+  const values = snapshots.map(s => extractPillar(s.pipeline_output || {}, p.key));
+  const current = values[values.length - 1] || 0;
+  const prev = values.length >= 2 ? values[values.length - 2] : 0;
+  const delta = current - prev;
+  const timeline = diffResult.timelines.find(t => t.label === p.label);
+  return { ...p, values, current, delta, trend: timeline?.trend, acceleration: timeline?.acceleration };
+});
+
+// ─── Detailed metrics table ───────────────────────────────────────────────
+const tableRows = snapshots.map((s, i) => {
+  const prev = i > 0 ? snapshots[i - 1] : null;
+  const r = s.pipeline_output || {};
+  const pr = prev?.pipeline_output || {};
   return {
-    month: s.month,
+    date: s.date,
     score: s.score,
-    delta: prev ? s.score - prev.score : null,
-    seo: r.seo?.keywordsTop10 || '—',
-    geo: r.geo?.mentionRate || 0,
-    web: r.pagespeed?.mobile?.performance || '—',
-    conversion: '—',
+    scoreDelta: prev ? s.score - prev.score : null,
+    seo: r.seo?.keywordsTop10 || 0,
+    geo: `${r.geo?.mentions || 0}/${r.geo?.totalQueries || 15}`,
+    web: r.pagespeed?.mobile?.performance || 0,
+    lcp: r.pagespeed?.mobile?.lcp ? `${(r.pagespeed.mobile.lcp / 1000).toFixed(1)}s` : '—',
+    cls: r.pagespeed?.mobile?.cls?.toFixed(2) || '—',
+    conversion: r.conversion?.funnelScore || 0,
+    content: r.content_cadence?.postsLast90Days || 0,
+    reputation: r.reputation?.combinedRating || r.reputation?.gbpRating || '—',
+    traffic: r.seo?.organicTrafficEstimate || 0,
   };
 });
 
-// Sub-score cards (safe defaults when <2 snapshots)
-const latest = snapshots[snapshots.length - 1] || { pipeline_output: {}, score: 0, month: '' };
-const prev = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : undefined;
-const lr = latest.pipeline_output || {};
-const pr = prev?.pipeline_output;
-
-interface SubScore { label: string; value: number | string; delta?: number; sparkValues: number[]; trend?: string; acceleration?: string; }
-const subScores: SubScore[] = [
-  {
-    label: 'SEO',
-    value: lr.seo?.keywordsTop10 || 0,
-    delta: pr ? (lr.seo?.keywordsTop10 || 0) - (pr.seo?.keywordsTop10 || 0) : undefined,
-    sparkValues: snapshots.map(s => s.pipeline_output.seo?.keywordsTop10 || 0),
-  },
-  {
-    label: 'GEO',
-    value: `${lr.geo?.mentionRate || 0}%`,
-    delta: pr ? (lr.geo?.mentionRate || 0) - (pr.geo?.mentionRate || 0) : undefined,
-    sparkValues: snapshots.map(s => s.pipeline_output.geo?.mentionRate || 0),
-  },
-  {
-    label: 'Web',
-    value: lr.pagespeed?.mobile?.performance || '—',
-    delta: pr ? (lr.pagespeed?.mobile?.performance || 0) - (pr.pagespeed?.mobile?.performance || 0) : undefined,
-    sparkValues: snapshots.map(s => s.pipeline_output.pagespeed?.mobile?.performance || 0),
-  },
-  {
-    label: 'Score Global',
-    value: latest.score,
-    delta: prev ? latest.score - prev.score : undefined,
-    sparkValues: snapshots.map(s => s.score),
-  },
-].map(s => {
-  const timeline = diffResult.timelines.find(t => t.label === s.label);
-  return { ...s, trend: timeline?.trend, acceleration: timeline?.acceleration };
-});
-
-function fmtMonth(m: string): string {
-  const [name, year] = m.split('-');
-  return `${name.charAt(0).toUpperCase() + name.slice(1)} ${year}`;
+function fmtDate(d: string): string {
+  return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 }
 
-function deltaColor(d: number | null | undefined): string {
+function deltaColor(d: number | null): string {
   if (d == null) return '#94a3b8';
-  return d > 0 ? '#1d9e75' : d < 0 ? '#ba1a1a' : '#94a3b8';
+  return d > 0 ? '#1d9e75' : d < 0 ? '#E24B4A' : '#94a3b8';
 }
 ---
 
-<DashboardLayout title="Evolución" currentPath="/dashboard/evolution" tier={tier} clientName={client.name} domain={client.domain}>
-  <div style="display:flex;flex-direction:column;gap:32px;">
+<DashboardLayout title="Evolución" currentPath="/dashboard/evolution" tier={tier} clientName={client.name} domain={client.domain} lastReportMonth={latest.id !== 'empty' ? latest.month : ''}>
+  <div style="display:flex;flex-direction:column;gap:28px;">
 
     <div>
       <h1 style="font-size:28px;font-weight:900;letter-spacing:-0.04em;color:#1a1a2e;">Evolución</h1>
-      <p style="font-size:14px;color:#434750;margin-top:4px;">Progreso histórico de tu presencia digital</p>
+      <p style="font-size:14px;color:#434750;margin-top:4px;">¿Estoy mejorando o empeorando con el tiempo?</p>
     </div>
 
-    {needsMoreData && (
+    {needsMoreData ? (
       <div style="background:#F8F9FB;border-radius:12px;padding:48px;text-align:center;">
         <div style="font-size:36px;margin-bottom:12px;">📈</div>
         <h3 style="font-size:18px;font-weight:700;color:#1A1A2E;margin-bottom:8px;">
-          Necesitas más de 1 diagnóstico para ver la evolución
+          Necesitas más de 1 análisis para ver la evolución
         </h3>
         <p style="color:#666;font-size:14px;line-height:1.6;max-width:480px;margin:0 auto;">
-          Cuando AION Radar ejecute el próximo análisis semanal, podrás comparar tu progreso mes a mes en SEO, visibilidad IA, rendimiento web y más.
+          Cuando AION Radar ejecute el próximo análisis semanal, podrás ver tu progreso.
         </p>
       </div>
-    )}
-    </div>
+    ) : (
+      <Fragment>
 
-    <!-- Main chart -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-      <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:24px;">Score Global de Presencia Digital</h2>
-      <EvolutionLine data={chartData} width={900} height={220} />
-    </div>
-
-    <!-- Sub-score cards -->
-    <section style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
-      {subScores.map(s => (
-        <div style="background:#ffffff;padding:20px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#434750;margin-bottom:8px;">{s.label}</p>
-          <div style="display:flex;align-items:baseline;gap:8px;">
-            <span style="font-size:36px;font-weight:900;letter-spacing:-0.04em;color:#1a1a2e;">{s.value}</span>
-            {s.delta != null && (
-              <span style={`font-size:13px;font-weight:700;color:${deltaColor(s.delta)};`}>
-                {s.delta > 0 ? '+' : ''}{s.delta}
-              </span>
-            )}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-            <SparkLine values={s.sparkValues} width={100} height={32} />
-            {s.trend && (
-              <span style={`font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:${s.trend === 'up' ? '#e1f5ee' : s.trend === 'down' ? '#fcebeb' : '#f0f0f0'};color:${s.trend === 'up' ? '#1D9E75' : s.trend === 'down' ? '#E24B4A' : '#888'};`}>
-                {s.trend === 'up' ? '↑' : s.trend === 'down' ? '↓' : '→'}
-                {s.acceleration === 'accelerating' ? '↑' : s.acceleration === 'decelerating' ? '↓' : ''}
-              </span>
-            )}
-          </div>
+      <!-- Score global evolution -->
+      <section style="background:white;padding:28px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;">Score Global</h2>
+          <span style="font-size:12px;color:#94a3b8;">{snapshots.length} semanas de datos</span>
         </div>
-      ))}
-    </section>
+        <EvolutionLine data={chartData} width={900} height={200} />
+      </section>
 
-    <!-- Correlaciones acciones ↔ KPIs -->
-    {diffResult.correlations.length > 0 && (
-      <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:8px;">Impacto de tus acciones</h2>
-        <p style="font-size:12px;color:#888;margin-bottom:20px;">Correlaciones detectadas entre acciones completadas y cambios en KPIs</p>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          {diffResult.correlations.map(c => (
-            <div style={`display:flex;align-items:flex-start;gap:12px;padding:16px;border-radius:10px;background:${c.correlationType === 'probable_cause' ? '#e1f5ee' : '#f7f9ff'};border-left:4px solid ${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};`}>
-              <span class="material-symbols-outlined" style={`font-size:20px;color:${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};flex-shrink:0;margin-top:2px;`}>
-                {c.correlationType === 'probable_cause' ? 'verified' : 'help'}
-              </span>
-              <div style="flex:1;">
-                <p style="font-size:14px;font-weight:600;color:#1A1A2E;margin:0 0 4px;">{c.explanation}</p>
-                <div style="display:flex;gap:16px;font-size:12px;color:#888;">
-                  <span>Antes: {c.deltaBefore}</span>
-                  <span>Después: {c.deltaAfter}</span>
-                  <span style={`color:${c.deltaAfter > c.deltaBefore ? '#1D9E75' : '#E24B4A'};font-weight:600;`}>
-                    {c.deltaAfter > c.deltaBefore ? '+' : ''}{c.deltaAfter - c.deltaBefore}
-                  </span>
+      <!-- 6 Pillar cards (3x2 grid) -->
+      <section>
+        <h2 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:16px;">Evolución por pilar</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+          {pillarEvolution.map(p => {
+            const pColor = p.current >= 70 ? '#1D9E75' : p.current >= 40 ? '#BA7517' : '#E24B4A';
+            const dColor = p.delta > 0 ? '#1D9E75' : p.delta < 0 ? '#E24B4A' : '#94a3b8';
+            const max = Math.max(...p.values, 1);
+            return (
+              <a href={`/dashboard/pillar/${p.key}`} style="background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);text-decoration:none;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)'">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style={`font-size:18px;color:${p.color};`}>{p.icon}</span>
+                    <span style="font-size:13px;font-weight:700;color:#1a1a2e;">{p.label}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    {p.trend && (
+                      <span style={`font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:${p.trend === 'up' ? '#e1f5ee' : p.trend === 'down' ? '#fcebeb' : '#f0f0f0'};color:${p.trend === 'up' ? '#1D9E75' : p.trend === 'down' ? '#E24B4A' : '#888'};`}>
+                        {p.trend === 'up' ? '↑ Subiendo' : p.trend === 'down' ? '↓ Bajando' : '→ Estable'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">
+                  <span style={`font-size:32px;font-weight:900;color:${pColor};letter-spacing:-0.03em;`}>{p.current}</span>
+                  {p.delta !== 0 && (
+                    <span style={`font-size:14px;font-weight:700;color:${dColor};`}>
+                      {p.delta > 0 ? '+' : ''}{p.delta}
+                    </span>
+                  )}
+                </div>
+                <!-- Sparkline bars -->
+                <div style="display:flex;align-items:flex-end;gap:3px;height:36px;">
+                  {p.values.map((v, i) => {
+                    const h = Math.max(2, Math.round((v / max) * 36));
+                    const isLast = i === p.values.length - 1;
+                    return <div style={`flex:1;background:${isLast ? p.color : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
+                  })}
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;">
+                  <span style="font-size:9px;color:#cbd5e1;">S1</span>
+                  <span style="font-size:9px;color:#cbd5e1;">S{p.values.length}</span>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <!-- Action impact correlations -->
+      {diffResult.correlations.length > 0 && (
+        <section style="background:white;padding:28px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:8px;">Impacto de tus acciones</h2>
+          <p style="font-size:12px;color:#94a3b8;margin-bottom:20px;">Correlaciones entre acciones completadas y cambios en KPIs</p>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            {diffResult.correlations.map(c => (
+              <div style={`display:flex;align-items:flex-start;gap:12px;padding:16px;border-radius:10px;background:${c.correlationType === 'probable_cause' ? '#e1f5ee' : '#f7f9ff'};border-left:4px solid ${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};`}>
+                <span class="material-symbols-outlined" style={`font-size:20px;color:${c.correlationType === 'probable_cause' ? '#1D9E75' : '#1A4B8C'};flex-shrink:0;margin-top:2px;`}>
+                  {c.correlationType === 'probable_cause' ? 'verified' : 'help'}
+                </span>
+                <div style="flex:1;">
+                  <p style="font-size:14px;font-weight:600;color:#1A1A2E;margin:0 0 4px;">{c.explanation}</p>
+                  <div style="display:flex;gap:16px;font-size:12px;color:#888;">
+                    <span>Antes: {c.deltaBefore}</span>
+                    <span>Después: {c.deltaAfter}</span>
+                    <span style={`color:${c.deltaAfter > c.deltaBefore ? '#1D9E75' : '#E24B4A'};font-weight:600;`}>
+                      {c.deltaAfter > c.deltaBefore ? '+' : ''}{c.deltaAfter - c.deltaBefore}
+                    </span>
+                  </div>
+                </div>
+                <span style={`padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;flex-shrink:0;background:${c.correlationType === 'probable_cause' ? '#d4edda' : '#d6e3ff'};color:${c.correlationType === 'probable_cause' ? '#155724' : '#1A4B8C'};`}>
+                  {c.correlationType === 'probable_cause' ? 'Correlación alta' : 'Posible'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Timeline: context entries + completed actions -->
+      {contextEntries.length > 0 && (
+        <section style="background:white;padding:28px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:20px;">Timeline de eventos</h2>
+          <div style="display:flex;flex-direction:column;gap:0;">
+            {contextEntries.map((e, i) => (
+              <div style={`display:flex;gap:16px;padding-bottom:${i < contextEntries.length - 1 ? '20px' : '0'};`}>
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                  <div style={`width:10px;height:10px;border-radius:50%;flex-shrink:0;background:${e.type === 'insight' ? '#7C3AED' : e.status === 'done' ? '#1D9E75' : '#BA7517'};`}></div>
+                  {i < contextEntries.length - 1 && <div style="width:2px;flex:1;background:#e2e8f0;margin-top:4px;"></div>}
+                </div>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+                    <p style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0;">{e.title}</p>
+                    <span style={`font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;background:${e.type === 'insight' ? '#ede9fe' : e.status === 'done' ? '#e1f5ee' : '#FAEEDA'};color:${e.type === 'insight' ? '#7C3AED' : e.status === 'done' ? '#1D9E75' : '#BA7517'};`}>
+                      {e.type === 'insight' ? 'Evento' : e.status === 'done' ? 'Completado' : 'En progreso'}
+                    </span>
+                  </div>
+                  <p style="font-size:12px;color:#94a3b8;margin:0;">{fmtDate(e.date)}</p>
                 </div>
               </div>
-              <span style={`padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;flex-shrink:0;background:${c.correlationType === 'probable_cause' ? '#d4edda' : '#d6e3ff'};color:${c.correlationType === 'probable_cause' ? '#155724' : '#1A4B8C'};`}>
-                {c.correlationType === 'probable_cause' ? 'Correlación alta' : 'Posible'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
+            ))}
+          </div>
+        </section>
+      )}
 
-    <!-- Acciones completadas (timeline) -->
-    {diffResult.completedActions.length > 0 && (
-      <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:20px;">Acciones ejecutadas</h2>
-        <div style="display:flex;flex-direction:column;gap:0;">
-          {diffResult.completedActions.map((a, i) => (
-            <div style={`display:flex;gap:16px;padding-bottom:${i < diffResult.completedActions.length - 1 ? '20px' : '0'};position:relative;`}>
-              <div style="display:flex;flex-direction:column;align-items:center;">
-                <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#1d9e75;"></div>
-                {i < diffResult.completedActions.length - 1 && <div style="width:2px;flex:1;background:#e1f5ee;margin-top:4px;"></div>}
-              </div>
-              <div style="flex:1;">
-                <p style="font-size:14px;font-weight:600;color:#1a1a2e;margin:0 0 2px;">{a.title}</p>
-                <p style="font-size:12px;color:#94a3b8;margin:0;">{new Date(a.completedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    <!-- Timeline of context entries -->
-    {contextEntries.length > 0 && (
-      <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:24px;">Hitos y Acciones</h2>
-        <div style="display:flex;flex-direction:column;gap:0;">
-          {contextEntries.map((e, i) => (
-            <div style={`display:flex;gap:16px;padding-bottom:${i < contextEntries.length - 1 ? '24px' : '0'};position:relative;`}>
-              <div style="display:flex;flex-direction:column;align-items:center;">
-                <div style={`width:10px;height:10px;border-radius:50%;flex-shrink:0;background:${e.type === 'insight' ? '#73a6fe' : e.status === 'done' ? '#1d9e75' : '#ba7517'};`}></div>
-                {i < contextEntries.length - 1 && <div style="width:2px;flex:1;background:#e8e5ff;margin-top:4px;"></div>}
-              </div>
-              <div style="flex:1;padding-top:0;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                  <p style="font-size:14px;font-weight:600;color:#1a1a2e;">{e.title}</p>
-                  <span style={`font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;background:${e.type === 'insight' ? '#d7e3ff' : '#e1f5ee'};color:${e.type === 'insight' ? '#001b3f' : '#085041'};`}>
-                    {e.type === 'insight' ? 'Insight' : e.status === 'done' ? 'Completado' : 'En progreso'}
-                  </span>
-                </div>
-                <p style="font-size:12px;color:#94a3b8;">{e.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    <!-- Monthly table -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow-x:auto;">
-      <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:24px;">Histórico Mensual</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="border-bottom:2px solid #e8e5ff;">
-            <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">Mes</th>
-            <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">Score</th>
-            <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">Δ</th>
-            <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">SEO kw</th>
-            <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">GEO %</th>
-            <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">Web</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableData.map((row, i) => (
-            <tr style={`border-bottom:1px solid ${i < tableData.length - 1 ? '#f5f2ff' : 'transparent'};`}>
-              <td style="padding:12px;font-weight:600;color:#1a1a2e;">{fmtMonth(row.month)}</td>
-              <td style="padding:12px;text-align:center;font-weight:900;font-size:16px;color:#1a1a2e;">{row.score}</td>
-              <td style={`padding:12px;text-align:center;font-weight:700;color:${deltaColor(row.delta)};`}>
-                {row.delta != null ? (row.delta > 0 ? '+' : '') + row.delta : '—'}
-              </td>
-              <td style="padding:12px;text-align:center;color:#434750;">{row.seo}</td>
-              <td style="padding:12px;text-align:center;color:#434750;">{row.geo}%</td>
-              <td style="padding:12px;text-align:center;color:#434750;">{row.web}</td>
+      <!-- Detailed metrics table -->
+      <section style="background:white;padding:28px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow-x:auto;">
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:20px;">Métricas detalladas</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px;">
+          <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;">
+              <th style="text-align:left;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Semana</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Score</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">SEO kw</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">GEO</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Web</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">LCP</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">CLS</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Conv.</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Contenido</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Reputación</th>
+              <th style="text-align:center;padding:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;font-size:10px;">Tráfico</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {tableRows.map((row, i) => (
+              <tr style={`border-bottom:1px solid #f0f0f0;${i === tableRows.length - 1 ? 'background:#f7f9ff;font-weight:600;' : ''}`}>
+                <td style="padding:10px 8px;color:#1a1a2e;font-weight:600;">{fmtDate(row.date)}</td>
+                <td style="text-align:center;padding:10px 8px;">
+                  <span style="font-weight:800;">{row.score}</span>
+                  {row.scoreDelta != null && (
+                    <span style={`font-size:10px;margin-left:4px;color:${deltaColor(row.scoreDelta)};`}>
+                      {row.scoreDelta > 0 ? '+' : ''}{row.scoreDelta}
+                    </span>
+                  )}
+                </td>
+                <td style="text-align:center;padding:10px 8px;">{row.seo}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.geo}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.web}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.lcp}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.cls}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.conversion}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.content} posts</td>
+                <td style="text-align:center;padding:10px 8px;">{row.reputation}{typeof row.reputation === 'number' ? '★' : ''}</td>
+                <td style="text-align:center;padding:10px 8px;">{row.traffic.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      </Fragment>
+    )}
 
   </div>
 </DashboardLayout>
