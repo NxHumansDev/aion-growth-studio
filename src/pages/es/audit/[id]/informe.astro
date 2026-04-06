@@ -1849,6 +1849,11 @@ const donutSVG = buildDonutSVG();
                     {isB2B ? 'Canal principal de autoridad profesional en B2B.' : 'Presencia profesional activa.'}
                   </div>
                 </div>
+              ) : linkedin?.url ? (
+                <div style="font-size:0.72rem;margin-top:4px;">
+                  <a href={linkedin.url} target="_blank" style="color:#0077B5;text-decoration:none;font-weight:600;">Perfil detectado</a>
+                  <span style="color:#8d909b;"> — datos no accesibles</span>
+                </div>
               ) : (
                 <div style="font-size:0.72rem;color:#8d909b;margin-top:4px;">No se ha detectado perfil de empresa.</div>
               )}
@@ -1863,6 +1868,11 @@ const donutSVG = buildDonutSVG();
               {(instagram?.followers ?? 0) > 0 ? (
                 <div style="font-size:0.72rem;color:#8d909b;margin-top:4px;">
                   {!isB2B ? 'Canal clave para marcas B2C.' : 'Presencia social activa.'}
+                </div>
+              ) : instagram?.handle ? (
+                <div style="font-size:0.72rem;margin-top:4px;">
+                  <a href={`https://instagram.com/${instagram.handle}`} target="_blank" style="color:#E1306C;text-decoration:none;font-weight:600;">@{instagram.handle}</a>
+                  <span style="color:#8d909b;"> — Perfil detectado (datos no accesibles)</span>
                 </div>
               ) : (
                 <div style="font-size:0.72rem;color:#8d909b;margin-top:4px;">No se ha detectado perfil de empresa.</div>
@@ -2761,15 +2771,13 @@ const donutSVG = buildDonutSVG();
     const sections = ['hero', 'seo', 'ia', 'autoridad', 'competidores', 'experiencia', 'plan'];
     const sectionEls = sections.map(id => document.getElementById(id)).filter(Boolean);
 
-    const visGroup = new Set(['seo', 'ia', 'autoridad']);
-
     let currentActive = 'hero';
     function setActive(sectionId) {
       if (sectionId === currentActive) return;
       currentActive = sectionId;
       navLinks.forEach(link => {
         const linkSection = link.getAttribute('data-section');
-        link.classList.toggle('nav-active', linkSection === sectionId || (visGroup.has(sectionId) && linkSection === 'seo' && link.getAttribute('href') === '#seo'));
+        link.classList.toggle('nav-active', linkSection === sectionId);
       });
     }
 

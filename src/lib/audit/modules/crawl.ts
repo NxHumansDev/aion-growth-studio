@@ -21,41 +21,55 @@ function extractCompanyName(
   schemaObjs: any[],
   domain: string,
   title: string,
-): string {
+): { name: string; confidence: 'high' | 'medium' | 'low'; source: string } {
+  const domainBase = domain.replace(/\.[a-z]{2,6}$/i, '').replace(/^www\./, '').replace(/[-_.]/g, '').toLowerCase();
+
+  function domainSimilarity(name: string): boolean {
+    const clean = name.replace(/\s+/g, '').toLowerCase();
+    return clean === domainBase || domainBase.includes(clean) || clean.includes(domainBase);
+  }
+
   // 1. Schema Organization or LocalBusiness name
   for (const obj of schemaObjs) {
     const t = String(obj['@type'] || '');
     if (/organization|localbusiness|restaurant|store|realestate/i.test(t)) {
       const n = obj.name?.trim();
-      if (n && n.length > 1 && !GENERIC_TITLES.has(n.toLowerCase())) return n;
+      if (n && n.length > 1 && !GENERIC_TITLES.has(n.toLowerCase())) {
+        return { name: n, confidence: domainSimilarity(n) ? 'high' : 'medium', source: 'schema' };
+      }
     }
   }
   // 2. Schema WebSite name
   for (const obj of schemaObjs) {
     if (/website/i.test(String(obj['@type'] || ''))) {
       const n = obj.name?.trim();
-      if (n && n.length > 1 && !GENERIC_TITLES.has(n.toLowerCase())) return n;
+      if (n && n.length > 1 && !GENERIC_TITLES.has(n.toLowerCase())) {
+        return { name: n, confidence: domainSimilarity(n) ? 'high' : 'medium', source: 'schema-website' };
+      }
     }
   }
   // 3. og:site_name
   const ogSite = $('meta[property="og:site_name"]').attr('content')?.trim();
-  if (ogSite && ogSite.length > 1 && !GENERIC_TITLES.has(ogSite.toLowerCase())) return ogSite;
+  if (ogSite && ogSite.length > 1 && !GENERIC_TITLES.has(ogSite.toLowerCase())) {
+    return { name: ogSite, confidence: domainSimilarity(ogSite) ? 'high' : 'medium', source: 'og:site_name' };
+  }
 
   // 4. Title with separator — brand is usually the LAST non-generic part
   if (title) {
     for (const sep of [' | ', ' - ', ' — ', ' · ']) {
       if (title.includes(sep)) {
         const parts = title.split(sep).map(s => s.trim()).filter(s => s.length > 1);
-        // Rightmost non-generic wins
         for (let i = parts.length - 1; i >= 0; i--) {
-          if (!GENERIC_TITLES.has(parts[i].toLowerCase())) return parts[i];
+          if (!GENERIC_TITLES.has(parts[i].toLowerCase())) {
+            return { name: parts[i], confidence: domainSimilarity(parts[i]) ? 'high' : 'medium', source: 'title' };
+          }
         }
         break;
       }
     }
     // 5. Title is a single meaningful word
     if (!GENERIC_TITLES.has(title.toLowerCase()) && title.length > 2 && !/\s/.test(title)) {
-      return title;
+      return { name: title, confidence: 'medium', source: 'title-single' };
     }
   }
 
@@ -65,9 +79,10 @@ function extractCompanyName(
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\s+/g, ' ')
     .trim();
-  return spaced.length > 1
+  const fallback = spaced.length > 1
     ? spaced.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
     : domain;
+  return { name: fallback, confidence: 'low', source: 'domain' };
 }
 
 const SPANISH_PLACES: Record<string, string> = {
@@ -282,7 +297,8 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
     const businessType = detectBusinessType(html, $, allLinks);
 
     // ── Fix 4: Extract cleaned company name ──────────────────────
-    const companyName = extractCompanyName($, schemaObjects, domain, title);
+    const companyNameResult = extractCompanyName($, schemaObjects, domain, title);
+    const companyName = companyNameResult.name;
 
     // ── Fix 3: Extract location hint for GEO queries ──────────────
     const locationHint = extractLocationHint($, schemaObjects, domain);
@@ -332,6 +348,8 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       ...(redirected && { finalUrl }),
       businessType,
       companyName,
+      companyNameConfidence: companyNameResult.confidence,
+      companyNameSource: companyNameResult.source,
       ...(locationHint && { locationHint }),
       ...(instagramHandle && { instagramHandle }),
       ...(twitterHandle && { twitterHandle }),
