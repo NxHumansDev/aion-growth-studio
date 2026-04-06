@@ -9,6 +9,10 @@ const ANTHROPIC_API_KEY =
 const GENERIC_TITLES = new Set([
   'inicio', 'home', 'index', 'bienvenido', 'bienvenida', 'welcome', 'homepage',
   'portada', 'main', 'principal', 'accueil', 'startseite',
+  // Common CMS author/role names that appear in Schema but are not company names
+  'admin', 'administrator', 'administrador', 'webmaster', 'editor', 'author',
+  'autor', 'root', 'user', 'usuario', 'test', 'wordpress', 'drupal', 'joomla',
+  'wix', 'squarespace', 'shopify', 'blogger', 'super admin', 'superadmin',
 ]);
 
 /** Hierarchy: Schema Org/LB > Schema WebSite > og:site_name > title (after separator) > domain */
