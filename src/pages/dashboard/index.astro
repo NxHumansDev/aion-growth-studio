@@ -114,12 +114,19 @@ function extractPillar(snap: Record<string, any>, key: string): number {
       return totalWeight > 0 ? Math.round(weighted / totalWeight) : blogScore || 5;
     }
     case 'reputation': {
-      const rating = snap.reputation?.gbpRating;
-      const reviews = snap.reputation?.totalReviews || 0;
-      if (!rating) return 0;
-      const ratingScore = Math.round((rating / 5) * 60);
-      const reviewScore = Math.min(40, reviews * 2);
-      return Math.min(100, ratingScore + reviewScore);
+      const rep = snap.reputation || {};
+      // Use combined rating from pipeline if available (already weighted across GBP, Trustpilot, etc.)
+      const rating = rep.combinedRating ?? rep.gbpRating ?? rep.trustpilotRating;
+      const reviews = rep.totalReviews || 0;
+      const newsCount = rep.newsCount || 0;
+      if (!rating && reviews === 0 && newsCount === 0) return 0;
+      // Rating component (0-50): normalized from 0-5 scale
+      const ratingScore = rating ? Math.round((rating / 5) * 50) : 0;
+      // Reviews volume (0-30): scales up to 30 pts at 50+ reviews
+      const reviewScore = Math.min(30, Math.round(reviews * 0.6));
+      // News presence (0-20): media mentions boost
+      const newsScore = Math.min(20, newsCount * 5);
+      return Math.min(100, ratingScore + reviewScore + newsScore);
     }
     default: return 0;
   }
