@@ -273,10 +273,19 @@ export interface LinkedInResult extends ModuleResult {
   url?: string;
   name?: string;
   followers?: number;
-  employees?: string;
+  employees?: string | number;
   description?: string;
   industry?: string;
+  specialties?: string;
   headquarters?: string;
+  website?: string;
+  yearFounded?: number;
+  // Post activity (from harvestapi Actor)
+  postsLast90Days?: number;
+  avgLikes?: number;
+  avgComments?: number;
+  engagementRate?: number; // (likes+comments) / (posts * followers)
+  lastPostDate?: string;
   competitors?: LinkedInCompetitor[];
 }
 

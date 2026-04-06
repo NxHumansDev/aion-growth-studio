@@ -176,7 +176,7 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
   const contentScore = computeContentScore(
     { postsLast90Days: cc.postsLast90Days, lastPostDate: cc.lastPostDate, daysSinceLastPost: cc.daysSinceLastPost },
     { found: instagram.found, postsLast90Days: instagram.postsLast90Days, lastPostDate: instagram.lastPostDate, engagementRate: instagram.engagementRate, followers: instagram.followers },
-    { found: linkedin.found, followers: linkedin.followers },
+    { found: linkedin.found, followers: linkedin.followers, postsLast90Days: linkedin.postsLast90Days, lastPostDate: linkedin.lastPostDate },
     (results.sector as any)?.sector,
   );
 

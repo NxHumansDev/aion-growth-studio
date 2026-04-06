@@ -6,6 +6,56 @@ const APIFY_TOKEN = import.meta.env?.APIFY_TOKEN || process.env.APIFY_TOKEN;
 const DFS_LOGIN = import.meta.env?.DATAFORSEO_LOGIN || process.env.DATAFORSEO_LOGIN;
 const DFS_PASSWORD = import.meta.env?.DATAFORSEO_PASSWORD || process.env.DATAFORSEO_PASSWORD;
 
+/** Fetch recent posts from LinkedIn company page via Apify */
+async function fetchLinkedInPosts(companyUrl: string, followers: number): Promise<{
+  postsLast90Days: number; avgLikes: number; avgComments: number;
+  engagementRate: number; lastPostDate?: string;
+} | null> {
+  if (!APIFY_TOKEN) return null;
+  try {
+    const res = await axios.post(
+      `https://api.apify.com/v2/acts/harvestapi~linkedin-company-posts/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
+      { companyUrls: [companyUrl], maxPosts: 15 },
+      { timeout: 35000, headers: { 'Content-Type': 'application/json' } },
+    );
+    const posts = res.data;
+    if (!Array.isArray(posts) || posts.length === 0) return null;
+
+    const now = Date.now();
+    const MS_90D = 90 * 86_400_000;
+    let count90 = 0, totalLikes = 0, totalComments = 0;
+    let latestTs = 0;
+
+    for (const p of posts) {
+      const ts = p.postedAt?.timestamp ?? 0;
+      if (ts > latestTs) latestTs = ts;
+      if (now - ts <= MS_90D) {
+        count90++;
+        totalLikes += p.engagement?.likes ?? 0;
+        totalComments += p.engagement?.comments ?? 0;
+      }
+    }
+
+    const avgLikes = count90 > 0 ? Math.round(totalLikes / count90) : 0;
+    const avgComments = count90 > 0 ? Math.round((totalComments / count90) * 10) / 10 : 0;
+    const engRate = count90 > 0 && followers > 0
+      ? Math.round(((totalLikes + totalComments) / (count90 * followers)) * 10000) / 100
+      : 0;
+
+    console.log(`[linkedin] Posts: ${count90}/90d, avg ${avgLikes} likes, ER ${engRate}%`);
+    return {
+      postsLast90Days: count90,
+      avgLikes,
+      avgComments,
+      engagementRate: engRate,
+      lastPostDate: latestTs > 0 ? new Date(latestTs).toISOString() : undefined,
+    };
+  } catch (e) {
+    console.log(`[linkedin] Posts Actor failed: ${(e as Error).message?.slice(0, 80)}`);
+    return null;
+  }
+}
+
 /** Search Google for "site:linkedin.com/company {brand}" to find LinkedIn page */
 async function searchLinkedInUrl(crawl: CrawlResult): Promise<string | null> {
   if (!DFS_LOGIN || !DFS_PASSWORD) return null;
@@ -164,12 +214,17 @@ async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
       const items = actorRes.data;
       if (Array.isArray(items) && items.length > 0) {
         const p = items[0];
-        console.log(`[linkedin] Apify Actor: ${p.company_name} — ${p.follower_count} followers, ${p.employee_count} employees`);
+        const followers = p.follower_count || 0;
+        console.log(`[linkedin] Apify Actor: ${p.company_name} — ${followers} followers, ${p.employee_count} employees`);
+
+        // Fetch posts in parallel-ish (non-blocking if it fails)
+        const postData = await fetchLinkedInPosts(url, followers);
+
         return {
           found: true,
           url,
           name: p.company_name || undefined,
-          followers: p.follower_count || undefined,
+          followers: followers || undefined,
           employees: p.employee_count || undefined,
           description: (p.description || '').slice(0, 300) || undefined,
           industry: p.industries?.[0] || undefined,
@@ -177,6 +232,7 @@ async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
           headquarters: p.hq_full_address || undefined,
           website: p.website || undefined,
           yearFounded: p.year_founded || undefined,
+          ...postData,
         };
       }
     } catch (e) {
