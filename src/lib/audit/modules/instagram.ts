@@ -138,7 +138,35 @@ async function fetchProfile(handle: string): Promise<InstagramResult> {
       const items = actorRes.data;
       if (Array.isArray(items) && items.length > 0) {
         const p = items[0];
-        console.log(`[instagram] Apify Actor: @${handle} — ${p.followersCount} followers`);
+        // Extract post frequency from latestPosts
+        const latestPosts: any[] = p.latestPosts || [];
+        const now = Date.now();
+        const ninetyDaysAgo = now - 90 * 86_400_000;
+        const sevenDaysAgo = now - 7 * 86_400_000;
+
+        const postsWithDates = latestPosts
+          .map((post: any) => ({ ...post, ts: new Date(post.timestamp || 0).getTime() }))
+          .filter((post: any) => post.ts > 0);
+
+        const postsLast90Days = postsWithDates.filter((post: any) => post.ts >= ninetyDaysAgo).length;
+        const postsLast7Days = postsWithDates.filter((post: any) => post.ts >= sevenDaysAgo).length;
+        const lastPostDate = postsWithDates.length > 0
+          ? new Date(Math.max(...postsWithDates.map((p: any) => p.ts))).toISOString()
+          : undefined;
+
+        // Calculate engagement from recent posts
+        let engagementRate: number | undefined;
+        let avgLikes: number | undefined;
+        let avgComments: number | undefined;
+        if (postsWithDates.length > 0 && (p.followersCount ?? 0) > 0) {
+          const totalLikes = postsWithDates.reduce((s: number, post: any) => s + (post.likesCount || 0), 0);
+          const totalComments = postsWithDates.reduce((s: number, post: any) => s + (post.commentsCount || 0), 0);
+          avgLikes = Math.round(totalLikes / postsWithDates.length);
+          avgComments = Math.round(totalComments / postsWithDates.length);
+          engagementRate = Math.round(((avgLikes + avgComments) / p.followersCount) * 10000) / 100;
+        }
+
+        console.log(`[instagram] Apify Actor: @${handle} — ${p.followersCount} followers, ${postsLast90Days} posts/90d, ER ${engagementRate ?? '?'}%`);
         return {
           found: true,
           handle,
@@ -151,6 +179,13 @@ async function fetchProfile(handle: string): Promise<InstagramResult> {
           isBusinessAccount: p.isBusinessAccount,
           businessCategory: p.businessCategoryName || undefined,
           externalUrl: p.externalUrl || undefined,
+          // Content pillar data
+          postsLast90Days,
+          postsLast7Days,
+          lastPostDate,
+          engagementRate,
+          avgLikes,
+          avgComments,
         };
       }
     } catch (e) {
