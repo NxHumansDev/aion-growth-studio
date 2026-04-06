@@ -25,7 +25,10 @@ async function searchPlaces(query: string): Promise<any[]> {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      console.error(`[gbp] Places API error: ${res.status} — ${body.slice(0, 200)}`);
+      const errMsg = `${res.status}: ${body.slice(0, 200)}`;
+      console.error(`[gbp] Places API error: ${errMsg}`);
+      // Store last error for debug
+      (searchPlaces as any)._lastErr = errMsg;
       return [];
     }
 
@@ -33,7 +36,9 @@ async function searchPlaces(query: string): Promise<any[]> {
     return data.places || [];
   } catch (err) {
     clearTimeout(timer);
-    console.error(`[gbp] searchPlaces exception: ${(err as Error).message?.slice(0, 150)}`);
+    const errMsg = (err as Error).message?.slice(0, 150) || 'unknown';
+    console.error(`[gbp] searchPlaces exception: ${errMsg}`);
+    (searchPlaces as any)._lastErr = errMsg;
     return [];
   }
 }
@@ -118,7 +123,7 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
 
     const place = pickBest(places, auditDomain);
     if (!place) {
-      return { found: false };
+      return { found: false, _debug: `key=${API_KEY?.length}ch, q="${crawl.companyName}", results=0, apiErr=${(searchPlaces as any)._lastErr || 'none'}` };
     }
 
     const name = place.displayName?.text || '';
@@ -133,6 +138,6 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
       categories: (place.types || []).slice(0, 3),
     };
   } catch (err: any) {
-    return { found: false, error: err.message?.slice(0, 100) };
+    return { found: false, error: err.message?.slice(0, 100), _debug: `exception, key=${API_KEY?.length}ch` };
   }
 }
