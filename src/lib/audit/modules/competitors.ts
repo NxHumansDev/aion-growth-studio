@@ -172,33 +172,72 @@ export async function runCompetitors(
 
   const brandName = crawl.title?.split(/[-|]/)[0]?.trim() || domain;
   const description = crawl.description?.slice(0, 200) || '';
+  const locationHint = crawl.locationHint || '';
 
-  const prompt = `Identify 3-4 competitors for this business.
+  const prompt = `Identify 3-4 competitors for this business. These competitors MUST have a website with enough online presence to appear in SEO tools (DataForSEO, SEMrush, Ahrefs). Do NOT suggest tiny businesses with no digital footprint.
 
 Domain: ${domain}
 Brand: ${brandName}
 Sector: ${sector}
 Description: ${description}
+${locationHint ? `Location: ${locationHint}` : ''}
 
-Reply ONLY with a valid JSON object (no explanation, no markdown):
+Reply ONLY with valid JSON (no markdown, no backticks, start with {):
 {"competitors": [{"name": "Company Name", "url": "https://exactdomain.com", "snippet": "One sentence why they compete", "type": "direct"}]}
 
 The "type" field must be "direct" (same subsector, similar size) or "aspirational" (larger reference, include max 1).
 
-CRITICAL RULES — read carefully:
-1. Only include companies whose EXACT website URL you know with 100% certainty from your training data
-2. If you are not completely sure the URL exists, DO NOT include that company
-3. The "name" field MUST be a real brand/company name — NEVER a category description like "productores de frutas"
-4. MISMO SUBSECTOR: Match the specific niche, NOT the broader sector category.
-   - Banca privada / wealth management (Andbank, Creand, Lombard Odier) ≠ banca retail (Santander, BBVA, Sabadell, CaixaBank). NEVER include retail banks as competitors for a private bank.
-   - Consultoría boutique ≠ Big4 (Deloitte, PwC, McKinsey). NEVER include Big4 as direct competitors for a small consultancy.
-   - SaaS de nicho ≠ plataformas horizontales (Salesforce, HubSpot). Match the vertical.
-5. TAMAÑO SIMILAR: Prioritize competitors of similar digital size. Mark as "aspirational" (max 1) any competitor that is clearly 10x+ larger.
-6. At least 2 of the 3-4 competitors must be "direct" (same subsector + comparable size).
-7. Do not include ${domain} itself
-8. It is better to return 2 verified direct competitors than 4 guessed ones`;
+CRITICAL RULES:
+1. URLS REALES: Only include companies whose EXACT website URL you know with 100% certainty. If unsure, DO NOT include.
+2. NOMBRE REAL: Must be a real brand name, NEVER a category description.
+3. MISMO SUBSECTOR Y REGIÓN: Match the specific niche AND geographic market.
+   - "${brandName}" operates in "${sector}" ${locationHint ? `in ${locationHint}` : 'in Spain'}.
+   - Find competitors in the SAME subsector and SAME region/country.
+   - Banca privada ≠ banca retail. Consultoría boutique ≠ Big4. Distribuidor B2B ≠ e-commerce B2C.
+4. PRESENCIA DIGITAL RELEVANTE: Competitors MUST have a real website with content, blog, or product pages.
+   Do NOT suggest companies that only have a one-page website or no SEO presence.
+   A good competitor should have at least 50+ indexed pages in Google.
+5. TAMAÑO SIMILAR: Prioritize competitors of similar digital size. Max 1 "aspirational" (10x+ larger).
+6. At least 2 of 3-4 must be "direct" (same subsector + comparable size).
+7. Do not include ${domain} itself.
+8. Better to return 2 verified competitors than 4 guessed ones.`;
 
-  const validated = await callHaikuWithValidation('competitors', prompt, 15000, 2);
+  // Use Sonnet for better sector understanding and competitor relevance
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  let validated: any = null;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      let text = data?.content?.[0]?.text || '';
+      const mdMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (mdMatch) text = mdMatch[1].trim();
+      try { validated = JSON.parse(text); } catch {
+        try { validated = JSON.parse(text.replace(/,\s*([\]}])/g, '$1')); } catch { /* ignore */ }
+      }
+    }
+  } catch { clearTimeout(timer); }
+
+  if (!validated) {
+    // Fallback to Haiku if Sonnet fails
+    validated = await callHaikuWithValidation('competitors', prompt, 15000, 2);
+  }
 
   if (!validated) {
     return { competitors: [], error: 'LLM failed to produce valid competitors' };
