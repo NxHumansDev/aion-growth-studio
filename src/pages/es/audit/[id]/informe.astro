@@ -191,7 +191,7 @@ const statusByArea: { area: string; status: AreaStatus; summary: string; anchor:
     if (linkedin?.followers) parts.push(`${fmt(linkedin.followers)} seguidores LI`);
     return parts.length > 0 ? parts.join(', ') : 'Sin datos de autoridad digital';
   })(), anchor: '#autoridad' },
-  { area: 'Benchmark', status: displayCompetitors.length > 0 ? ss(health.competitividad ?? 0) : 'bad', summary: displayCompetitors.length > 0 ? `${displayCompetitors.length} competidores analizados` : 'Sin datos de competidores', anchor: '#competidores' },
+  { area: 'Benchmark', status: (hasCompetitorData || competitors.length > 0) ? ss(health.competitividad ?? 0) : 'bad', summary: (hasCompetitorData || competitors.length > 0) ? `${Math.max(ctItems.length, competitors.length)} competidores analizados` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
   { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Sin analytics') : 'Sin datos', anchor: '#experiencia' },
