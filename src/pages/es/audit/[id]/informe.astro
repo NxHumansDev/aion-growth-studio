@@ -2381,27 +2381,8 @@ const donutSVG = buildDonutSVG();
             </div>
           )}
 
-          <!-- Traffic metrics (derived from SEO data) -->
-          {seo && (seo.organicTrafficEstimate ?? 0) > 0 && (
-            <div style="margin-bottom:1.5rem;">
-              <div style="font-size:0.68rem;font-weight:700;color:#8d909b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Trafico mensual estimado</div>
-              <div class="grid-3">
-                <div class="metric-card-dark">
-                  <div class="metric-value-lg" style="color:#aac7ff;">{fmt(seo.organicTrafficEstimate)}</div>
-                  <div class="metric-label-sm">Visitas organicas / mes</div>
-                </div>
-                <div class="metric-card-dark">
-                  <div class="metric-value-lg" style="color:#e2e0fc;">{seo.paidTrafficEstimate ? fmt(seo.paidTrafficEstimate) : '0'}</div>
-                  <div class="metric-label-sm">Visitas de pago / mes</div>
-                </div>
-                <div class="metric-card-dark">
-                  <div class="metric-value-lg" style="color:#e2e0fc;">{fmt((seo.organicTrafficEstimate ?? 0) + (seo.paidTrafficEstimate ?? 0))}</div>
-                  <div class="metric-label-sm">Trafico total estimado</div>
-                </div>
-              </div>
-              <div style="font-size:0.65rem;color:#8d909b;margin-top:6px;font-style:italic;">* Estimaciones basadas en posicionamiento SEO. Para datos reales, conecta Google Analytics con AION Radar.</div>
-            </div>
-          )}
+          <!-- Traffic metrics removed: already shown in SEO section. Bounce rate/pages per visit
+               require Google Analytics or DataForSEO Traffic Analytics (not in current plan). -->
 
           <!-- PageSpeed gauges -->
           {ps && (
