@@ -170,6 +170,16 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     };
   }
 
+  // ── Content pillar (informational — not in main total yet) ──────
+  const { computeContentScore } = await import('../content-score');
+  const instagram = (results.instagram || {}) as any;
+  const contentScore = computeContentScore(
+    { postsLast90Days: cc.postsLast90Days, lastPostDate: cc.lastPostDate, daysSinceLastPost: cc.daysSinceLastPost },
+    { found: instagram.found, postsLast90Days: instagram.postsLast90Days, lastPostDate: instagram.lastPostDate, engagementRate: instagram.engagementRate, followers: instagram.followers },
+    { found: linkedin.found, followers: linkedin.followers },
+    (results.sector as any)?.sector,
+  );
+
   const breakdown: ScoreBreakdown = {
     seo:        seoScore ?? 0,
     geo:        geoScore ?? 0,
@@ -178,5 +188,5 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     reputation: reputationScore ?? 0,
   };
 
-  return { total, breakdown };
+  return { total, breakdown, content: contentScore };
 }
