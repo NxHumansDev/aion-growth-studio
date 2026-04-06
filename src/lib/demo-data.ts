@@ -126,6 +126,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
           'Optimizar PageSpeed mobile (actualmente 52/100)',
         ],
       },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 620, posts: 32, engagementRate: 0.8, avgLikes: 5, avgComments: 1, postsLast90Days: 0, postsLast7Days: 0, lastPostDate: '2025-11-20' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 890, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: {
         items: [
@@ -179,6 +181,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'Ligera mejora en posiciones SEO. La web sigue sin SSL ni GBP.', bullets: ['Activar HTTPS urgente', 'Crear GBP', 'Empezar a publicar en blog'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 625, posts: 32, engagementRate: 0.8, avgLikes: 5, avgComments: 1, postsLast90Days: 0, postsLast7Days: 0, lastPostDate: '2025-11-20' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 900, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
@@ -223,6 +227,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'Semana de avances: HTTPS activado, GBP creado con 3 reseñas iniciales, primer post publicado.', bullets: ['HTTPS activo — impacto SEO en 2-3 semanas', 'GBP Barcelona con 3 reseñas (objetivo: 10)', 'Seguir publicando en blog'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 640, posts: 33, engagementRate: 1.1, avgLikes: 7, avgComments: 1, postsLast90Days: 1, postsLast7Days: 1, lastPostDate: '2026-03-02' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 920, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
@@ -267,6 +273,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'Semana de consolidación. GBP crece a 6 reseñas. PageSpeed mobile mejora a 60.', bullets: ['Seguir con reseñas GBP', 'Publicar segundo artículo', 'Considerar lead magnet'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 660, posts: 34, engagementRate: 1.2, avgLikes: 8, avgComments: 1, postsLast90Days: 2, postsLast7Days: 1, lastPostDate: '2026-03-09' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 950, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
@@ -311,6 +319,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'El efecto HTTPS empieza a notarse: +2 score, keywords top10 suben a 13. Segunda landing creada.', bullets: ['Lanzar lead magnet', 'Seguir con blog quincenal', 'Mejorar LCP'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 700, posts: 36, engagementRate: 1.4, avgLikes: 9, avgComments: 2, postsLast90Days: 3, postsLast7Days: 1, lastPostDate: '2026-03-15' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 1020, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
@@ -357,6 +367,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'Lead magnet publicado y GBP superó 10 reseñas. Primera mención GEO adicional detectada.', bullets: ['Lead magnet activo', 'GBP con 12 reseñas (4.5★)', 'GEO subió a 3 menciones'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 760, posts: 39, engagementRate: 1.6, avgLikes: 11, avgComments: 2, postsLast90Days: 3, postsLast7Days: 1, lastPostDate: '2026-03-23' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 1100, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
@@ -401,6 +413,8 @@ export const DEMO_SNAPSHOTS: Snapshot[] = [
         ],
       },
       insights: { summary: 'Ligero retroceso esta semana: -1 punto. Devify rediseñó su web y ganó velocidad. Normal, no preocupante.', bullets: ['Mantener publicación de contenido', 'Vigilar movimiento de Devify', 'Considerar ads'] },
+      instagram: { found: true, handle: 'techsolutions.bcn', followers: 790, posts: 41, engagementRate: 1.5, avgLikes: 11, avgComments: 2, postsLast90Days: 4, postsLast7Days: 0, lastPostDate: '2026-03-23' },
+      linkedin: { found: true, name: 'TechSolutions Barcelona', followers: 1180, employees: '11-50', industry: 'Software Development' },
       meta_ads: { skipped: true },
       keyword_gap: { items: [
         { keyword: 'software recursos humanos', volume: 2400, difficulty: 48, position: null, competitor: 'devify.io', impact: 'high', priority: 'oportunidad' },
