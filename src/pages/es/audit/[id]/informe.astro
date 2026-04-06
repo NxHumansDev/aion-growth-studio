@@ -472,7 +472,9 @@ const brandEtv = seo?.brandTrafficEtv ?? 0;
 const nonBrandEtv = seo?.nonBrandTrafficEtv ?? 0;
 const indexedPages = seo?.indexedPages ?? null;
 const sitemapPages = seo?.sitemapPages ?? null;
-const indexationRatio = seo?.indexationRatio ?? null;
+const indexationRatioRaw = seo?.indexationRatio ?? null;
+const indexInflated = seo?.indexInflated ?? false;
+const indexationRatio = indexInflated ? null : (indexationRatioRaw !== null ? Math.min(100, indexationRatioRaw) : null);
 
 function buildBrandNarrative(): string {
   if (brandPct === null) return '';
@@ -491,6 +493,9 @@ const brandNarrative = buildBrandNarrative();
 
 function buildIndexNarrative(): string {
   if (indexedPages === null) return '';
+  if (sitemapPages && indexInflated) {
+    return `Google tiene indexadas ${fmt(indexedPages)} páginas, pero vuestro sitemap solo contiene ${fmt(sitemapPages)}. Esto indica que Google indexa páginas adicionales no incluidas en el sitemap (URLs con parámetros, paginaciones, duplicados). Revisar y limpiar estas páginas extra puede mejorar el crawl budget y la calidad del índice.`;
+  }
   if (sitemapPages && indexationRatio !== null) {
     if (indexationRatio >= 90) {
       return `Google tiene indexadas ${fmt(indexedPages)} de las ${fmt(sitemapPages)} páginas de vuestro sitemap (${indexationRatio}%). Excelente cobertura — prácticamente todo vuestro contenido está visible en Google.`;
@@ -575,8 +580,8 @@ const funnelScoreColor = (cv?.funnelScore ?? 0) >= 60 ? '#1D9E75' : (cv?.funnelS
 const mobileOkColor = (ps?.mobile?.performance ?? 0) >= 50 ? '#1D9E75' : '#E24B4A';
 const indexKwRef = seo?.keywordsTop10 ?? 0;
 const indexSuspiciouslyLow = (indexedPages ?? 999) <= 5 && indexKwRef > 20;
-const indexBarColor = indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
-const indexBarWidth = indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
+const indexBarColor = indexInflated ? '#BA7517' : indexationRatio !== null ? (indexationRatio >= 80 ? '#1D9E75' : indexationRatio >= 50 ? '#BA7517' : '#E24B4A') : '#9CA3AF';
+const indexBarWidth = indexInflated ? 100 : indexationRatio !== null ? Math.min(indexationRatio, 100) : 0;
 const brandBarBg = brandPct === 0 ? 'border-radius:5px;' : 'border-radius:0 5px 5px 0;';
 const brandBarW = brandPct > 0 ? (nonBrandPct ?? 100) : 100;
 const brandLabelColor = brandPct > 0 ? '#4A7FD4' : '#9CA3AF';

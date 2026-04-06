@@ -470,7 +470,10 @@ export async function runSEO(url: string): Promise<SEOResult> {
         if (totalLocCount > 0) {
           baseResult.sitemapPages = totalLocCount;
           if (baseResult.indexedPages != null) {
-            baseResult.indexationRatio = Math.min(100, Math.round((baseResult.indexedPages / totalLocCount) * 100));
+            const rawRatio = Math.round((baseResult.indexedPages / totalLocCount) * 100);
+            baseResult.indexationRatio = rawRatio;
+            // Flag when Google indexes more pages than sitemap has (bloat/duplicates)
+            baseResult.indexInflated = rawRatio > 110;
           }
           _logParts.push(`sitemap:${totalLocCount} ratio:${baseResult.indexationRatio ?? '?'}%`);
         }
