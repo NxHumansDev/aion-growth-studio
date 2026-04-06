@@ -86,7 +86,25 @@ export async function runLinkedIn(
     }
   }
 
-  // Fallback 2: search Google for "site:linkedin.com/company {brand}"
+  // Fallback 2: try direct LinkedIn URL from domain name
+  if (!linkedinUrl && crawlData.finalUrl) {
+    try {
+      const domainName = new URL(crawlData.finalUrl).hostname.replace(/^www\./, '').split('.')[0];
+      const directUrl = `https://www.linkedin.com/company/${domainName}`;
+      const testRes = await axios.get(directUrl, {
+        timeout: 5000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+        validateStatus: (s) => s < 500,
+        ...apifyProxyConfig(),
+      });
+      if (testRes.status === 200 && String(testRes.data).includes('followers')) {
+        linkedinUrl = directUrl;
+        console.log(`[linkedin] Found via direct URL: ${directUrl}`);
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback 3: search Google for "site:linkedin.com/company {brand}"
   if (!linkedinUrl) {
     linkedinUrl = await searchLinkedInUrl(crawlData) || undefined;
   }
