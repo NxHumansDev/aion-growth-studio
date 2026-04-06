@@ -108,11 +108,14 @@ const brandAuthorityScoreEs = (() => {
   if (rd >= 500) ba += 12; else if (rd >= 100) ba += 8; else if (rd >= 20) ba += 5; else if (rd >= 1) ba += 2;
   const dr = seo?.domainRank ?? 0;
   if (dr > 0) ba += Math.round(Math.min(dr / 100, 1) * 8);
-  // Reviews/reputation (0-25) — Google, Trustpilot, Tripadvisor, Amazon
-  const cr = repRaw.combinedRating ?? 0;
-  const tr = repRaw.totalReviews ?? 0;
+  // Reviews/reputation (0-25) — Google (GBP), Trustpilot, Tripadvisor, Amazon
+  // Use best available rating: GBP takes priority if available
+  const cr = Math.max(gbp?.rating ?? 0, repRaw.combinedRating ?? 0);
+  const tr = (gbp?.reviewCount ?? 0) + (repRaw.totalReviews ?? 0);
   if (cr >= 4.5 && tr >= 100) ba += 25;
+  else if (cr >= 4.5 && tr >= 10) ba += 22;
   else if (cr >= 4.0 && tr >= 50) ba += 20;
+  else if (cr >= 4.0 && tr >= 10) ba += 16;
   else if (cr >= 3.5 && tr >= 10) ba += 12;
   else if (cr > 0) ba += 5;
   // Blog (0-15)
@@ -179,7 +182,15 @@ function statusStyle(s: AreaStatus): { bg: string; fg: string; label: string } {
 const statusByArea: { area: string; status: AreaStatus; summary: string; anchor: string }[] = [
   { area: 'SEO Orgánico', status: ss(visSeoSub ?? health.visibilidad ?? 0), summary: seo ? `${fmt(seo.keywordsTop10)} keywords top 10, ~${fmt(seo.organicTrafficEstimate)} visitas/mes` : 'Sin datos SEO', anchor: '#seo' },
   { area: 'Visibilidad IA', status: ss(geo?.mentionRate ?? 0), summary: geo ? `Mencionado en ${geo.mentionRate ?? 0}% de las consultas` : 'Sin datos GEO', anchor: '#ia' },
-  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: seo?.domainRank != null ? `Domain rank: ${seo.domainRank}/100, ${fmt(seo.referringDomains)} dominios enlazantes` : 'Sin datos de autoridad digital', anchor: '#autoridad' },
+  { area: 'Reputación', status: ss(brandAuthorityScoreEs), summary: (() => {
+    const parts: string[] = [];
+    if (gbp?.rating) parts.push(`Google: ${gbp.rating}★`);
+    if (repRaw.combinedRating && !gbp?.rating) parts.push(`Reseñas: ${repRaw.combinedRating}★`);
+    if (seo?.domainRank != null) parts.push(`DR: ${seo.domainRank}`);
+    if (newsCountEs > 0) parts.push(`${newsCountEs} menciones en prensa`);
+    if (linkedin?.followers) parts.push(`${fmt(linkedin.followers)} seguidores LI`);
+    return parts.length > 0 ? parts.join(', ') : 'Sin datos de autoridad digital';
+  })(), anchor: '#autoridad' },
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competidores con datos` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
@@ -327,28 +338,43 @@ const giantCompNamesEs = displayCompetitors.slice(0, 3).map((c: any) => c.name |
 const maxKW = Math.max(seo?.keywordsTop10||0, ...displayCompetitors.map((c:any)=>c.keywordsTop10||0), 1);
 const maxFollowers = Math.max(linkedin?.followers||0, instagram?.followers||0, ...(linkedin?.competitors||[]).map((c:any)=>c.followers||0), ...(instagram?.competitors||[]).map((c:any)=>c.followers||0), 1);
 
+// Reviews axis: normalize 1-5★ rating to 0-100 scale, average GBP + Trustpilot for main domain
+const _gbpR = gbp?.rating ?? 0;
+const _tpR = repRaw.combinedRating ?? 0;
+const _ownReviewScore = _gbpR > 0 && _tpR > 0
+  ? Math.round(((_gbpR + _tpR) / 2 - 1) / 4 * 100)   // average of both, 1★=0, 5★=100
+  : _gbpR > 0 ? Math.round((_gbpR - 1) / 4 * 100)
+  : _tpR > 0 ? Math.round((_tpR - 1) / 4 * 100)
+  : 0;
+
 const radarColors = ['#1A4B8C','#D85A30','#888780'];
 const radarDatasets = [
   { label: domain, color: radarColors[0], values: [
     Math.round(((seo?.keywordsTop10||0)/maxKW)*100),
     geo?.mentionRate??0,
-    (seo?.paidKeywordsTotal||0)>0?80:20,
+    _ownReviewScore,
     Math.round((Math.max(linkedin?.followers||0,instagram?.followers||0)/maxFollowers)*100),
     ps?.mobile?.performance??0,
   ]},
-  ...displayCompetitors.slice(0,2).map((ct:any, idx:number)=>({
-    label: ct.name||ct.domain,
-    color: radarColors[idx+1],
-    values: [
-      ct.keywordsTop10 != null ? Math.round((ct.keywordsTop10/maxKW)*100) : 0,
-      geo?.competitorMentions?.[idx]?.mentionRate??0,
-      (ct.paidKeywordsTotal||0)>0?80:20,
-      Math.round((Math.max((linkedin?.competitors||[])[idx]?.followers||0,(instagram?.competitors||[])[idx]?.followers||0)/maxFollowers)*100),
-      compPS?.items?.find((p:any)=>p.domain===ct.domain)?.mobileScore ?? compPS?.items?.[idx]?.mobileScore ?? 0,
-    ],
-  })),
+  ...displayCompetitors.slice(0,2).map((ct:any, idx:number)=>{
+    // Competitor reviews: GBP from competitor_pagespeed data
+    const cpItem = compPS?.items?.find((p:any)=>p.domain===ct.domain) ?? compPS?.items?.[idx];
+    const compGbpRating = cpItem?.gbpRating ?? 0;
+    const compReviewScore = compGbpRating > 0 ? Math.round((compGbpRating - 1) / 4 * 100) : 0;
+    return {
+      label: ct.name||ct.domain,
+      color: radarColors[idx+1],
+      values: [
+        ct.keywordsTop10 != null ? Math.round((ct.keywordsTop10/maxKW)*100) : 0,
+        geo?.competitorMentions?.[idx]?.mentionRate??0,
+        compReviewScore,
+        Math.round((Math.max((linkedin?.competitors||[])[idx]?.followers||0,(instagram?.competitors||[])[idx]?.followers||0)/maxFollowers)*100),
+        cpItem?.mobileScore ?? 0,
+      ],
+    };
+  }),
 ];
-const radarSvg = buildRadarChart(['SEO','GEO/IA','Paid','Social','Web'], radarDatasets);
+const radarSvg = buildRadarChart(['SEO','GEO/IA','Reviews','Social','Web'], radarDatasets);
 
 // Gauge SVGs
 const psGaugeMobile = ps ? buildGauge(ps.mobile?.performance??0, 'small') : '';

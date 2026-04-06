@@ -485,6 +485,8 @@ export interface CompetitorPageSpeedItem {
   name: string;
   domain: string;
   mobileScore: number; // 0-100
+  gbpRating?: number;  // 1-5 stars
+  gbpReviews?: number;
 }
 
 export interface CompetitorPageSpeedResult extends ModuleResult {

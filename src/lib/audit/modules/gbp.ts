@@ -2,11 +2,87 @@ import type { GBPResult, CrawlResult } from '../types';
 
 const API_KEY = import.meta.env?.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 
-async function searchPlace(query: string): Promise<any | null> {
-  const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${API_KEY}`;
-  const res = await fetch(searchUrl);
-  const data = await res.json();
-  return data.results?.[0] || null;
+/**
+ * Places API (New) — text search.
+ * Returns all results so caller can pick the best match.
+ */
+async function searchPlaces(query: string): Promise<any[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY!,
+        'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.types,places.websiteUri',
+      },
+      body: JSON.stringify({ textQuery: query }),
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      console.log(`[gbp] Places API error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.places || [];
+  } catch {
+    clearTimeout(timer);
+    return [];
+  }
+}
+
+/** Extract bare domain from a URL (e.g. "https://tienda.frutaseloy.com/foo" → "frutaseloy.com") */
+function bareDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').replace(/^tienda\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Pick the best GBP result: prefer the one whose website matches our audit domain,
+ * then fall back to highest rating+reviews combo.
+ */
+function pickBest(places: any[], auditDomain: string): any | null {
+  if (places.length === 0) return null;
+
+  // First: exact domain match
+  const domainMatch = places.find(p => {
+    const web = bareDomain(p.websiteUri || '');
+    return web && auditDomain.includes(web);
+  });
+  if (domainMatch) return domainMatch;
+
+  // Fallback: best rating × reviews
+  let best = places[0];
+  for (const p of places.slice(1)) {
+    const bestScore = (best.rating ?? 0) * 20 + Math.log10((best.userRatingCount ?? 0) + 1);
+    const pScore = (p.rating ?? 0) * 20 + Math.log10((p.userRatingCount ?? 0) + 1);
+    if (pScore > bestScore) best = p;
+  }
+  return best;
+}
+
+/**
+ * Quick GBP lookup by company name + domain — used for competitor comparison.
+ * Returns { rating, reviewCount } or null.
+ */
+export async function lookupGBP(companyName: string, domain: string): Promise<{ rating: number; reviewCount: number } | null> {
+  if (!API_KEY) return null;
+  try {
+    const places = await searchPlaces(companyName);
+    const place = pickBest(places, domain);
+    if (!place?.rating) return null;
+    return { rating: place.rating, reviewCount: place.userRatingCount ?? 0 };
+  } catch {
+    return null;
+  }
 }
 
 export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult> {
@@ -14,34 +90,39 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
     return { skipped: true, reason: 'GOOGLE_PLACES_API_KEY not configured' };
   }
 
-  const domain = new URL(url).hostname.replace(/^www\./, '');
+  const auditDomain = new URL(url).hostname.replace(/^www\./, '');
   const titleName = crawl.title?.split(/[-|–—·:]/)[0]?.trim() || '';
+  const GENERIC = /^(home|inicio|welcome|bienvenid|index|main|page|untitled)$/i;
 
   try {
-    // Strategy 1: Search by title name (most common)
-    let place = titleName ? await searchPlace(titleName) : null;
+    // Strategy 1: Use companyName from crawl (most reliable — extracted from schema/og)
+    let places = crawl.companyName ? await searchPlaces(crawl.companyName) : [];
 
-    // Strategy 2: Search by domain name if title didn't work
-    if (!place) {
-      const domainName = domain.split('.')[0].replace(/-/g, ' ');
-      place = await searchPlace(domainName);
+    // Strategy 2: Search by title name (if not generic like "Home")
+    if (places.length === 0 && titleName && !GENERIC.test(titleName)) {
+      places = await searchPlaces(titleName);
     }
 
-    // Strategy 3: Search with "empresa" + domain for better context
-    if (!place && titleName) {
-      place = await searchPlace(`${titleName} empresa`);
+    // Strategy 3: Search by domain name
+    if (places.length === 0) {
+      const domainName = auditDomain.split('.')[0].replace(/-/g, ' ');
+      places = await searchPlaces(domainName);
     }
 
+    const place = pickBest(places, auditDomain);
     if (!place) {
       return { found: false };
     }
 
+    const name = place.displayName?.text || '';
+    console.log(`[gbp] Found "${name}": ${place.rating}★ (${place.userRatingCount} reviews) — web: ${place.websiteUri || 'none'}`);
+
     return {
       found: true,
-      name: place.name?.slice(0, 100),
+      name: name.slice(0, 100),
       rating: place.rating,
-      reviewCount: place.user_ratings_total,
-      address: place.formatted_address?.slice(0, 150),
+      reviewCount: place.userRatingCount,
+      address: (place.formattedAddress || '').slice(0, 150),
       categories: (place.types || []).slice(0, 3),
     };
   } catch (err: any) {
