@@ -1899,7 +1899,22 @@ const donutSVG = buildDonutSVG();
                 </div>
               </div>
               <div style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;">
-                {(() => { const best = Math.max(gbp?.rating ?? 0, repRaw.combinedRating ?? 0); return best >= 4.2 ? 'Excelente reputacion online. Las valoraciones refuerzan la confianza de nuevos clientes.' : best >= 3.5 ? 'Buena reputacion con margen de mejora.' : 'Reputacion que necesita atencion.'; })()}
+                {(() => {
+                  const g = gbp?.rating ?? 0;
+                  const t = repRaw.combinedRating ?? 0;
+                  const low = ratingSources.find((s: any) => s.rating < 3.5);
+                  const lowName = low?.name;
+                  // Both sources and one is weak
+                  if (g > 0 && t > 0 && Math.abs(g - t) >= 1.0) {
+                    const strong = g > t ? 'Google' : lowName || 'Trustpilot';
+                    const weak = g > t ? (lowName || 'Trustpilot') : 'Google';
+                    const weakVal = g > t ? t : g;
+                    return `Buena valoracion en ${strong === 'Google' ? 'Google' : strong} pero ${weak} tiene un ${weakVal} que requiere atencion. Una diferencia grande entre plataformas genera desconfianza — los clientes comparan. Priorizar la gestion de resenas en ${weak} es clave.`;
+                  }
+                  if ((avgRating ?? 0) >= 4.2) return 'Excelente reputacion online en todas las plataformas. Las valoraciones refuerzan la confianza de nuevos clientes.';
+                  if ((avgRating ?? 0) >= 3.5) return 'Buena reputacion con margen de mejora. Responder a resenas negativas y solicitar valoraciones a clientes satisfechos puede subir la media.';
+                  return 'La reputacion online necesita atencion urgente. Las valoraciones bajas pueden estar frenando conversiones.';
+                })()}
               </div>
             </div>
           )}
