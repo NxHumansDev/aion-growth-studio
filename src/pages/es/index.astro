@@ -4,6 +4,7 @@ import '../../styles/global.css';
 const lang = 'es';
 const t: Record<string, string> = {
   'nav.solutions': 'Soluciones',
+  'nav.pricing': 'Pricing',
   'nav.blog': 'Blog',
   'nav.contact': 'Contacto',
   'nav.login': 'Iniciar Sesión',
@@ -86,6 +87,7 @@ const t: Record<string, string> = {
         <!-- Desktop nav links -->
         <div class="hidden lg:flex items-center gap-8">
           <a href="#solutions" class="font-sans tracking-tight font-medium text-sm text-white/80 hover:text-white transition-colors">{t['nav.solutions']}</a>
+          <a href="/es/radar" class="font-sans tracking-tight font-medium text-sm text-white/80 hover:text-white transition-colors">{t['nav.pricing']}</a>
           <a href="/blog" class="font-sans tracking-tight font-medium text-sm text-white/80 hover:text-white transition-colors">{t['nav.blog']}</a>
           <a href="/contacto" class="font-sans tracking-tight font-medium text-sm text-white/80 hover:text-white transition-colors">{t['nav.contact']}</a>
         </div>
@@ -121,6 +123,7 @@ const t: Record<string, string> = {
       <div id="mobile-menu" class="lg:hidden hidden border-t border-white/10 px-8 py-6 bg-primary">
         <div class="flex flex-col gap-4">
           <a href="#solutions" class="font-sans tracking-tight font-medium text-sm text-white/80 mobile-nav-close">{t['nav.solutions']}</a>
+          <a href="/es/radar" class="font-sans tracking-tight font-medium text-sm text-white/80 mobile-nav-close">{t['nav.pricing']}</a>
           <a href="/blog" class="font-sans tracking-tight font-medium text-sm text-white/80 mobile-nav-close">{t['nav.blog']}</a>
           <a href="/contacto" class="font-sans tracking-tight font-medium text-sm text-white/80 mobile-nav-close">{t['nav.contact']}</a>
 
