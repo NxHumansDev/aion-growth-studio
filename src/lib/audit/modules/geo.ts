@@ -273,22 +273,29 @@ async function generateQueries(
     : '';
 
   const prompt =
-    `Genera exactamente 20 consultas que potenciales clientes escribirían en ChatGPT o Perplexity buscando ${sector}.\n\n` +
-    `Contexto:\n- Sector: ${sector}\n- Propuesta de valor: ${valueProposition.slice(0, 100)}\n` +
-    `- Servicios clave: ${keywords.slice(0, 60)}${loc}\n\n` +
+    `Genera exactamente 20 consultas que potenciales clientes escribirían en ChatGPT o Perplexity cuando buscan lo que ofrece "${brandName}" (${domain}).\n\n` +
+    `IMPORTANTE — ANALIZA PRIMERO:\n` +
+    `- Empresa: ${brandName} (${domain})\n` +
+    `- Sector declarado: ${sector}\n` +
+    `- Propuesta de valor: ${valueProposition.slice(0, 150)}\n` +
+    `- Servicios clave: ${keywords.slice(0, 80)}${loc}\n\n` +
+    `Antes de generar queries, piensa: ¿qué buscaría REALMENTE un cliente de ${brandName}? ` +
+    `No generes queries genéricas del sector — genera queries sobre lo que esta empresa CONCRETAMENTE vende o hace. ` +
+    `Ejemplo: El Corte Inglés NO es "plataforma de e-commerce" — es grandes almacenes. Un mayorista de fruta NO compite con supermercados.\n\n` +
     `ESTRUCTURA EXACTA — 20 consultas en 6 categorías:\n` +
-    `1. "sector" (3): descubrimiento genérico. Ej: "mejores empresas de X"\n` +
-    `2. "problema" (3): dolor o necesidad. Ej: "cómo resolver Y"\n` +
+    `1. "sector" (3): descubrimiento. Ej: "mejores [lo que hace ${brandName}]"\n` +
+    `2. "problema" (3): dolor o necesidad del cliente. Ej: "cómo resolver Y"\n` +
     `3. "comparativa" (3): comparar opciones. Ej: "diferencias entre X e Y"\n` +
-    `4. "decision" (4): alta intención de compra. Ej: "contratar X esta semana"\n` +
+    `4. "decision" (4): alta intención de compra. Ej: "dónde comprar X"\n` +
     `5. "recomendacion" (3): pedir consejo. Ej: "recomiéndame un X de confianza"\n` +
     `6. "marca" (4): preguntas sobre "${brandName}". Ej: "¿qué tal es ${brandName}?"\n\n` +
     `REGLAS:\n` +
-    `- Naturales y conversacionales, máximo 15 palabras por consulta\n` +
+    `- Queries sobre lo que ${brandName} REALMENTE ofrece, no queries genéricas del sector\n` +
+    `- Naturales y conversacionales, máximo 15 palabras\n` +
     `- Solo en categoría "marca" se usa "${brandName}"\n` +
     `- NUNCA placeholders como [ciudad]. Usa nombres reales\n` +
     `- Idioma: español\n\n` +
-    `JSON array de 30 objetos, sin markdown:\n` +
+    `JSON array de 20 objetos, sin markdown:\n` +
     `[{"category":"sector","query":"..."},{"category":"problema","query":"..."},...,{"category":"marca","query":"...","isBrandQuery":true}]`;
 
   const controller = new AbortController();
