@@ -338,27 +338,41 @@ const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
         </div>
       </div>
 
-      <!-- Phase 3: Competidores, redes e IA -->
+      <!-- Phase 3: Redes sociales -->
+      <div class="phase-card pending" id="phase-instagram">
+        <div class="phase-header">
+          <div class="phase-icon"><span class="material-symbols-outlined">share</span></div>
+          <div style="flex:1;">
+            <div class="phase-title">Redes sociales y marca</div>
+          </div>
+          <div class="phase-meta">4 módulos · en paralelo</div>
+        </div>
+        <div class="phase-modules">
+          <div class="phase-module-item" id="pm-instagram"><span class="mod-dot"></span>Instagram</div>
+          <div class="phase-module-item" id="pm-linkedin"><span class="mod-dot"></span>LinkedIn empresa</div>
+          <div class="phase-module-item" id="pm-meta_ads"><span class="mod-dot"></span>Meta Ads</div>
+          <div class="phase-module-item" id="pm-google_shopping"><span class="mod-dot"></span>Google Shopping</div>
+        </div>
+      </div>
+
+      <!-- Phase 4: Benchmark competitivo -->
       <div class="phase-card pending" id="phase-competitor_traffic">
         <div class="phase-header">
           <div class="phase-icon"><span class="material-symbols-outlined">leaderboard</span></div>
           <div style="flex:1;">
-            <div class="phase-title">Datos competitivos, redes e IA</div>
+            <div class="phase-title">Benchmark competitivo</div>
           </div>
-          <div class="phase-meta">7 módulos · en paralelo</div>
+          <div class="phase-meta">4 módulos · en paralelo</div>
         </div>
         <div class="phase-modules">
           <div class="phase-module-item" id="pm-competitor_traffic"><span class="mod-dot"></span>Tráfico de competidores</div>
-          <div class="phase-module-item" id="pm-competitor_pagespeed"><span class="mod-dot"></span>Rendimiento competidores</div>
+          <div class="phase-module-item" id="pm-competitor_pagespeed"><span class="mod-dot"></span>Web + Reviews competidores</div>
           <div class="phase-module-item" id="pm-keyword_gap"><span class="mod-dot"></span>Keyword gap</div>
           <div class="phase-module-item" id="pm-geo"><span class="mod-dot"></span>Visibilidad en IA (GEO)</div>
-          <div class="phase-module-item" id="pm-instagram"><span class="mod-dot"></span>Instagram / Redes sociales</div>
-          <div class="phase-module-item" id="pm-linkedin"><span class="mod-dot"></span>LinkedIn empresa</div>
-          <div class="phase-module-item" id="pm-meta_ads"><span class="mod-dot"></span>Meta Ads</div>
         </div>
       </div>
 
-      <!-- Phase 4: Diagnóstico final (sequential) -->
+      <!-- Phase 5: Diagnóstico final (sequential) -->
       <div class="phase-card pending" id="phase-score">
         <div class="phase-header">
           <div class="phase-icon"><span class="material-symbols-outlined">grade</span></div>
@@ -423,12 +437,20 @@ const domain = auditUrl ? new URL(auditUrl).hostname.replace(/^www\./, '') : '';
       modules: ['sector', 'content', 'conversion', 'reputation', 'competitors'],
     },
     {
+      id: 'instagram',
+      cardId: 'phase-instagram',
+      label: 'Redes sociales y marca',
+      narrative: 'Analizando Instagram, LinkedIn y presencia de marca…',
+      entrySteps: ['instagram'],
+      modules: ['instagram', 'linkedin', 'meta_ads', 'google_shopping'],
+    },
+    {
       id: 'competitor_traffic',
       cardId: 'phase-competitor_traffic',
-      label: 'Datos competitivos, redes e IA',
-      narrative: 'Analizando tráfico competitivo, visibilidad en IA y redes sociales…',
+      label: 'Benchmark competitivo',
+      narrative: 'Analizando tráfico, reviews y visibilidad IA de cada competidor…',
       entrySteps: ['competitor_traffic'],
-      modules: ['competitor_traffic', 'competitor_pagespeed', 'keyword_gap', 'geo', 'instagram', 'linkedin', 'meta_ads'],
+      modules: ['competitor_traffic', 'competitor_pagespeed', 'keyword_gap', 'geo'],
     },
     {
       id: 'score',

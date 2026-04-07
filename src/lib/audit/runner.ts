@@ -40,17 +40,17 @@ export const PHASE_STEPS: Record<string, AuditStep[]> = {
   ],
   // Phase 2: steps that need crawl + phase 1 results
   sector: ['sector', 'content', 'conversion', 'reputation', 'competitors'],
-  // Phase 3: steps that need competitors from phase 2
-  competitor_traffic: [
-    'competitor_traffic', 'competitor_pagespeed', 'keyword_gap',
-    'geo', 'instagram', 'linkedin', 'meta_ads', 'google_shopping',
-  ],
+  // Phase 3: social + brand signals (heavy Apify calls need their own time slot)
+  instagram: ['instagram', 'linkedin', 'meta_ads', 'google_shopping'],
+  // Phase 4: competitor enrichment (each module gets more time without competing)
+  competitor_traffic: ['competitor_traffic', 'competitor_pagespeed', 'keyword_gap', 'geo'],
 };
 
 /** Phase entry step → next phase entry step (or first synthesis step) */
 export const PHASE_NEXT_STEP: Record<string, AuditStepOrDone> = {
   ssl: 'sector',
-  sector: 'competitor_traffic',
+  sector: 'instagram',
+  instagram: 'competitor_traffic',
   competitor_traffic: 'score',
 };
 

@@ -13,9 +13,10 @@ import { validateApiKey, mapResultsForPlatform } from '../../../../lib/api-auth'
 
 // Progress values reported after each phase completes (shown as the next phase entry's progress)
 const PHASE_COMPLETE_PROGRESS: Record<string, number> = {
-  sector: 40,             // phase 1 done
-  competitor_traffic: 65, // phase 2 done
-  score: 87,              // phase 3 done
+  sector: 35,             // phase 1 done
+  instagram: 50,          // phase 2 done
+  competitor_traffic: 70, // phase 3 done (social)
+  score: 87,              // phase 4 done (competitors)
 };
 
 export const GET: APIRoute = async ({ params, request }) => {
