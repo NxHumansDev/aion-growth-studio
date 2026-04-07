@@ -100,16 +100,31 @@ function pickBest(places: any[], auditDomain: string): any | null {
 
 /**
  * Quick GBP lookup by company name + domain — used for competitor comparison.
+ * Tries multiple search strategies: name, domain, name+city variations.
  */
 export async function lookupGBP(companyName: string, domain: string): Promise<{ rating: number; reviewCount: number } | null> {
-  // Try Google Places first
-  const places = await searchPlaces(companyName);
-  const place = pickBest(places, domain);
-  if (place?.rating) return { rating: place.rating, reviewCount: place.userRatingCount ?? 0 };
+  // Build search terms: company name, domain, domain as words
+  const domainBase = domain.split('.')[0];
+  const domainWords = domainBase.replace(/-/g, ' ');
+  const terms = [companyName, domainBase, domainWords].filter((t, i, a) =>
+    t && t.length > 2 && a.indexOf(t) === i,
+  );
 
-  // Fallback: DataForSEO
-  const dfs = await searchDFS(companyName);
-  if (dfs) return { rating: dfs.rating, reviewCount: dfs.reviews };
+  // Try Google Places with each term
+  for (const term of terms) {
+    const places = await searchPlaces(term);
+    const place = pickBest(places, domain);
+    if (place?.rating) {
+      console.log(`[gbp:lookup] Found "${place.displayName?.text}" for "${term}" → ${place.rating}★`);
+      return { rating: place.rating, reviewCount: place.userRatingCount ?? 0 };
+    }
+  }
+
+  // Fallback: DataForSEO with each term
+  for (const term of terms) {
+    const dfs = await searchDFS(term);
+    if (dfs) return { rating: dfs.rating, reviewCount: dfs.reviews };
+  }
 
   return null;
 }

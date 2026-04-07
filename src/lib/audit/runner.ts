@@ -59,22 +59,23 @@ export const PHASE_ENTRY_STEPS = new Set(Object.keys(PHASE_STEPS));
 
 // ── Per-module timeouts (ms) ──────────────────────────────────────
 
+// Vercel Pro: 300s function timeout — generous per-module limits
 export const STEP_TIMEOUTS: Record<string, number> = {
-  geo: 50_000,
-  competitor_traffic: 45_000,
-  seo: 30_000,
-  pagespeed: 40_000,
+  geo: 90_000,
+  competitor_traffic: 60_000,
+  seo: 45_000,
+  pagespeed: 45_000,
   traffic: 30_000,
-  instagram: 15_000,
-  linkedin: 55_000,
-  reputation: 20_000,
-  insights: 65_000,
-  qa: 50_000,
-  score: 10_000,
-  competitors: 20_000,
-  competitor_pagespeed: 45_000,
+  instagram: 45_000,
+  linkedin: 90_000,
+  reputation: 30_000,
+  insights: 90_000,
+  qa: 90_000,
+  score: 15_000,
+  competitors: 30_000,
+  competitor_pagespeed: 120_000,
 };
-const DEFAULT_TIMEOUT = 15_000;
+const DEFAULT_TIMEOUT = 30_000;
 
 // ── Social prefetch ───────────────────────────────────────────────
 
