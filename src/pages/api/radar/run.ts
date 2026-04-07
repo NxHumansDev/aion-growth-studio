@@ -2,17 +2,16 @@ export const prerender = false;
 
 import type { APIRoute } from 'astro';
 import { listAllClients, IS_DEMO } from '../../../lib/db';
-import { runRadarForClient } from '../../../lib/radar/run-radar';
 
 const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
 
 /**
  * POST /api/radar/run
  *
- * Triggered by Vercel Cron (weekly) or manually from admin.
- * Runs Radar for all active clients sequentially.
- *
- * Auth: requires CRON_SECRET header or superuser session.
+ * Fan-out dispatcher: triggered by Vercel Cron every Monday 3:00 UTC (5:00 AM Spain).
+ * Instead of running all clients sequentially (timeout risk),
+ * fires one /api/radar/run-client call per client in parallel.
+ * Each runs in its own Vercel Function with its own 300s timeout.
  */
 export const POST: APIRoute = async ({ request }) => {
   if (IS_DEMO) {
@@ -22,7 +21,6 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // Auth: cron secret or check authorization header
   const authHeader = request.headers.get('authorization');
   const cronAuth = authHeader === `Bearer ${CRON_SECRET}`;
   const isVercelCron = request.headers.get('x-vercel-cron') === '1';
@@ -37,57 +35,59 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const clients = await listAllClients();
 
-    // Filter: only clients with tier != 'radar' (free tier) get Radar
-    // For now, run for all clients — tier filtering can be added later
-    const radarClients = clients.map(c => ({
-      id: c.id,
-      name: c.name,
-      domain: c.domain,
-    }));
-
-    if (radarClients.length === 0) {
-      return new Response(JSON.stringify({ ok: true, message: 'No clients to process', results: [] }), {
+    if (clients.length === 0) {
+      return new Response(JSON.stringify({ ok: true, message: 'No clients to process', dispatched: 0 }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[radar:cron] Starting Radar for ${radarClients.length} clients...`);
+    console.log(`[radar:cron] Dispatching Radar for ${clients.length} clients...`);
 
-    // Run sequentially to avoid API rate limits
-    const results = [];
-    for (const client of radarClients) {
-      const result = await runRadarForClient(client);
-      results.push(result);
+    // Determine base URL for internal calls
+    const host = request.headers.get('host') || 'localhost:4321';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    // Fan-out: fire one request per client (don't await — fire and forget)
+    // Each /api/radar/run-client runs in its own Function with 300s timeout
+    const dispatched: string[] = [];
+
+    for (const client of clients) {
+      try {
+        fetch(`${baseUrl}/api/radar/run-client`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CRON_SECRET}`,
+          },
+          body: JSON.stringify({ clientId: client.id }),
+        }).catch(err => {
+          console.error(`[radar:cron] Dispatch failed for ${client.name}:`, err.message);
+        });
+        dispatched.push(client.name);
+        console.log(`[radar:cron] Dispatched: ${client.name} (${client.domain})`);
+      } catch (err) {
+        console.error(`[radar:cron] Failed to dispatch ${client.name}:`, (err as Error).message);
+      }
     }
 
-    const successful = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
-    const totalDuration = results.reduce((sum, r) => sum + r.durationMs, 0);
-
-    console.log(`[radar:cron] Complete: ${successful} success, ${failed} failed, ${totalDuration}ms total`);
+    console.log(`[radar:cron] Dispatched ${dispatched.length}/${clients.length} clients`);
 
     return new Response(JSON.stringify({
       ok: true,
-      processed: results.length,
-      successful,
-      failed,
-      totalDurationMs: totalDuration,
-      results: results.map(r => ({
-        domain: r.domain,
-        success: r.success,
-        newRecommendations: r.newRecommendations,
-        correlationsFound: r.correlationsFound,
-        durationMs: r.durationMs,
-        error: r.error,
-      })),
+      dispatched: dispatched.length,
+      total: clients.length,
+      clients: dispatched,
+      message: `Dispatched ${dispatched.length} Radar runs in parallel`,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    console.error('[radar:cron] Fatal error:', err.message);
-    return new Response(JSON.stringify({ error: err.message }), {
+
+  } catch (err) {
+    console.error('[radar:cron] Error:', (err as Error).message);
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

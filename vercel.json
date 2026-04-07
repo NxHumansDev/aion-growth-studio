@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/radar/run",
-      "schedule": "0 6 * * 1"
+      "schedule": "0 3 * * 1"
     }
   ]
 }
