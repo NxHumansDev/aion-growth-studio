@@ -33,6 +33,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       monthly_budget: body.monthly_budget || null,
       team_size: body.team_size || null,
       competitors: body.competitors || [],
+      sector: body.sector || null,
+      instagram_handle: body.instagram_handle || null,
+      linkedin_url: body.linkedin_url || null,
     };
 
     await saveClientOnboarding(onboardingData);

@@ -277,6 +277,9 @@ export interface ClientOnboarding {
   monthly_budget?: string;
   team_size?: string;
   competitors?: Array<{ url: string; name?: string }>;
+  sector?: string;
+  instagram_handle?: string;
+  linkedin_url?: string;
   completed_at?: string;
 }
 

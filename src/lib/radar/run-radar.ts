@@ -50,10 +50,18 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
   try {
     console.log(`[radar] Starting for ${client.domain}...`);
 
-    // 1. Create audit
+    // 0. Load onboarding data (competitors, social handles, sector)
+    const clientOnboarding = await getClientOnboarding(client.id);
+    const compUrls = (clientOnboarding?.competitors || []).map(c => c.url).filter(Boolean);
+
+    // 1. Create audit with client's configured data
     const url = `https://${client.domain}`;
     const email = client.email || 'radar@aiongrowth.com';
-    const auditId = await createAuditPage(url, email);
+    const auditId = await createAuditPage(url, email, {
+      competitors: compUrls.length ? compUrls : undefined,
+      instagram: clientOnboarding?.instagram_handle || undefined,
+      linkedin: clientOnboarding?.linkedin_url || undefined,
+    });
     result.auditId = auditId;
 
     // 2. Run full pipeline (synchronous, step by step)
