@@ -1,51 +1,29 @@
 ---
 export const prerender = false;
-import { getClient } from '../../lib/db';
+import { getClient, getLatestSnapshot } from '../../lib/db';
+import { getThreads, checkBudget } from '../../lib/advisor/db';
 import type { Tier } from '../../lib/demo-data';
 
 const client = Astro.locals.client ?? await getClient();
 const tier: Tier = client.tier;
+const threads = await getThreads(client.id);
+const budget = await checkBudget(client.id);
+const snapshot = await getLatestSnapshot(client.id);
+const r = (snapshot && snapshot.id !== 'empty') ? snapshot.pipeline_output : null;
 
-const demoThreads = [
-  { id: 't1', title: 'Estrategia SEO Q2 2026', date: 'Hoy', active: true },
-  { id: 't2', title: 'Análisis competencia EcoSoluciones', date: 'Ayer' },
-  { id: 't3', title: 'Optimización Meta Ads', date: '22 Mar' },
-];
-
-const demoMessages = [
-  {
-    role: 'advisor',
-    text: '¡Hola! Soy tu Advisor IA de AION. He analizado los últimos datos de TechSolutions Barcelona y tengo algunas recomendaciones prioritarias para esta semana.',
-    time: '10:30',
-  },
-  {
-    role: 'user',
-    text: '¿Cuáles son las oportunidades más importantes que detectaste en SEO?',
-    time: '10:32',
-  },
-  {
-    role: 'advisor',
-    text: 'He identificado 3 keywords de alta conversión donde tu competencia directa (EcoSoluciones.com) está rankeando pero tú no: "gestión residuos empresa" (1.800 búsquedas/mes), "huella carbono pymes" (950/mes) y "consultoría ambiental Madrid" (720/mes). Con dificultad moderada (<35), son quick wins ideales para el próximo sprint de contenido.',
-    time: '10:32',
-  },
-  {
-    role: 'user',
-    text: '¿Qué tipo de contenido recomiendas para "gestión residuos empresa"?',
-    time: '10:35',
-  },
-  {
-    role: 'advisor',
-    text: 'Para esa keyword recomiendo una guía completa (3.000-4.000 palabras) con estructura: qué es + marco legal + pasos de implementación + casos reales. El contenido debe incluir Schema FAQ para capturar featured snippets. He preparado un brief completo en la sección Briefs de Contenido.',
-    time: '10:35',
-  },
-];
+const scoreTotal = (r?.score as any)?.total ?? '—';
+const kwTop10 = (r?.seo as any)?.keywordsTop10 ?? '—';
+const geoRate = (r?.geo as any)?.mentionRate ?? '—';
+const psScore = (r?.pagespeed as any)?.mobile?.performance ?? '—';
 
 const contextItems = [
-  { label: 'Score actual', value: '74/100', icon: 'insights' },
-  { label: 'Alertas activas', value: '2 críticas', icon: 'warning', color: '#ba1a1a' },
-  { label: 'Próxima revisión', value: '12 Apr 2026', icon: 'calendar_month' },
-  { label: 'Quick wins', value: '3 identificados', icon: 'bolt' },
+  { label: 'Score actual', value: `${scoreTotal}/100`, icon: 'insights' },
+  { label: 'KW Top 10', value: `${kwTop10}`, icon: 'search' },
+  { label: 'Visib. IA', value: `${geoRate}%`, icon: 'psychology' },
+  { label: 'PageSpeed', value: `${psScore}`, icon: 'speed' },
 ];
+
+const budgetPct = budget.monthlyUsed > 0 ? Math.min(100, Math.round(budget.monthlyUsed / 5)) : 0;
 ---
 
 <!DOCTYPE html>
@@ -62,6 +40,16 @@ const contextItems = [
     .filled-icon { font-variation-settings: 'FILL' 1; }
     * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; background: #fcf8ff; color: #1a1a2e; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    #chat-messages { scrollbar-width: thin; scrollbar-color: #d5d0e8 transparent; }
+    .msg-bubble { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .thread-item { transition: background 0.15s; }
+    .thread-item:hover { background: #e8e5ff; }
+    .thread-item.active { background: #1a4b8c !important; color: white !important; }
+    .thread-item.active p { color: white !important; }
+    .thread-item.active .thread-date { color: #93c5fd !important; }
+    #chat-input:focus { outline: none; border-color: #1a4b8c; }
+    .action-tag { display: inline-flex; align-items: center; gap: 4px; background: #e1f5ee; color: #1D9E75; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -76,9 +64,11 @@ const contextItems = [
       <div style="width:1px;height:16px;background:#334155;"></div>
       <span style="font-size:14px;font-weight:700;color:white;">Advisor IA</span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;background:#1a4b8c;padding:4px 12px;border-radius:999px;">
-      <span class="material-symbols-outlined filled-icon" style="font-size:14px;">auto_awesome</span>
-      Modo demo
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="font-size:11px;color:#94a3b8;" title={`Uso diario: €${(budget.dailyUsed / 100).toFixed(2)} / €0.50 | Mensual: €${(budget.monthlyUsed / 100).toFixed(2)} / €5.00`}>
+        <span class="material-symbols-outlined" style="font-size:14px;">token</span>
+        €{(budget.monthlyUsed / 100).toFixed(2)} / €5.00
+      </div>
     </div>
   </nav>
 
@@ -88,16 +78,19 @@ const contextItems = [
     <!-- Thread list (left) -->
     <aside style="width:240px;background:#f5f2ff;border-right:1px solid #e8e5ff;display:flex;flex-direction:column;flex-shrink:0;">
       <div style="padding:16px;border-bottom:1px solid #e8e5ff;">
-        <button style="width:100%;padding:10px;border-radius:8px;background:#1a4b8c;color:white;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <button id="btn-new-thread" style="width:100%;padding:10px;border-radius:8px;background:#1a4b8c;color:white;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
           <span class="material-symbols-outlined" style="font-size:16px;">add</span>
           Nueva conversación
         </button>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:8px;">
-        {demoThreads.map(t => (
-          <div style={`padding:12px;border-radius:8px;cursor:pointer;margin-bottom:4px;${t.active ? 'background:#1a4b8c;color:white;' : 'color:#434750;'}`}>
-            <p style={`font-size:13px;font-weight:600;margin-bottom:2px;${t.active ? 'color:white;' : 'color:#1a1a2e;'}`}>{t.title}</p>
-            <p style={`font-size:11px;${t.active ? 'color:#93c5fd;' : 'color:#94a3b8;'}`}>{t.date}</p>
+      <div id="thread-list" style="flex:1;overflow-y:auto;padding:8px;">
+        {threads.map((t, i) => (
+          <div class={`thread-item ${i === 0 ? 'active' : ''}`} data-thread-id={t.id}
+            style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:4px;">
+            <p style="font-size:13px;font-weight:600;margin-bottom:2px;color:#1a1a2e;">{t.title}</p>
+            <p class="thread-date" style="font-size:11px;color:#94a3b8;">
+              {new Date(t.last_message_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+            </p>
           </div>
         ))}
       </div>
@@ -105,34 +98,39 @@ const contextItems = [
 
     <!-- Chat messages (center) -->
     <main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-      <div style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;">
-        {demoMessages.map(msg => (
-          <div style={`display:flex;gap:12px;${msg.role === 'user' ? 'flex-direction:row-reverse;' : ''}`}>
-            <div style={`width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;${msg.role === 'advisor' ? 'background:#1a4b8c;color:white;' : 'background:#e8e5ff;color:#434750;'}`}>
-              {msg.role === 'advisor' ? <span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span> : 'Tú'}
-            </div>
-            <div style={`max-width:70%;padding:14px 16px;border-radius:12px;${msg.role === 'advisor' ? 'background:white;box-shadow:0 1px 3px rgba(0,0,0,0.06);' : 'background:#00346d;color:white;'}`}>
-              <p style="font-size:14px;line-height:1.6;">{msg.text}</p>
-              <p style={`font-size:10px;margin-top:6px;${msg.role === 'advisor' ? 'color:#94a3b8;' : 'color:rgba(255,255,255,0.6);'}`}>{msg.time}</p>
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;">
+        {/* Welcome message when no threads */}
+        {threads.length === 0 && (
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+            <div style="text-align:center;max-width:400px;">
+              <span class="material-symbols-outlined" style="font-size:48px;color:#1a4b8c;margin-bottom:16px;">auto_awesome</span>
+              <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;">Hola, soy tu Advisor IA</h2>
+              <p style="font-size:14px;color:#666;line-height:1.5;">Conozco todos los datos de {client.name}. Preguntame sobre tu SEO, competidores, plan de accion, o cualquier duda de estrategia digital.</p>
             </div>
           </div>
-        ))}
+        )}
       </div>
 
       <!-- Input -->
       <div style="padding:16px 24px;border-top:1px solid #e8e5ff;background:white;">
-        <div style="display:flex;gap:12px;align-items:center;">
-          <input
-            type="text"
-            placeholder="Pregunta a tu Advisor… (modo demo)"
-            disabled
-            style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid #e8e5ff;font-size:14px;color:#94a3b8;background:#f5f2ff;cursor:not-allowed;"
-          />
-          <button disabled style="padding:12px 20px;border-radius:10px;background:#e8e5ff;color:#94a3b8;font-size:14px;font-weight:700;border:none;cursor:not-allowed;">
-            <span class="material-symbols-outlined" style="font-size:18px;">send</span>
-          </button>
-        </div>
-        <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;">El chat interactivo está disponible en producción con backend conectado.</p>
+        {!budget.allowed ? (
+          <div style="text-align:center;padding:12px;background:#FAEEDA;border-radius:8px;font-size:13px;color:#BA7517;">
+            {budget.reason}
+          </div>
+        ) : (
+          <form id="chat-form" style="display:flex;gap:12px;align-items:center;">
+            <input
+              id="chat-input"
+              type="text"
+              placeholder="Pregunta a tu Advisor..."
+              autocomplete="off"
+              style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid #e8e5ff;font-size:14px;color:#1a1a2e;background:white;"
+            />
+            <button id="btn-send" type="submit" style="padding:12px 20px;border-radius:10px;background:#1a4b8c;color:white;font-size:14px;font-weight:700;border:none;cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">send</span>
+            </button>
+          </form>
+        )}
       </div>
     </main>
 
@@ -143,7 +141,7 @@ const contextItems = [
         {contextItems.map(item => (
           <div style="padding:14px;background:#f5f2ff;border-radius:10px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              <span class="material-symbols-outlined" style={`font-size:16px;color:${item.color || '#205db0'};`}>{item.icon}</span>
+              <span class="material-symbols-outlined" style="font-size:16px;color:#205db0;">{item.icon}</span>
               <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;">{item.label}</p>
             </div>
             <p style="font-size:16px;font-weight:800;color:#1a1a2e;">{item.value}</p>
@@ -151,12 +149,21 @@ const contextItems = [
         ))}
       </div>
 
-      <div style="border-top:1px solid #e8e5ff;padding-top:20px;">
-        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;margin-bottom:12px;">Accesos rápidos</p>
+      <!-- Budget meter -->
+      <div style="border-top:1px solid #e8e5ff;padding-top:16px;">
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;margin-bottom:8px;">Uso este mes</p>
+        <div style="background:#e8e5ff;border-radius:999px;height:6px;overflow:hidden;">
+          <div style={`background:#1a4b8c;height:100%;width:${budgetPct}%;border-radius:999px;transition:width 0.3s;`}></div>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-top:4px;">€{(budget.monthlyUsed / 100).toFixed(2)} de €5.00</p>
+      </div>
+
+      <div style="border-top:1px solid #e8e5ff;padding-top:16px;">
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;margin-bottom:12px;">Accesos rapidos</p>
         {[
           { href: '/dashboard', label: 'Ver Overview', icon: 'dashboard' },
           { href: '/dashboard/alerts', label: 'Ver Alertas', icon: 'notifications_active' },
-          { href: '/dashboard/seo-opportunities', label: 'SEO Oportunidades', icon: 'search_check' },
+          { href: '/dashboard/recommendations', label: 'Plan de Accion', icon: 'checklist' },
         ].map(link => (
           <a href={link.href} style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;color:#1a1a2e;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:4px;">
             <span class="material-symbols-outlined" style="font-size:16px;color:#205db0;">{link.icon}</span>
@@ -167,6 +174,158 @@ const contextItems = [
     </aside>
 
   </div>
+
+<script>
+  const chatMessages = document.getElementById('chat-messages');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+  const btnSend = document.getElementById('btn-send');
+  const btnNewThread = document.getElementById('btn-new-thread');
+  const threadList = document.getElementById('thread-list');
+
+  let currentThreadId: string | null = null;
+  let isStreaming = false;
+
+  // Load first thread if exists
+  const firstThread = threadList?.querySelector('.thread-item');
+  if (firstThread) {
+    currentThreadId = firstThread.getAttribute('data-thread-id');
+    loadThread(currentThreadId!);
+  }
+
+  // Thread click
+  threadList?.addEventListener('click', (e) => {
+    const item = (e.target as HTMLElement).closest('.thread-item') as HTMLElement;
+    if (!item || isStreaming) return;
+    const id = item.getAttribute('data-thread-id');
+    if (id) {
+      currentThreadId = id;
+      document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      loadThread(id);
+    }
+  });
+
+  // New thread
+  btnNewThread?.addEventListener('click', () => {
+    if (isStreaming) return;
+    currentThreadId = null;
+    chatMessages!.innerHTML = '';
+    document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+    chatInput?.focus();
+  });
+
+  // Send message
+  chatForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = chatInput?.value.trim();
+    if (!msg || isStreaming) return;
+
+    isStreaming = true;
+    chatInput.value = '';
+    (btnSend as HTMLButtonElement).disabled = true;
+
+    // Add user bubble
+    appendMessage('user', msg);
+
+    // Create advisor bubble (will stream into it)
+    const advisorBubble = appendMessage('advisor', '');
+    const textEl = advisorBubble.querySelector('.msg-text') as HTMLElement;
+    textEl.innerHTML = '<span style="color:#94a3b8;">Pensando...</span>';
+
+    try {
+      const res = await fetch('/api/advisor/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, threadId: currentThreadId }),
+      });
+
+      if (res.status === 429) {
+        const data = await res.json();
+        textEl.innerHTML = `<span style="color:#BA7517;">${data.message}</span>`;
+        isStreaming = false;
+        (btnSend as HTMLButtonElement).disabled = false;
+        return;
+      }
+
+      if (!res.ok) throw new Error('Chat failed');
+
+      // Stream SSE
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.text) {
+              fullText += data.text;
+              textEl.textContent = fullText;
+              chatMessages!.scrollTop = chatMessages!.scrollHeight;
+            }
+            if (data.done && data.threadId) {
+              currentThreadId = data.threadId;
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      textEl.innerHTML = '<span style="color:#E24B4A;">Error al comunicar con el advisor. Intenta de nuevo.</span>';
+    }
+
+    isStreaming = false;
+    (btnSend as HTMLButtonElement).disabled = false;
+    chatMessages!.scrollTop = chatMessages!.scrollHeight;
+  });
+
+  async function loadThread(threadId: string) {
+    chatMessages!.innerHTML = '';
+    try {
+      const res = await fetch(`/api/advisor/threads?id=${threadId}`);
+      const data = await res.json();
+      for (const msg of data.messages || []) {
+        appendMessage(msg.role === 'advisor' ? 'advisor' : 'user', msg.content);
+      }
+      chatMessages!.scrollTop = chatMessages!.scrollHeight;
+    } catch {}
+  }
+
+  function appendMessage(role: 'user' | 'advisor', text: string): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-bubble';
+    wrapper.style.cssText = `display:flex;gap:12px;${role === 'user' ? 'flex-direction:row-reverse;' : ''}`;
+
+    const avatar = document.createElement('div');
+    avatar.style.cssText = `width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;${role === 'advisor' ? 'background:#1a4b8c;color:white;' : 'background:#e8e5ff;color:#434750;'}`;
+    avatar.innerHTML = role === 'advisor'
+      ? '<span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span>'
+      : 'Tu';
+
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `max-width:70%;padding:14px 16px;border-radius:12px;${role === 'advisor' ? 'background:white;box-shadow:0 1px 3px rgba(0,0,0,0.06);' : 'background:#00346d;color:white;'}`;
+
+    const textP = document.createElement('p');
+    textP.className = 'msg-text';
+    textP.style.cssText = 'font-size:14px;line-height:1.6;white-space:pre-wrap;';
+    textP.textContent = text;
+    bubble.appendChild(textP);
+
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
+    chatMessages!.appendChild(wrapper);
+    return wrapper;
+  }
+</script>
 
 </body>
 </html>
