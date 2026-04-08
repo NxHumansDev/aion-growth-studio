@@ -1,5 +1,6 @@
 import type { CompetitorPageSpeedResult } from '../types';
 import { lookupGBP } from './gbp';
+import { fetchTrustpilot } from './reputation';
 
 const API_KEY =
   (import.meta as any).env?.GOOGLE_PAGESPEED_API_KEY ||
@@ -33,8 +34,8 @@ export async function runCompetitorPageSpeed(
         ? comp.name
         : domainToName(domain);
 
-      // Fetch PageSpeed + GBP in parallel per competitor
-      const [psResult, gbpResult] = await Promise.all([
+      // Fetch PageSpeed + GBP + Trustpilot in parallel per competitor
+      const [psResult, gbpResult, tpResult] = await Promise.all([
         (async () => {
           if (!API_KEY) return 0;
           try {
@@ -54,15 +55,17 @@ export async function runCompetitorPageSpeed(
           }
         })(),
         lookupGBP(gbpName, domain).catch(() => null),
+        fetchTrustpilot(gbpName, domain).catch(() => ({ rating: null, reviews: null, found: false as const })),
       ]);
 
-      console.log(`[comp-ps] ${domain}: PS=${psResult}, GBP=${gbpResult?.rating ?? 'none'} (query="${gbpName}")`);
+      console.log(`[comp-ps] ${domain}: PS=${psResult}, GBP=${gbpResult?.rating ?? 'none'}, TP=${tpResult?.rating ?? 'none'} (query="${gbpName}")`);
 
       return {
         name: comp.name,
         domain,
         mobileScore: psResult,
         ...(gbpResult && { gbpRating: gbpResult.rating, gbpReviews: gbpResult.reviewCount }),
+        ...(tpResult?.found && { trustpilotRating: tpResult.rating, trustpilotReviews: tpResult.reviews }),
       };
     }),
   );

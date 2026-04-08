@@ -85,27 +85,56 @@ async function searchInstagramHandle(crawl: CrawlResult): Promise<string | null>
   return null;
 }
 
-// Instagram internal web API headers
-const IG_HEADERS = {
-  'x-ig-app-id': '936619743392459',
-  'User-Agent':
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/303.0.0.11.118',
-  Accept: '*/*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'X-Requested-With': 'XMLHttpRequest',
-  Referer: 'https://www.instagram.com/',
-};
+/** Broader Google search: "{brand} instagram" (catches third-party mentions) */
+async function searchInstagramHandleBroad(crawl: CrawlResult): Promise<string | null> {
+  if (!DFS_LOGIN || !DFS_PASSWORD) return null;
 
-function apifyProxyConfig() {
-  if (!APIFY_TOKEN) return {};
-  return {
-    proxy: {
-      protocol: 'http' as const,
-      host: 'proxy.apify.com',
-      port: 8000,
-      auth: { username: 'auto', password: APIFY_TOKEN },
-    },
-  };
+  const domain = (() => {
+    try { return new URL(crawl.finalUrl || '').hostname.replace(/^www\./, '').split('.')[0]; } catch { return ''; }
+  })();
+
+  const titleClean = crawl.title?.split(/[-|–—·:]/)[0]?.trim();
+  const brand = crawl.companyName
+    || (titleClean && !BAD_TITLE_RE.test(titleClean) && titleClean.length > 2 ? titleClean : null)
+    || domain;
+  if (!brand || brand.length < 2) return null;
+
+  const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+      body: JSON.stringify([{
+        keyword: `${brand} instagram`,
+        location_code: 2724,
+        language_code: 'es',
+        depth: 10,
+      }]),
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.tasks?.[0]?.result?.[0]?.items || [];
+
+    for (const item of items) {
+      const url = item.url || '';
+      const match = url.match(/instagram\.com\/([A-Za-z0-9_.]{3,30})\/?$/);
+      if (match && !IG_BLACKLIST_HANDLES.includes(match[1].toLowerCase())) {
+        const handle = match[1];
+        if (handleMatchesBrand(handle, domain, crawl.companyName)) {
+          console.log(`[instagram] Found via broad Google search: @${handle} for "${brand}" ✓`);
+          return handle;
+        } else {
+          console.log(`[instagram] Broad search rejected @${handle} — doesn't match "${domain}" or "${crawl.companyName}"`);
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
 }
 
 export async function runInstagram(
@@ -123,6 +152,11 @@ export async function runInstagram(
   // Fallback 2: search Google for "site:instagram.com {brand}"
   if (!handle) {
     handle = await searchInstagramHandle(crawlData) || undefined;
+  }
+
+  // Fallback 3: broader Google search "{brand} instagram" (catches third-party mentions)
+  if (!handle) {
+    handle = await searchInstagramHandleBroad(crawlData) || undefined;
   }
 
   if (!handle) {
@@ -163,9 +197,9 @@ async function fetchProfile(handle: string): Promise<InstagramResult> {
   if (APIFY_TOKEN) {
     try {
       const actorRes = await axios.post(
-        `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=25`,
+        `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=45`,
         { usernames: [handle] },
-        { timeout: 30000, headers: { 'Content-Type': 'application/json' } },
+        { timeout: 50_000, headers: { 'Content-Type': 'application/json' } },
       );
       const items = actorRes.data;
       if (Array.isArray(items) && items.length > 0) {
@@ -225,99 +259,18 @@ async function fetchProfile(handle: string): Promise<InstagramResult> {
     }
   }
 
-  // Method 2: Direct Instagram web API with proxy
-  const igApiUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`;
-  const attempts: object[] = [
-    ...(APIFY_TOKEN ? [{ headers: IG_HEADERS, timeout: 15000, ...apifyProxyConfig() }] : []),
-    { headers: IG_HEADERS, timeout: 10000 },
-  ];
-
-  for (const config of attempts) {
-    try {
-      const res = await axios.get(igApiUrl, config as any);
-      const user = res.data?.data?.user;
-      if (!user) throw new Error('empty user');
-      return parseUserData(handle, user);
-    } catch {
-      // try next attempt
-    }
-  }
-
-  // Method 3: HTML scraping fallback
-  return await fetchProfileFallback(handle);
-}
-
-function parseUserData(handle: string, user: any): InstagramResult {
-  const recentPosts: any[] = user.edge_owner_to_timeline_media?.edges?.slice(0, 12) || [];
-  const followers = user.edge_followed_by?.count ?? 0;
-
-  let avgLikes: number | undefined;
-  let avgComments: number | undefined;
-  let engagementRate: number | undefined;
-
-  if (recentPosts.length > 0 && followers > 0) {
-    const totalLikes = recentPosts.reduce(
-      (s: number, p: any) => s + (p.node?.edge_liked_by?.count ?? 0),
-      0,
-    );
-    const totalComments = recentPosts.reduce(
-      (s: number, p: any) => s + (p.node?.edge_media_to_comment?.count ?? 0),
-      0,
-    );
-    avgLikes = Math.round(totalLikes / recentPosts.length);
-    avgComments = Math.round(totalComments / recentPosts.length);
-    engagementRate = Math.round(((avgLikes + avgComments) / followers) * 10000) / 100;
-  }
-
+  // Apify failed or unavailable — return handle+URL only
+  // (Instagram blocks direct API and HTML scraping from serverless IPs;
+  //  Methods 2 & 3 removed — they never succeeded and wasted ~23s)
+  console.log(`[instagram] No data for @${handle} — returning handle+URL only`);
   return {
     found: true,
     handle,
     url: `https://www.instagram.com/${handle}/`,
-    followers,
-    following: user.edge_follow?.count,
-    posts: user.edge_owner_to_timeline_media?.count,
-    bio: user.biography?.slice(0, 200),
-    isVerified: user.is_verified,
-    isBusinessAccount: user.is_business_account,
-    businessCategory: user.business_category_name || undefined,
-    ...(avgLikes !== undefined && { avgLikes }),
-    ...(avgComments !== undefined && { avgComments }),
-    ...(engagementRate !== undefined && { engagementRate }),
+    reason: APIFY_TOKEN
+      ? 'Apify scraper could not retrieve profile data'
+      : 'No APIFY_TOKEN configured — Instagram data unavailable',
   };
-}
-
-async function fetchProfileFallback(handle: string): Promise<InstagramResult> {
-  try {
-    const res = await axios.get(`https://www.instagram.com/${handle}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        Accept: 'text/html',
-      },
-      timeout: 8000,
-      ...(APIFY_TOKEN ? apifyProxyConfig() : {}),
-    });
-
-    const $ = cheerio.load(res.data as string);
-    const description = $('meta[name="description"]').attr('content') || '';
-    const followersMatch = description.match(/([\d,.KkMm]+)\s*Followers/i);
-    const postsMatch = description.match(/([\d,.KkMm]+)\s*Posts/i);
-
-    return {
-      found: true,
-      handle,
-      url: `https://www.instagram.com/${handle}/`,
-      ...(followersMatch && { followers: parseCount(followersMatch[1]) }),
-      ...(postsMatch && { posts: parseCount(postsMatch[1]) }),
-      reason: 'Limited data — Instagram API access restricted',
-    };
-  } catch {
-    return {
-      found: true,
-      handle,
-      url: `https://www.instagram.com/${handle}/`,
-      reason: 'Profile detected but data access blocked by Instagram',
-    };
-  }
 }
 
 async function extractHandleFromSite(siteUrl: string): Promise<string | null> {
@@ -355,10 +308,3 @@ async function extractHandleFromSite(siteUrl: string): Promise<string | null> {
   return null;
 }
 
-function parseCount(raw: string): number | undefined {
-  const s = raw.replace(/,/g, '').toUpperCase();
-  if (s.endsWith('M')) return Math.round(parseFloat(s) * 1_000_000);
-  if (s.endsWith('K')) return Math.round(parseFloat(s) * 1_000);
-  const n = parseInt(s, 10);
-  return isNaN(n) ? undefined : n;
-}

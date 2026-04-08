@@ -171,7 +171,7 @@ async function fetchTrustpilotDirect(
 }
 
 /** Try all Trustpilot methods: DFS by name → DFS by domain → direct scrape */
-async function fetchTrustpilot(
+export async function fetchTrustpilot(
   companyName: string,
   domain: string,
 ): Promise<{ rating: number | null; reviews: number | null; found: boolean }> {

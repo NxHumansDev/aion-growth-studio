@@ -66,7 +66,7 @@ export const STEP_TIMEOUTS: Record<string, number> = {
   seo: 45_000,
   pagespeed: 45_000,
   traffic: 30_000,
-  instagram: 45_000,
+  instagram: 90_000,
   linkedin: 90_000,
   reputation: 30_000,
   insights: 90_000,
