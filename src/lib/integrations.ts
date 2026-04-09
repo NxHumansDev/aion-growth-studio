@@ -14,7 +14,7 @@ const SUPABASE_SERVICE_KEY = import.meta.env?.SUPABASE_SERVICE_KEY || process.en
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/analytics.readonly',
   'https://www.googleapis.com/auth/webmasters.readonly',
-  'https://www.googleapis.com/auth/adwords.readonly',
+  // 'https://www.googleapis.com/auth/adwords.readonly', // Enable after activating Google Ads API in Cloud Console
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
 
