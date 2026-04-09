@@ -114,17 +114,22 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- SECTION 2: ACTION PLAN (accepted by client)                -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {(pending.length > 0 || inProgress.length > 0) && (
-    <section>
+  <section>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">checklist</span>
-        <h2 style="font-size:15px;font-weight:800;color:#1A4B8C;">Tu Plan de Accion</h2>
+        <h2 style="font-size:15px;font-weight:800;color:#1A4B8C;">Tu Plan de Accion ({pending.length + inProgress.length})</h2>
       </div>
-      <div style="background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:16px;border-left:3px solid #1A4B8C;">
-        <p style="font-size:13px;color:#2a4a7a;line-height:1.5;">
-          Estas son las acciones a las que te has comprometido. Marcalas como <strong>"En marcha"</strong> cuando empieces a trabajar en ellas
-          y como <strong>"Completada"</strong> cuando termines. AION medira el impacto real en tus KPIs automaticamente.
-        </p>
+      <div style="display:flex;gap:12px;align-items:stretch;margin-bottom:16px;">
+        <div style="flex:1;background:#f0f4ff;border-radius:10px;padding:14px 18px;border-left:3px solid #1A4B8C;">
+          <p style="font-size:13px;color:#2a4a7a;line-height:1.5;">
+            Estas son las acciones a las que te has comprometido. Marcalas como <strong>"En marcha"</strong> cuando empieces
+            y como <strong>"Completada"</strong> cuando termines. AION medira el impacto real en tus KPIs.
+          </p>
+        </div>
+        <button id="btn-add-manual" style="flex-shrink:0;background:#1A4B8C;color:white;border:none;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          <span class="material-symbols-outlined" style="font-size:18px;">add</span>
+          Añadir tarea propia
+        </button>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         {[...inProgress, ...pending].map(action => {
@@ -148,9 +153,20 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
                 </div>
                 <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{action.title}</h4>
                 {action.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{action.description}</p>}
-                {action.started_at && (
-                  <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Iniciada: {new Date(action.started_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>
-                )}
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:#94a3b8;">
+                  {(action as any).accepted_by && (
+                    <span>Aceptada por {(action as any).accepted_by}</span>
+                  )}
+                  {(action as any).accepted_at && (
+                    <span>el {new Date((action as any).accepted_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                  )}
+                  {action.started_at && (
+                    <span>· Iniciada {new Date(action.started_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                  )}
+                  {action.source === 'manual' && (
+                    <span style="background:#e8e5ff;color:#434750;padding:1px 6px;border-radius:3px;font-weight:600;">Tarea propia</span>
+                  )}
+                </div>
               </div>
               <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
                 {!isActive && (
@@ -170,8 +186,12 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
           );
         })}
       </div>
+      {pending.length === 0 && inProgress.length === 0 && (
+        <p style="font-size:13px;color:#94a3b8;text-align:center;padding:24px 0;">
+          Tu plan esta vacio. Acepta recomendaciones de AION o añade tus propias tareas.
+        </p>
+      )}
     </section>
-  )}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- SECTION 3: COMPLETED (with correlation note)               -->
@@ -231,6 +251,44 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
 
 </div>
 
+<!-- Modal: add manual task -->
+<div id="modal-manual" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:none;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+    <h3 style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">Añadir tarea al plan</h3>
+    <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Crea una accion propia que quieras incluir en tu plan. AION medira su impacto igual que con las recomendaciones.</p>
+    <form id="form-manual">
+      <label style="font-size:13px;font-weight:600;color:#1a1a2e;display:block;margin-bottom:4px;">Titulo *</label>
+      <input id="manual-title" type="text" required placeholder="Ej: Publicar 3 blog posts sobre destinos"
+        style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;box-sizing:border-box;" />
+
+      <label style="font-size:13px;font-weight:600;color:#1a1a2e;display:block;margin-bottom:4px;">Descripcion (opcional)</label>
+      <textarea id="manual-desc" rows="3" placeholder="Detalla que vas a hacer y que resultado esperas"
+        style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;box-sizing:border-box;resize:vertical;"></textarea>
+
+      <label style="font-size:13px;font-weight:600;color:#1a1a2e;display:block;margin-bottom:6px;">Impacto esperado</label>
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <label style="flex:1;text-align:center;padding:8px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="radio" name="impact" value="high" style="display:none;" />
+          <span class="impact-opt" data-val="high">Alto</span>
+        </label>
+        <label style="flex:1;text-align:center;padding:8px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="radio" name="impact" value="medium" checked style="display:none;" />
+          <span class="impact-opt selected" data-val="medium">Medio</span>
+        </label>
+        <label style="flex:1;text-align:center;padding:8px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="radio" name="impact" value="low" style="display:none;" />
+          <span class="impact-opt" data-val="low">Bajo</span>
+        </label>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" id="btn-cancel-manual" style="padding:10px 18px;border-radius:8px;border:1px solid #ddd;background:white;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button type="submit" style="padding:10px 18px;border-radius:8px;border:none;background:#1A4B8C;color:white;font-size:13px;font-weight:700;cursor:pointer;">Añadir al plan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   async function callAPI(body: Record<string, any>) {
     await fetch('/api/dashboard/update-action', {
@@ -274,6 +332,45 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
       const id = (btn as HTMLElement).dataset.actionId;
       if (id) callAPI({ actionId: id, status: 'done' });
     });
+  });
+
+  // Manual task modal
+  const modal = document.getElementById('modal-manual')!;
+  document.getElementById('btn-add-manual')?.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+  document.getElementById('btn-cancel-manual')?.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  // Impact radio styling
+  document.querySelectorAll('input[name="impact"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.impact-opt').forEach(el => {
+        el.classList.remove('selected');
+        (el.closest('label') as HTMLElement).style.borderColor = '#ddd';
+        (el.closest('label') as HTMLElement).style.background = 'white';
+      });
+      const selected = document.querySelector(`input[name="impact"]:checked`)?.closest('label');
+      if (selected) {
+        (selected as HTMLElement).style.borderColor = '#1A4B8C';
+        (selected as HTMLElement).style.background = '#f0f4ff';
+        selected.querySelector('.impact-opt')?.classList.add('selected');
+      }
+    });
+  });
+
+  // Submit manual task
+  document.getElementById('form-manual')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = (document.getElementById('manual-title') as HTMLInputElement).value.trim();
+    if (!title) return;
+    const description = (document.getElementById('manual-desc') as HTMLTextAreaElement).value.trim();
+    const impact = (document.querySelector('input[name="impact"]:checked') as HTMLInputElement)?.value || 'medium';
+    await callAPI({ title, description: description || undefined, impact });
   });
 </script>
 

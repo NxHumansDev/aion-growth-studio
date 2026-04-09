@@ -459,7 +459,7 @@ export async function getAllRecommendations(clientId: string): Promise<Recommend
 }
 
 /** Accept recommendation → creates action_plan entry */
-export async function acceptRecommendation(recId: string, clientId: string): Promise<string | null> {
+export async function acceptRecommendation(recId: string, clientId: string, acceptedBy?: string): Promise<string | null> {
   if (IS_DEMO) return null;
   const sb = getSupabase();
 
@@ -481,6 +481,8 @@ export async function acceptRecommendation(recId: string, clientId: string): Pro
     impact: rec.impact,
     source: rec.source,
     status: 'pending',
+    accepted_by: acceptedBy || null,
+    accepted_at: new Date().toISOString(),
   }).select('id').single();
 
   if (error) { console.error('[action_plan] Insert failed:', error.message); return null; }
@@ -556,6 +558,30 @@ export async function updateActionStatus(
   if (status === 'done') update.completed_at = new Date().toISOString();
   if (feedback) update.feedback = feedback;
   await sb.from('action_plan').update(update).eq('id', actionId);
+}
+
+/** Create a manual action (not from a recommendation — client's own initiative) */
+export async function createManualAction(
+  clientId: string,
+  title: string,
+  description?: string,
+  impact?: 'high' | 'medium' | 'low',
+  createdBy?: string,
+): Promise<string | null> {
+  if (IS_DEMO) return null;
+  const sb = getSupabase();
+  const { data, error } = await sb.from('action_plan').insert({
+    client_id: clientId,
+    title,
+    description: description || null,
+    impact: impact || 'medium',
+    source: 'manual',
+    status: 'pending',
+    accepted_by: createdBy || null,
+    accepted_at: new Date().toISOString(),
+  }).select('id').single();
+  if (error) { console.error('[action_plan] Manual insert failed:', error.message); return null; }
+  return data?.id ?? null;
 }
 
 // Legacy compatibility — used by old code paths

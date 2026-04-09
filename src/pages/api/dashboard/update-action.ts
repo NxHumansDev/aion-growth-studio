@@ -3,7 +3,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import {
   acceptRecommendation, rejectRecommendation,
-  updateActionStatus, logInteraction,
+  updateActionStatus, createManualAction, logInteraction,
 } from '../../../lib/db';
 
 /**
@@ -25,12 +25,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = await request.json();
-    const { recommendationId, actionId, status, feedback } = body;
+    const { recommendationId, actionId, status, feedback, title, description, impact } = body;
+    const userName = (locals as any).user?.name || (locals as any).user?.email || client.name;
+
+    // Flow 0: Create manual action
+    if (title && !recommendationId && !actionId) {
+      const newId = await createManualAction(client.id, title, description, impact, userName);
+      logInteraction(client.id, 'manual_action_created', { actionId: newId, title }, user?.id).catch(() => {});
+      return new Response(JSON.stringify({ ok: true, actionId: newId }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // Flow 1: Recommendation decision (accept/reject)
     if (recommendationId && (status === 'accepted' || status === 'rejected')) {
       if (status === 'accepted') {
-        const newActionId = await acceptRecommendation(recommendationId, client.id);
+        const newActionId = await acceptRecommendation(recommendationId, client.id, userName);
         logInteraction(client.id, 'recommendation_accepted', {
           recommendationId, actionId: newActionId,
         }, user?.id).catch(() => {});
