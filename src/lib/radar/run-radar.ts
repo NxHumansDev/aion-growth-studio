@@ -9,6 +9,7 @@ import {
 import { analyzeEvolution } from './diff-engine';
 import { generateBriefing } from '../briefing';
 import { buildClientContext } from './client-context';
+import { ingestAnalytics } from '../analytics/ingest';
 
 interface RadarClient {
   id: string;
@@ -97,6 +98,31 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
     // 3. Create snapshot from completed audit
     const snapshotId = await createSnapshotFromAudit(auditId, client.id);
     result.snapshotId = snapshotId;
+
+    // 3b. Ingest GA4 + GSC data (if client has Google connected)
+    try {
+      const analyticsData = await ingestAnalytics(client.id, client.domain);
+      if (analyticsData) {
+        // Append analytics to the snapshot's pipeline_output
+        const { getSupabase } = await import('../db');
+        const sb = getSupabase();
+        const { data: snapData } = await sb.from('snapshots').select('pipeline_output').eq('id', snapshotId).single();
+        if (snapData) {
+          const updated = { ...snapData.pipeline_output, analytics: analyticsData };
+          await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
+          console.log(`[radar] Analytics ingested for ${client.domain}: GA4=${!!analyticsData.ga4} GSC=${!!analyticsData.gsc} quality=${analyticsData.dataQualityScore}`);
+
+          // Update integration quality score
+          if (analyticsData.dataQualityScore != null) {
+            const { updateDataQualityScore } = await import('../integrations');
+            await updateDataQualityScore(client.id, 'google_analytics', analyticsData.dataQualityScore);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[radar] Analytics ingestion failed for ${client.domain}:`, (err as Error).message);
+      // Non-fatal — Radar continues without analytics
+    }
 
     // 4. Analyze evolution + correlations
     const snapshots = await getAllSnapshots(client.id);

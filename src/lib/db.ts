@@ -17,7 +17,7 @@ export function hasTierAccess(currentTier: Tier, requiredTier: Tier): boolean {
   return TIER_LEVEL[currentTier] >= TIER_LEVEL[requiredTier];
 }
 
-function getSupabase() {
+export function getSupabase() {
   const url = import.meta.env.SUPABASE_URL || process.env.SUPABASE_URL;
   const key = import.meta.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) throw new Error('Supabase env vars missing');
