@@ -413,6 +413,7 @@ export async function logRecommendation(rec: Omit<Recommendation, 'status'>): Pr
       ...rec,
       status: 'proposed',
       month_proposed: new Date().toISOString().slice(0, 7),
+      expected_kpis: rec.data?.expected_kpis || [],
     })
     .select('id')
     .single();
@@ -483,6 +484,7 @@ export async function acceptRecommendation(recId: string, clientId: string, acce
     status: 'pending',
     accepted_by: acceptedBy || null,
     accepted_at: new Date().toISOString(),
+    expected_kpis: rec.expected_kpis || [],
   }).select('id').single();
 
   if (error) { console.error('[action_plan] Insert failed:', error.message); return null; }
@@ -567,6 +569,7 @@ export async function createManualAction(
   description?: string,
   impact?: 'high' | 'medium' | 'low',
   createdBy?: string,
+  expectedKpis?: Array<{ key: string; label: string; direction: string }>,
 ): Promise<string | null> {
   if (IS_DEMO) return null;
   const sb = getSupabase();
@@ -579,6 +582,7 @@ export async function createManualAction(
     status: 'pending',
     accepted_by: createdBy || null,
     accepted_at: new Date().toISOString(),
+    expected_kpis: expectedKpis || [],
   }).select('id').single();
   if (error) { console.error('[action_plan] Manual insert failed:', error.message); return null; }
   return data?.id ?? null;

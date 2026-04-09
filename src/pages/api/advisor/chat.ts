@@ -213,7 +213,7 @@ async function processResponse(
         title: action.title,
         description: action.description,
         impact: action.impact || 'medium',
-        status: 'pending',
+        data: action.expected_kpis?.length ? { expected_kpis: action.expected_kpis } : undefined,
       });
       if (id) actionIds.push(id);
     } catch (err) {
@@ -250,10 +250,17 @@ async function processResponse(
 
 // ── Response parser ────────────────────────────────────────────
 
+interface ExpectedKPI {
+  key: string;
+  label: string;
+  direction: 'up' | 'down';
+}
+
 interface ParsedAction {
   title: string;
   description: string;
   impact: 'high' | 'medium' | 'low';
+  expected_kpis?: ExpectedKPI[];
 }
 
 interface ParsedLearning {
@@ -283,6 +290,9 @@ function parseAdvisorResponse(text: string): {
               title: a.title,
               description: a.description,
               impact: ['high', 'medium', 'low'].includes(a.impact) ? a.impact : 'medium',
+              expected_kpis: Array.isArray(a.expected_kpis) ? a.expected_kpis.filter(
+                (k: any) => k.key && k.label
+              ) : undefined,
             });
           }
         }

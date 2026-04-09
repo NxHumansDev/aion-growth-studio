@@ -25,12 +25,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = await request.json();
-    const { recommendationId, actionId, status, feedback, title, description, impact } = body;
+    const { recommendationId, actionId, status, feedback, title, description, impact, expected_kpis } = body;
     const userName = (locals as any).user?.name || (locals as any).user?.email || client.name;
 
     // Flow 0: Create manual action
     if (title && !recommendationId && !actionId) {
-      const newId = await createManualAction(client.id, title, description, impact, userName);
+      const newId = await createManualAction(client.id, title, description, impact, userName, expected_kpis);
       logInteraction(client.id, 'manual_action_created', { actionId: newId, title }, user?.id).catch(() => {});
       return new Response(JSON.stringify({ ok: true, actionId: newId }), {
         headers: { 'Content-Type': 'application/json' },

@@ -83,6 +83,16 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
                 </div>
                 <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
                 {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
+                {(rec.data as any)?.expected_kpis?.length > 0 && (
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+                    <span style="font-size:10px;color:#94a3b8;margin-right:2px;">KPIs esperados:</span>
+                    {((rec.data as any).expected_kpis as any[]).map((kpi: any) => (
+                      <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#E1F5EE;color:#1D9E75;font-weight:600;">
+                        {kpi.direction === 'up' ? '↑' : '↓'} {kpi.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
                 <button class="btn-accept" data-rec-id={rec.id}
@@ -153,6 +163,16 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
                 </div>
                 <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{action.title}</h4>
                 {action.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{action.description}</p>}
+                {(action as any).expected_kpis?.length > 0 && (
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+                    <span style="font-size:10px;color:#94a3b8;margin-right:2px;">KPIs objetivo:</span>
+                    {((action as any).expected_kpis as any[]).map((kpi: any) => (
+                      <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#E1F5EE;color:#1D9E75;font-weight:600;">
+                        {kpi.direction === 'up' ? '↑' : '↓'} {kpi.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:#94a3b8;">
                   {(action as any).accepted_by && (
                     <span>Aceptada por {(action as any).accepted_by}</span>
@@ -281,6 +301,13 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
         </label>
       </div>
 
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:600;color:#1a1a2e;display:block;margin-bottom:6px;">KPIs que deberian mejorar</label>
+        <div id="suggested-kpis" style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px;">
+          <span style="color:#94a3b8;font-size:12px;">Se sugieren automaticamente al escribir la tarea</span>
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button type="button" id="btn-cancel-manual" style="padding:10px 18px;border-radius:8px;border:1px solid #ddd;background:white;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
         <button type="submit" style="padding:10px 18px;border-radius:8px;border:none;background:#1A4B8C;color:white;font-size:13px;font-weight:700;cursor:pointer;">Añadir al plan</button>
@@ -363,6 +390,46 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
     });
   });
 
+  // Suggest KPIs when user fills manual task
+  let suggestedKpis: any[] = [];
+  const kpiContainer = document.getElementById('suggested-kpis');
+
+  async function fetchKpiSuggestions() {
+    const title = (document.getElementById('manual-title') as HTMLInputElement).value.trim();
+    const description = (document.getElementById('manual-desc') as HTMLTextAreaElement).value.trim();
+    if (title.length < 5) return;
+    if (kpiContainer) kpiContainer.innerHTML = '<span style="color:#94a3b8;font-size:12px;">Analizando KPIs...</span>';
+    try {
+      const res = await fetch('/api/advisor/suggest-kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+      const data = await res.json();
+      suggestedKpis = data.kpis || [];
+      if (kpiContainer && suggestedKpis.length) {
+        kpiContainer.innerHTML = suggestedKpis.map((k: any) =>
+          `<span style="font-size:11px;padding:3px 8px;border-radius:4px;background:#E1F5EE;color:#1D9E75;font-weight:600;">${k.direction === 'up' ? '↑' : '↓'} ${k.label}</span>`
+        ).join(' ');
+      } else if (kpiContainer) {
+        kpiContainer.innerHTML = '<span style="color:#94a3b8;font-size:12px;">No se han identificado KPIs</span>';
+      }
+    } catch {
+      if (kpiContainer) kpiContainer.innerHTML = '';
+    }
+  }
+
+  // Debounce KPI suggestions
+  let kpiTimer: any;
+  document.getElementById('manual-title')?.addEventListener('blur', () => {
+    clearTimeout(kpiTimer);
+    kpiTimer = setTimeout(fetchKpiSuggestions, 300);
+  });
+  document.getElementById('manual-desc')?.addEventListener('blur', () => {
+    clearTimeout(kpiTimer);
+    kpiTimer = setTimeout(fetchKpiSuggestions, 300);
+  });
+
   // Submit manual task
   document.getElementById('form-manual')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -370,7 +437,7 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
     if (!title) return;
     const description = (document.getElementById('manual-desc') as HTMLTextAreaElement).value.trim();
     const impact = (document.querySelector('input[name="impact"]:checked') as HTMLInputElement)?.value || 'medium';
-    await callAPI({ title, description: description || undefined, impact });
+    await callAPI({ title, description: description || undefined, impact, expected_kpis: suggestedKpis });
   });
 </script>
 
