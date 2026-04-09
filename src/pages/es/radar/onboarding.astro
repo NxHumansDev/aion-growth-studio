@@ -256,7 +256,7 @@ const auditId = Astro.url.searchParams.get('audit') || '';
 
         <div style="display:flex;gap:12px;">
           <button type="button" class="prev-btn" data-step="3" style="flex:1;padding:14px;background:#f0f0f0;color:#64748b;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;">← Atrás</button>
-          <button type="submit" id="create-btn" style="flex:2;padding:14px;background:#1D9E75;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <button type="submit" id="create-btn" style="flex:2;padding:14px;background:#1A4B8C;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
             <span class="material-symbols-outlined" style="font-size:18px;">rocket_launch</span>
             Crear cuenta y entrar al dashboard
           </button>
@@ -387,29 +387,31 @@ const auditId = Astro.url.searchParams.get('audit') || '';
         });
 
       try {
-        // 1. Save onboarding data
-        await fetch('/api/dashboard/save-onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            website_url: fd.get('website_url'),
-            business_description: fd.get('business_description'),
-            primary_goal: fd.get('primary_goal'),
-            geo_scope: fd.get('geo_scope'),
-            geo_detail: fd.get('geo_detail') || null,
-            monthly_budget: fd.get('monthly_budget'),
-            team_size: fd.get('team_size'),
-            competitors,
-          }),
-        });
-
-        // 2. Create account (mock — sets demo cookies for now)
+        // 1. Create account FIRST (sets session/cookies so subsequent calls work)
         // When Supabase auth is real: POST /api/auth/signup { email, password }
         await fetch('/api/dashboard/set-tier', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tier: plan }),
         });
+
+        // 2. Save onboarding data (now we have a session via tier cookie)
+        try {
+          await fetch('/api/dashboard/save-onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              website_url: fd.get('website_url'),
+              business_description: fd.get('business_description'),
+              primary_goal: fd.get('primary_goal'),
+              geo_scope: fd.get('geo_scope'),
+              geo_detail: fd.get('geo_detail') || null,
+              monthly_budget: fd.get('monthly_budget'),
+              team_size: fd.get('team_size'),
+              competitors,
+            }),
+          });
+        } catch { /* Non-fatal in demo mode — onboarding data saved when real auth exists */ }
 
         // 3. First analysis — reuse recent audit or start new one
         const websiteUrl = fd.get('website_url') || '';
