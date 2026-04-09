@@ -8,7 +8,7 @@ const VALID_TIERS: Tier[] = ['radar', 'señales', 'palancas'];
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
-  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/advisor');
+  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/advisor') || pathname.startsWith('/api/advisor') || pathname.startsWith('/api/dashboard');
   const isAdminRoute = pathname.startsWith('/admin');
 
   if (!isDashboardRoute && !isAdminRoute) return next();
