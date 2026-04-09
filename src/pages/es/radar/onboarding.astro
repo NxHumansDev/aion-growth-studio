@@ -174,16 +174,24 @@ const auditId = Astro.url.searchParams.get('audit') || '';
         <div class="section">
           <label>
             <span class="material-symbols-outlined" style="font-size:18px;margin-right:4px;color:#1A4B8C;">swords</span>
-            Competidores que te preocupan (hasta 3)
+            Tus competidores (hasta 3)
           </label>
-          <p class="hint">Introduce dominios. Verificaremos que son accesibles.</p>
-          <div style="display:flex;flex-direction:column;gap:8px;">
+          <p class="hint" id="comp-hint">Hemos detectado estos competidores en tu diagnóstico. Puedes cambiarlos o eliminarlos.</p>
+          <div id="comp-container" style="display:flex;flex-direction:column;gap:8px;">
             {[0, 1, 2].map(i => (
               <div style="display:flex;gap:8px;align-items:center;">
-                <input type="url" name={`comp_${i}`} placeholder={`https://competidor${i+1}.es`} style="flex:1;" />
+                <input type="url" name={`comp_${i}`} id={`comp_${i}`} placeholder={i === 0 ? 'https://competidor.es' : ''} style="flex:1;" />
+                <button type="button" class="comp-clear" data-idx={String(i)} title="Eliminar"
+                  style="width:36px;height:36px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:none;cursor:pointer;color:#94a3b8;">
+                  <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                </button>
                 <div class="comp-status" id={`comp-status-${i}`} style="width:36px;height:36px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;"></div>
               </div>
             ))}
+          </div>
+          <div id="comp-warning" style="display:none;margin-top:12px;padding:12px 16px;background:#FAEEDA;border-radius:8px;border-left:3px solid #BA7517;display:flex;align-items:flex-start;gap:10px;">
+            <span class="material-symbols-outlined" style="font-size:18px;color:#BA7517;flex-shrink:0;margin-top:1px;">warning</span>
+            <p style="font-size:13px;color:#7a5a1a;line-height:1.4;margin:0;">Sin competidores perderás mucha de nuestra capacidad de análisis de oportunidad. Te recomendamos añadir al menos 1.</p>
           </div>
         </div>
 
@@ -323,13 +331,57 @@ const auditId = Astro.url.searchParams.get('audit') || '';
       }
     });
 
-    // Competitor validation
+    // Pre-fill competitors from audit (if auditId available)
+    const compWarning = document.getElementById('comp-warning');
+    const compHint = document.getElementById('comp-hint');
+
+    async function prefillCompetitors() {
+      if (!auditId) return;
+      try {
+        const res = await fetch(`/api/audit/${auditId}/status`);
+        const data = await res.json();
+        const competitors = data.results?.competitors?.competitors || data.results?.competitor_traffic?.items || [];
+        competitors.slice(0, 3).forEach((c, i) => {
+          const input = document.getElementById(`comp_${i}`);
+          const status = document.getElementById(`comp-status-${i}`);
+          const url = c.url || (c.domain ? `https://${c.domain}` : '');
+          if (input && url) {
+            input.value = url;
+            status.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:#1D9E75;">check_circle</span>';
+            status.style.background = '#e1f5ee';
+          }
+        });
+        if (competitors.length > 0 && compHint) {
+          compHint.textContent = 'Hemos detectado estos competidores en tu diagnóstico. Puedes cambiarlos o eliminarlos.';
+        }
+      } catch { /* No audit data available, that's fine */ }
+    }
+    prefillCompetitors();
+
+    function checkCompWarning() {
+      const hasAny = [0, 1, 2].some(i => document.getElementById(`comp_${i}`)?.value?.trim());
+      if (compWarning) compWarning.style.display = hasAny ? 'none' : 'flex';
+    }
+
+    // Clear buttons
+    document.querySelectorAll('.comp-clear').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        const input = document.getElementById(`comp_${idx}`);
+        const status = document.getElementById(`comp-status-${idx}`);
+        if (input) input.value = '';
+        if (status) { status.innerHTML = ''; status.style.background = '#f0f0f0'; }
+        checkCompWarning();
+      });
+    });
+
+    // Competitor validation on blur
     [0, 1, 2].forEach(i => {
-      const input = document.querySelector(`[name="comp_${i}"]`);
+      const input = document.getElementById(`comp_${i}`);
       const status = document.getElementById(`comp-status-${i}`);
       input.addEventListener('blur', async () => {
         const raw = input.value.trim();
-        if (!raw) { status.innerHTML = ''; return; }
+        if (!raw) { status.innerHTML = ''; status.style.background = '#f0f0f0'; checkCompWarning(); return; }
         const url = raw.startsWith('http') ? raw : `https://${raw}`;
         status.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;color:#888;">hourglass_top</span>';
         try {
@@ -346,6 +398,7 @@ const auditId = Astro.url.searchParams.get('audit') || '';
         } catch {
           status.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:#E24B4A;">error</span>';
         }
+        checkCompWarning();
       });
     });
 
