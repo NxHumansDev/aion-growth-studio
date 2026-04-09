@@ -12,7 +12,7 @@ const GOOGLE_CLIENT_SECRET = import.meta.env?.GOOGLE_CLIENT_SECRET || process.en
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/analytics.readonly',
   'https://www.googleapis.com/auth/webmasters.readonly',
-  // 'https://www.googleapis.com/auth/adwords.readonly', // Enable after activating Google Ads API in Cloud Console
+  // 'https://www.googleapis.com/auth/adwords.readonly', // Requires Google Ads API approval (developer token)
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
 
