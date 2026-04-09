@@ -206,41 +206,96 @@ async function fetchCompetitorLinkedIn(competitorUrls: string[]): Promise<Linked
 async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
   const isPersonalProfile = url.includes('/in/');
 
-  // ── Personal profiles (/in/username) — use harvestapi profile scraper ──
+  // ── Personal profiles (/in/username) — profile + posts in parallel ──
   if (isPersonalProfile && APIFY_TOKEN) {
     try {
-      const actorRes = await axios.post(
-        `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
-        { urls: [url] },
-        { timeout: 40000, headers: { 'Content-Type': 'application/json' } },
-      );
-      const items = actorRes.data;
-      if (Array.isArray(items) && items.length > 0) {
-        const p = items[0];
-        const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ');
-        const followers = p.followerCount ?? 0;
-        const connections = p.connectionsCount ?? 0;
-        console.log(`[linkedin] Personal profile: ${fullName} — ${followers} followers, ${connections} connections`);
-        return {
-          found: true,
-          url,
-          name: fullName || undefined,
-          followers: followers || undefined,
-          employees: connections || undefined, // repurpose: connections as "network size"
-          description: (p.about || '').slice(0, 300) || undefined,
-          industry: p.headline || undefined,
-          headquarters: typeof p.location === 'object' ? p.location?.parsed?.text : p.location,
-          isPersonal: true,
-          isVerified: p.verified || false,
-          isPremium: p.premium || false,
-          experienceCount: p.experience?.length ?? 0,
-          educationHighlight: p.education?.[0]?.schoolName || p.profileTopEducation?.[0]?.schoolName,
-          skillsCount: p.skills?.length ?? 0,
-          publicationsCount: p.publications?.length ?? 0,
-        };
+      const [profileRes, postsRes] = await Promise.allSettled([
+        axios.post(
+          `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
+          { urls: [url] },
+          { timeout: 40000, headers: { 'Content-Type': 'application/json' } },
+        ),
+        axios.post(
+          `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-posts/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
+          { profileUrls: [url], maxPosts: 15 },
+          { timeout: 40000, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ]);
+
+      if (profileRes.status === 'fulfilled') {
+        const items = profileRes.value.data;
+        if (Array.isArray(items) && items.length > 0) {
+          const p = items[0];
+          const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ');
+          const followers = p.followerCount ?? 0;
+          const connections = p.connectionsCount ?? 0;
+
+          // Process posts for engagement metrics
+          let postMetrics: Partial<PostMetrics> = {};
+          if (postsRes.status === 'fulfilled') {
+            const posts: any[] = postsRes.value.data || [];
+            const now = Date.now();
+            const MS_90D = 90 * 86_400_000;
+            let count90 = 0, totalLikes = 0, totalComments = 0, latestTs = 0;
+            // Only count original posts (not reposts)
+            for (const post of posts) {
+              const ts = post.postedAt?.timestamp ?? new Date(post.postedAt?.date || 0).getTime();
+              if (ts > latestTs) latestTs = ts;
+              if (now - ts <= MS_90D && !post.repostedBy) {
+                count90++;
+                totalLikes += post.engagement?.likes ?? 0;
+                totalComments += post.engagement?.comments ?? 0;
+              }
+            }
+            const avgLikes = count90 > 0 ? Math.round(totalLikes / count90) : 0;
+            const avgComments = count90 > 0 ? Math.round(totalComments / count90) : 0;
+            const engRate = count90 > 0 && followers > 0
+              ? Math.round(((totalLikes + totalComments) / (count90 * followers)) * 10000) / 100
+              : 0;
+            postMetrics = {
+              postsLast90Days: count90,
+              avgLikes,
+              avgComments,
+              engagementRate: engRate,
+              lastPostDate: latestTs > 0 ? new Date(latestTs).toISOString() : undefined,
+            };
+            console.log(`[linkedin] Personal posts: ${count90}/90d original, avg ${avgLikes} likes, ER ${engRate}%`);
+          }
+
+          // Extract recent publications (media articles, not posts)
+          const publications = (p.publications || []).slice(0, 6).map((pub: any) => ({
+            title: pub.title,
+            publishedAt: pub.publishedAt,
+            link: pub.link,
+          }));
+
+          console.log(`[linkedin] Personal profile: ${fullName} — ${followers} followers, ${connections} connections, ${publications.length} publications`);
+          return {
+            found: true,
+            url,
+            name: fullName || undefined,
+            followers: followers || undefined,
+            employees: connections || undefined,
+            description: (p.about || '').slice(0, 300) || undefined,
+            industry: p.headline || undefined,
+            headquarters: typeof p.location === 'object' ? p.location?.parsed?.text : p.location,
+            isPersonal: true,
+            isVerified: p.verified || false,
+            isPremium: p.premium || false,
+            experienceCount: p.experience?.length ?? 0,
+            educationHighlight: p.education?.[0]?.schoolName || p.profileTopEducation?.[0]?.schoolName,
+            skillsCount: p.skills?.length ?? 0,
+            publicationsCount: publications.length,
+            publications,
+            ...postMetrics,
+          };
+        }
+      }
+      if (profileRes.status === 'rejected') {
+        console.log(`[linkedin] Personal profile Actor failed: ${profileRes.reason?.message?.slice(0, 80)}`);
       }
     } catch (e) {
-      console.log(`[linkedin] Personal profile Actor failed: ${(e as Error).message?.slice(0, 80)}`);
+      console.log(`[linkedin] Personal profile failed: ${(e as Error).message?.slice(0, 80)}`);
     }
     // Fall through to HTML scraping
   }

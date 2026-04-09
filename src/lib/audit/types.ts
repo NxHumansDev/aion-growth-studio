@@ -294,6 +294,7 @@ export interface LinkedInResult extends ModuleResult {
   educationHighlight?: string;
   skillsCount?: number;
   publicationsCount?: number;
+  publications?: Array<{ title: string; publishedAt?: string; link?: string }>;
   competitors?: LinkedInCompetitor[];
 }
 
