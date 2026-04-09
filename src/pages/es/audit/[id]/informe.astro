@@ -2370,32 +2370,36 @@ const donutSVG = buildDonutSVG();
               const hasAnyPaid = clientPaidKw > 0 || metaAds?.hasMetaAds;
               const borderColor = hasAnyPaid ? '#69FF87' : '#ffb4ab';
               const compMetaAdsCount = metaAds?.competitorsWithMetaAds ?? 0;
-              const clientAdsCost = seo?.estimatedAdsCost ?? 0;
+              // paidTrafficValue = actual paid spend estimate (NOT estimatedAdsCost which is organic traffic value)
+              const clientPaidCost = seo?.paidTrafficValue ?? 0;
               const compMetaDetails = metaAds?.competitorDetails?.filter((c:any) => c.hasMetaAds) || [];
 
               // Build comparison rows: client + competitors
               const paidRows = [
-                { name: domain, isClient: true, googleKw: clientPaidKw, googleTraffic: seo?.paidTrafficEstimate ?? 0, adsCost: clientAdsCost, hasMeta: metaAds?.hasMetaAds ?? false },
+                { name: domain, isClient: true, googleKw: clientPaidKw, googleTraffic: seo?.paidTrafficEstimate ?? 0, paidCost: clientPaidCost, hasMeta: metaAds?.hasMetaAds ?? false },
                 ...displayCompetitors.slice(0,3).map((ct: any) => {
                   const ctItem = ctItems.find((c: any) => c.domain === ct.domain) || ct;
                   const metaDetail = metaAds?.competitorDetails?.find((c:any) => (c.domain||c.name||'').toLowerCase().includes((ct.domain||'').split('.')[0]));
+                  // Use paidTrafficValue (real paid cost), NOT estimatedAdsCost (organic equivalent)
+                  const compPaidCost = ctItem.paidTrafficValue ?? 0;
                   return {
                     name: ct.name || ct.domain,
                     isClient: false,
                     googleKw: ctItem.paidKeywords ?? ctItem.paidKeywordsTotal ?? 0,
                     googleTraffic: ctItem.paidTrafficEstimate ?? 0,
-                    adsCost: ctItem.estimatedAdsCost ?? 0,
+                    paidCost: compPaidCost,
                     hasMeta: metaDetail?.hasMetaAds ?? false,
                   };
                 }),
               ];
+              const anyCompPaid = paidRows.some(r => !r.isClient && (r.googleKw > 0 || r.paidCost > 0 || r.hasMeta));
 
               return (
                 <div class="glass-card" style={`border-left:4px solid ${borderColor};padding:28px;`}>
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
                     <span class="material-symbols-outlined" style="color:#D85A30;font-size:24px;">payments</span>
                     <span style="font-size:1rem;font-weight:800;color:#e2e0fc;">Publicidad Pagada — Comparativa</span>
-                    <span class="status-pill" style={`background:${hasAnyPaid?'rgba(105,255,135,0.12)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{hasAnyPaid ? 'Activo' : 'Sin inversion'}</span>
+                    <span class="status-pill" style={`background:${hasAnyPaid?'rgba(105,255,135,0.12)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{hasAnyPaid ? 'Tu marca invierte en paid' : 'Tu marca no invierte en paid'}</span>
                   </div>
 
                   {/* Comparison table */}
@@ -2406,7 +2410,7 @@ const donutSVG = buildDonutSVG();
                           <th style="text-align:left;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;"></th>
                           <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Google Ads KW</th>
                           <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Trafico Paid</th>
-                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Coste estimado</th>
+                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Inversion Paid</th>
                           <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Meta Ads</th>
                         </tr>
                       </thead>
@@ -2431,8 +2435,8 @@ const donutSVG = buildDonutSVG();
                               </span>
                             </td>
                             <td style="text-align:center;padding:10px 12px;">
-                              <span style={`font-weight:700;color:${row.adsCost > 0 ? '#e2e0fc' : '#8d909b'};`}>
-                                {row.adsCost > 0 ? `€${fmt(row.adsCost)}` : '—'}
+                              <span style={`font-weight:700;color:${row.paidCost > 0 ? '#e2e0fc' : '#8d909b'};`}>
+                                {row.paidCost > 0 ? `€${fmt(row.paidCost)}` : '—'}
                               </span>
                             </td>
                             <td style="text-align:center;padding:10px 12px;">
@@ -2448,11 +2452,11 @@ const donutSVG = buildDonutSVG();
 
                   {/* Summary text */}
                   <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;margin-top:14px;">
-                    {!hasAnyPaid && (compPaidItems.length > 0 || compMetaAdsCount > 0)
-                      ? 'Tus competidores estan invirtiendo en paid y capturando demanda que tu no estas monetizando.'
-                      : !hasAnyPaid
-                        ? 'Ni tu ni tus competidores invierten en publicidad pagada en este mercado.'
-                        : compPaidItems.length === 0 && compMetaAdsCount === 0
+                    {!hasAnyPaid && anyCompPaid
+                      ? 'Algunos competidores estan invirtiendo en paid y capturando demanda que tu no estas monetizando.'
+                      : !hasAnyPaid && !anyCompPaid
+                        ? 'En este mercado nadie parece invertir en publicidad pagada — la visibilidad se disputa en organico.'
+                        : !anyCompPaid
                           ? 'Eres de los pocos activos en paid en este mercado — ventaja competitiva directa.'
                           : 'Mercado con inversion activa en paid. Revisa si tu presupuesto y segmentacion son competitivos.'}
                   </p>
