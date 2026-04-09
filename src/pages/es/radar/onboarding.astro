@@ -486,7 +486,7 @@ const auditId = Astro.url.searchParams.get('audit') || '';
         const firstRunRes = await fetch('/api/radar/first-run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ domain, clientId: 'current', email: accountEmail }),
+          body: JSON.stringify({ domain, clientId: signupData.clientId || 'current', email: accountEmail, clientName: domain }),
         });
         const firstRunData = await firstRunRes.json();
 
