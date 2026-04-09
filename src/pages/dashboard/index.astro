@@ -186,8 +186,8 @@ const planDone = allRecs.filter(r => r.status === 'done');
 const planTotal = planItems.length + planDone.length;
 const planProgressPct = planTotal > 0 ? Math.round((planDone.length / planTotal) * 100) : 0;
 
-// New suggestions from AION (pending = not yet reviewed by client)
-const pendingRecs = allRecs.filter(r => r.status === 'pending');
+// New suggestions from AION (proposed/pending = not yet reviewed by client)
+const pendingRecs = allRecs.filter(r => r.status === 'proposed' || r.status === 'pending');
 const priorityRec = pendingRecs.find(r => r.impact === 'high') || pendingRecs[0];
 
 // ─── Competitor table ─────────────────────────────────────────────────────
@@ -590,11 +590,16 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
                 {rec.description && (
                   <p style="font-size:12px;color:#64748b;line-height:1.4;margin-bottom:8px;">{rec.description?.slice(0, 120)}...</p>
                 )}
-                <div style="display:flex;gap:6px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
                   <button class="btn-add-plan" data-rec-id={rec.id}
                     style="padding:5px 12px;background:#1A4B8C;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
                     <span class="material-symbols-outlined" style="font-size:14px;">add_task</span>
                     Al plan
+                  </button>
+                  <button class="btn-detail" data-rec-id={rec.id}
+                    style="padding:5px 12px;background:#FAEEDA;color:#BA7517;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                    <span class="material-symbols-outlined" style="font-size:14px;">info</span>
+                    Saber más
                   </button>
                   <button class="btn-dismiss-rec" data-rec-id={rec.id}
                     style="padding:5px 10px;background:#f0f0f0;color:#64748b;border:none;border-radius:6px;font-size:11px;cursor:pointer;">
@@ -694,6 +699,14 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
           body: JSON.stringify({ recommendationId: recId, status: 'accepted' }),
         });
         window.location.reload();
+      });
+    });
+
+    // Show recommendation detail
+    document.querySelectorAll('.btn-detail').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const recId = (btn as HTMLElement).dataset.recId;
+        if (recId) window.location.href = `/dashboard/recommendations#detail-${recId}`;
       });
     });
 

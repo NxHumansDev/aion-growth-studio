@@ -81,17 +81,18 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
                     <span style="font-size:10px;color:#BA7517;font-weight:600;">Propuesta {rec.times_proposed}x</span>
                   )}
                 </div>
-                <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
+                <h4 id={`detail-${rec.id}`} style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
                 {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
-                {(rec.data as any)?.expected_kpis?.length > 0 && (
-                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
-                    <span style="font-size:10px;color:#94a3b8;margin-right:2px;">KPIs esperados:</span>
-                    {((rec.data as any).expected_kpis as any[]).map((kpi: any) => (
-                      <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#E1F5EE;color:#1D9E75;font-weight:600;">
-                        {kpi.direction === 'up' ? '↑' : '↓'} {kpi.label}
-                      </span>
-                    ))}
-                  </div>
+                {(rec.data as any)?.detail && (
+                  <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
+                    <summary style="font-size:12px;font-weight:700;color:#1A4B8C;display:flex;align-items:center;gap:4px;list-style:none;">
+                      <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+                      Saber más — guía paso a paso
+                    </summary>
+                    <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                      {(rec.data as any).detail.replace(/\*\*(.*?)\*\*/g, '$1')}
+                    </div>
+                  </details>
                 )}
               </div>
               <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
@@ -439,6 +440,16 @@ const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
     const impact = (document.querySelector('input[name="impact"]:checked') as HTMLInputElement)?.value || 'medium';
     await callAPI({ title, description: description || undefined, impact, expected_kpis: suggestedKpis });
   });
+
+  // Auto-open detail if hash points to a recommendation
+  if (window.location.hash.startsWith('#detail-')) {
+    const el = document.getElementById(window.location.hash.slice(1));
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const details = el.closest('.rec-card')?.querySelector('details.rec-detail');
+      if (details) (details as HTMLDetailsElement).open = true;
+    }
+  }
 </script>
 
 </DashboardLayout>
