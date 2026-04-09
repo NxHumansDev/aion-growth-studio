@@ -43,6 +43,15 @@ const scoreDelta = score - prevScore;
 const scoreDir = scoreDelta > 0 ? 'up' : scoreDelta < 0 ? 'down' : 'stable';
 const scoreArrow = scoreDelta > 2 ? '↑' : scoreDelta > 0 ? '↗' : scoreDelta === 0 ? '→' : scoreDelta > -3 ? '↘' : '↓';
 const scoreColor = score >= 70 ? '#1D9E75' : score >= 40 ? '#BA7517' : '#E24B4A';
+
+// ─── Analytics data (GA4 + GSC if connected) ──────────────────────────────
+const analytics = r.analytics || {};
+const ga4 = analytics.ga4;
+const gsc = analytics.gsc;
+const prevAnalytics = pr.analytics || {};
+const prevGa4 = prevAnalytics.ga4;
+const prevGsc = prevAnalytics.gsc;
+const hasAnalytics = !!(ga4 || gsc);
 const scoreHistory = allSnapshots.map(s => s.score || 0);
 const isFirstWeek = allSnapshots.length <= 1;
 
@@ -441,6 +450,120 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         );
       })}
     </section>
+
+    {/* ══ Analytics KPIs (if GA4/GSC connected) ══ */}
+    {hasAnalytics && (
+      <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">analytics</span>
+          <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Tu web esta semana</h3>
+          <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GA4</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;">
+          {/* Sessions */}
+          {ga4 && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Visitas</p>
+              <div style="display:flex;align-items:baseline;gap:6px;">
+                <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.sessions?.toLocaleString()}</span>
+                {prevGa4?.sessions && (
+                  <span style={`font-size:11px;font-weight:700;color:${ga4.sessions >= prevGa4.sessions ? '#1D9E75' : '#E24B4A'};`}>
+                    {ga4.sessions >= prevGa4.sessions ? '↑' : '↓'}{Math.abs(Math.round(((ga4.sessions - prevGa4.sessions) / prevGa4.sessions) * 100))}%
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Users */}
+          {ga4 && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Usuarios</p>
+              <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.users?.toLocaleString()}</span>
+            </div>
+          )}
+
+          {/* Bounce Rate */}
+          {ga4?.bounceRate != null && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Bounce Rate</p>
+              <span style={`font-size:24px;font-weight:900;color:${ga4.bounceRate > 70 ? '#E24B4A' : ga4.bounceRate > 50 ? '#BA7517' : '#1D9E75'};`}>{ga4.bounceRate}%</span>
+            </div>
+          )}
+
+          {/* Conversions */}
+          {ga4?.conversions != null && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Conversiones</p>
+              <span style={`font-size:24px;font-weight:900;color:${ga4.conversions > 0 ? '#1D9E75' : '#94a3b8'};`}>{ga4.conversions}</span>
+            </div>
+          )}
+
+          {/* GSC Clicks */}
+          {gsc?.totalClicks != null && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Clicks Google</p>
+              <div style="display:flex;align-items:baseline;gap:6px;">
+                <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{gsc.totalClicks.toLocaleString()}</span>
+                {prevGsc?.totalClicks != null && (
+                  <span style={`font-size:11px;font-weight:700;color:${gsc.totalClicks >= prevGsc.totalClicks ? '#1D9E75' : '#E24B4A'};`}>
+                    {gsc.totalClicks >= prevGsc.totalClicks ? '↑' : '↓'}{Math.abs(gsc.totalClicks - prevGsc.totalClicks)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* GSC Avg Position */}
+          {gsc?.avgPosition != null && gsc.avgPosition > 0 && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Posición media</p>
+              <span style={`font-size:24px;font-weight:900;color:${gsc.avgPosition <= 10 ? '#1D9E75' : gsc.avgPosition <= 20 ? '#BA7517' : '#E24B4A'};`}>{gsc.avgPosition}</span>
+            </div>
+          )}
+
+          {/* Mobile % */}
+          {ga4?.deviceBreakdown?.mobile != null && (
+            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Mobile</p>
+              <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.deviceBreakdown.mobile}%</span>
+            </div>
+          )}
+        </div>
+
+        {/* Top keyword from GSC */}
+        {gsc?.topQueries?.length > 0 && (
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;">
+            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Top búsquedas en Google</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              {gsc.topQueries.slice(0, 5).map((q: any) => (
+                <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f0f4ff;border-radius:8px;font-size:12px;">
+                  <span style="font-weight:700;color:#1a1a2e;">{q.query}</span>
+                  <span style="color:#64748b;">pos {q.position}</span>
+                  <span style="color:#1D9E75;font-weight:600;">{q.clicks} clicks</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top source from GA4 */}
+        {ga4?.trafficSources?.length > 0 && (
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0;">
+            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Fuentes de tráfico</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              {ga4.trafficSources.slice(0, 4).map((s: any) => (
+                <div style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:#f0f4ff;border-radius:8px;font-size:12px;">
+                  <span style="font-weight:700;color:#1a1a2e;">{s.source}/{s.medium}</span>
+                  <span style="color:#64748b;">{s.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    )}
 
     <!-- ══ BLOQUE 3: Cambios esta semana / Bienvenida ══ -->
     <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
