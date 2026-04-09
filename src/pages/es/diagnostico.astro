@@ -479,23 +479,20 @@ const lang = 'es';
       if (competitors.length === 0) {
         listEl.innerHTML = `<p style="font-size:0.8125rem;color:rgba(255,255,255,0.4);padding:0.75rem 0;">No se detectaron competidores automáticamente. Puedes añadir uno manualmente abajo.</p>`;
       } else {
-        listEl.innerHTML = competitors.map((c: any, i: number) => {
-          const dead = c.status === 'unreachable';
-          return `
-          <div class="competitor-card${dead ? ' unreachable' : ''}" data-url="${c.url}" data-idx="${i}" onclick="${dead ? '' : 'toggleCompetitor(this)'}" style="${dead ? 'opacity:0.5;cursor:default;' : ''}">
-            <div style="width:18px;height:18px;border-radius:4px;border:2px solid ${dead ? 'rgba(255,100,100,0.3)' : 'rgba(255,255,255,0.2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" class="check-icon">
-              ${dead
-                ? '<span style="font-size:12px;color:rgba(255,100,100,0.6);">✕</span>'
-                : '<svg class="check-mark" width="10" height="10" fill="#001905" viewBox="0 0 20 20" style="display:none;"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>'
-              }
+        // Only show verified competitors (unreachable already filtered server-side)
+        listEl.innerHTML = competitors.map((c: any, i: number) => `
+          <div class="competitor-card" data-url="${c.url}" data-idx="${i}" onclick="toggleCompetitor(this)">
+            <div style="width:18px;height:18px;border-radius:4px;border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" class="check-icon">
+              <svg class="check-mark" width="10" height="10" fill="#001905" viewBox="0 0 20 20" style="display:none;">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
             </div>
             <div style="flex:1;min-width:0;">
-              <p style="font-size:0.875rem;font-weight:600;color:${dead ? 'rgba(255,255,255,0.4)' : '#fff'};margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</p>
+              <p style="font-size:0.875rem;font-weight:600;color:#fff;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</p>
               <p style="font-size:0.75rem;color:rgba(255,255,255,0.38);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.url}</p>
-              ${dead ? '<p style="font-size:0.68rem;color:#ff6b6b;margin:4px 0 0;display:flex;align-items:center;gap:4px;"><span style="font-size:12px;">⚠</span> Este dominio no parece existir o no es accesible</p>' : ''}
             </div>
-          </div>`;
-        }).join('');
+          </div>
+        `).join('');
       }
     }
   }

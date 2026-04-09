@@ -78,7 +78,8 @@ export const POST: APIRoute = async ({ request }) => {
       } catch {}
     }
 
-    // Merge: deduplicate by domain, prefer A entries, fill with B up to 8 candidates
+    // Merge: deduplicate by domain, prefer A entries, fill with B up to 12 candidates
+    // (need extras because many LLM-suggested domains don't exist)
     const seenDomains = new Set<string>([domain]);
     const candidates: any[] = [];
 
@@ -93,7 +94,7 @@ export const POST: APIRoute = async ({ request }) => {
           url: (c.url.startsWith('http') ? c.url : `https://${c.url}`).slice(0, 120),
           why: (c.why || c.snippet || '').slice(0, 150),
         });
-        if (candidates.length >= 8) break;
+        if (candidates.length >= 12) break;
       } catch {}
     }
 
@@ -116,11 +117,8 @@ export const POST: APIRoute = async ({ request }) => {
         }
       }),
     );
-    // Verified first, unreachable at the end, max 6
-    const merged = [
-      ...validated.filter(c => c.status === 'ok'),
-      ...validated.filter(c => c.status !== 'ok'),
-    ].slice(0, 6);
+    // Only return verified competitors — hide dead domains completely
+    const merged = validated.filter(c => c.status === 'ok').slice(0, 6);
 
     return json({ sector, businessScope, location, competitors: merged });
   } catch (err: any) {
@@ -129,7 +127,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-async function callClaude(apiKey: string, prompt: string): Promise<string> {
+async function callClaude(apiKey: string, prompt: string, model = 'claude-sonnet-4-6'): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -138,8 +136,8 @@ async function callClaude(apiKey: string, prompt: string): Promise<string> {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 900,
+      model,
+      max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -160,7 +158,7 @@ Determina:
 1. El sector/industria de la empresa
 2. Si es LOCAL (ciudad/región), NACIONAL (país) o GLOBAL/SAAS
 3. El TAMAÑO aparente del negocio (freelance/autónomo, pyme, mediana, grande)
-4. 4-5 competidores directos REALES con sus URLs
+4. 8 competidores directos REALES con sus URLs (necesitamos muchos porque algunos dominios no existen)
 
 REGLAS CRÍTICAS DE TAMAÑO:
 - Si parece una web PERSONAL o de FREELANCE → busca otros freelances o profesionales independientes del mismo nicho. NUNCA propongas consultoras grandes (Deloitte, McKinsey, Accenture, BCG) ni empresas de >500 empleados.
@@ -199,10 +197,12 @@ ${title ? `Nombre: ${title}` : ''}
 ${description ? `Descripción: ${description}` : ''}
 
 Busca en tu conocimiento empresas que operan en el mismo espacio de mercado.
+Dame 8 competidores (necesitamos muchos porque algunos dominios pueden no existir).
 
 REGLAS CRÍTICAS:
 - AJUSTA AL TAMAÑO: si parece un freelance o profesional independiente, sugiere otros freelances o profesionales similares. NO sugiereas multinacionales o grandes consultoras.
 - Solo empresas reales con URLs verificables · No incluyas ${domain}
+- VERIFICA mentalmente que las URLs que propones son reales y accesibles
 - Si no conoces competidores directos para algún nicho muy específico, usa los más cercanos del sector Y del mismo tamaño
 
 Responde ÚNICAMENTE con JSON array (sin texto adicional):
