@@ -151,16 +151,27 @@ const brandAuthorityScoreEs = (() => {
   // Press (0-15)
   const nc = newsCountEs;
   if (nc >= 5) ba += 15; else if (nc >= 2) ba += 10; else if (nc >= 1) ba += 5;
-  // Social (0-25) — B2B: LinkedIn, B2C: Instagram + LinkedIn
-  if (isB2B) {
-    const liF = linkedin?.followers ?? 0;
+  // Social (0-25) — use best available data across platforms
+  // B2B with LinkedIn data: LinkedIn primary (18pts) + employees (7pts)
+  // B2B without LinkedIn data: fall back to Instagram (personal brand is valid for B2B freelancers/consultants)
+  // B2C: Instagram primary + LinkedIn secondary
+  const liF = linkedin?.followers ?? 0;
+  const liE = linkedin?.employees ?? 0;
+  const igF = instagram?.followers ?? 0;
+  const igER = instagram?.engagementRate ?? 0;
+
+  if (isB2B && liF > 0) {
+    // B2B with LinkedIn data
     if (liF >= 50000) ba += 18; else if (liF >= 10000) ba += 13; else if (liF >= 1000) ba += 8; else if (liF >= 100) ba += 4;
-    const liE = linkedin?.employees ?? 0;
     if (liE >= 500) ba += 7; else if (liE >= 50) ba += 4; else if (liE >= 10) ba += 2;
+  } else if (isB2B && igF > 0) {
+    // B2B without LinkedIn → use Instagram as personal brand signal
+    if (igF >= 10000) ba += 15; else if (igF >= 1000) ba += 10; else if (igF >= 100) ba += 5;
+    // High engagement on Instagram is a strong personal brand signal even for B2B
+    if (igER >= 5) ba += 10; else if (igER >= 2) ba += 6; else if (igER >= 1) ba += 3;
   } else {
-    const igF = instagram?.followers ?? 0;
+    // B2C or no social data
     if (igF >= 100000) ba += 18; else if (igF >= 10000) ba += 12; else if (igF >= 1000) ba += 7; else if (igF >= 100) ba += 3;
-    const liF = linkedin?.followers ?? 0;
     if (liF >= 5000) ba += 7; else if (liF >= 500) ba += 4; else if (liF >= 100) ba += 2;
   }
   return Math.min(100, ba);
