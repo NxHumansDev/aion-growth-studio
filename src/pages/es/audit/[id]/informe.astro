@@ -2021,18 +2021,25 @@ const donutSVG = buildDonutSVG();
                 // LinkedIn health score
                 const liHealth = (() => {
                   let s = 0;
-                  // Reach (ratio)
+                  // Reach (ratio or raw followers for personal profiles)
                   if (ratio && ratio >= 50) s += 35; else if (ratio && ratio >= 20) s += 25; else if (ratio && ratio >= 5) s += 15; else s += 5;
-                  // Activity
-                  if (posts90 != null) { if (posts90 >= 8) s += 35; else if (posts90 >= 4) s += 25; else if (posts90 >= 1) s += 15; }
-                  else { s += (f > 5000 ? 20 : f > 1000 ? 15 : 10); }
+                  // Activity — CRITICAL: 0 posts = dormant audience, heavy penalty
+                  if (posts90 != null) {
+                    if (posts90 === 0) s += 0; // dormant → zero activity points
+                    else if (posts90 >= 8) s += 35; else if (posts90 >= 4) s += 25; else if (posts90 >= 1) s += 15;
+                  } else { s += (f > 5000 ? 20 : f > 1000 ? 15 : 10); }
                   // Engagement
                   if (er != null) { if (er >= 2) s += 30; else if (er >= 1) s += 22; else if (er >= 0.5) s += 12; else s += 5; }
                   else { s += 10; }
+                  // Cap: 0 posts in 90 days = max 25 (audience exists but dormant)
+                  if (posts90 === 0) return Math.min(25, s);
                   return Math.min(100, s);
                 })();
                 const liColor = liHealth >= 60 ? '#5B9BD5' : liHealth >= 40 ? '#A0C4E8' : '#8d909b';
-                const liLabel = liHealth >= 60 ? 'Presencia profesional solida' : liHealth >= 40 ? 'Presencia correcta, margen de mejora' : 'LinkedIn necesita mas atencion';
+                const liLabel = posts90 === 0 ? 'Audiencia dormida — sin publicaciones recientes'
+                  : liHealth >= 60 ? 'Presencia profesional solida'
+                  : liHealth >= 40 ? 'Presencia correcta, margen de mejora'
+                  : 'LinkedIn necesita mas atencion';
                 // Diagnostic text
                 const diagText = (() => {
                   if (ratio && ratio >= 20 && posts90 && posts90 >= 4 && er && er >= 1) return `Vuestra marca llega ${ratio}x mas alla de la plantilla y el contenido genera interaccion real. LinkedIn es un activo de autoridad para vuestro negocio.`;
@@ -2043,7 +2050,7 @@ const donutSVG = buildDonutSVG();
                 })();
                 return (
                   <div>
-                    {/* Health gauge + headline */}
+                    {/* Health gauge + headline + key metrics */}
                     <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
                       <div style="position:relative;width:56px;height:56px;flex-shrink:0;">
                         <svg viewBox="0 0 36 36" style="width:56px;height:56px;transform:rotate(-90deg);">
@@ -2057,10 +2064,33 @@ const donutSVG = buildDonutSVG();
                       <div style="flex:1;">
                         <div style="font-size:0.82rem;font-weight:700;color:#e2e0fc;">{liLabel}</div>
                         <div style="font-size:0.68rem;color:#8d909b;margin-top:2px;">
-                          {fmt(f)} seguidores{isPersonal && connections > 0 ? ` · ${fmt(connections)} conexiones` : emp > 0 ? ` · ${fmt(emp)} empleados` : ''}
-                          {ratio ? ` · ${ratio}x alcance` : ''}{isPersonal && (linkedin as any).isPremium ? ' · Premium' : ''}
+                          {isPersonal && (linkedin as any).isPremium ? 'Premium · ' : ''}{isPersonal ? (linkedin as any).industry?.slice(0, 60) : ''}
                         </div>
                       </div>
+                    </div>
+                    {/* Key metrics — prominent */}
+                    <div style="display:flex;gap:1px;margin-bottom:8px;">
+                      <div style="flex:1;background:rgba(0,119,181,0.08);border-radius:8px 0 0 8px;padding:10px;text-align:center;">
+                        <div style="font-size:1.2rem;font-weight:900;color:#5B9BD5;">{fmt(f)}</div>
+                        <div style="font-size:0.6rem;color:#8d909b;">seguidores</div>
+                      </div>
+                      {!isPersonal && emp > 0 ? (
+                        <div style="flex:1;background:rgba(0,119,181,0.08);padding:10px;text-align:center;">
+                          <div style="font-size:1.2rem;font-weight:900;color:#5B9BD5;">{fmt(emp)}</div>
+                          <div style="font-size:0.6rem;color:#8d909b;">empleados</div>
+                        </div>
+                      ) : isPersonal && connections > 0 ? (
+                        <div style="flex:1;background:rgba(0,119,181,0.08);padding:10px;text-align:center;">
+                          <div style="font-size:1.2rem;font-weight:900;color:#5B9BD5;">{fmt(connections)}</div>
+                          <div style="font-size:0.6rem;color:#8d909b;">conexiones</div>
+                        </div>
+                      ) : null}
+                      {ratio ? (
+                        <div style="flex:1;background:rgba(0,119,181,0.12);border-radius:0 8px 8px 0;padding:10px;text-align:center;">
+                          <div style={`font-size:1.2rem;font-weight:900;color:${ratio >= 20 ? '#69FF87' : ratio >= 5 ? '#5B9BD5' : '#8d909b'};`}>{ratio}x</div>
+                          <div style="font-size:0.6rem;color:#8d909b;">alcance vs plantilla</div>
+                        </div>
+                      ) : null}
                     </div>
                     {/* Activity metrics */}
                     {posts90 != null && (
@@ -2137,7 +2167,9 @@ const donutSVG = buildDonutSVG();
                 const erLabel = erLevel === 'excellent' ? 'Excelente' : erLevel === 'good' ? 'Bueno' : erLevel === 'ok' ? 'Aceptable' : erLevel === 'bad' ? 'Bajo' : 'N/D';
                 const sectorLabel = sectorType === 'b2b' ? 'B2B' : sectorType === 'b2c_local' ? 'negocio local' : sectorType === 'ecommerce' ? 'ecommerce' : sectorType === 'b2c' ? 'B2C' : 'tu sector';
                 // Overall Instagram health score (sector-adjusted)
-                const igHealth = hasER ? (erLevel === 'excellent' ? 90 : erLevel === 'good' ? 75 : erLevel === 'ok' ? 50 : 25) : (instagram.followers > 10000 ? 50 : instagram.followers > 1000 ? 30 : 15);
+                // Cap: <200 followers → max 50 (ER is statistically unreliable with tiny base)
+                const rawIgHealth = hasER ? (erLevel === 'excellent' ? 90 : erLevel === 'good' ? 75 : erLevel === 'ok' ? 50 : 25) : (instagram.followers > 10000 ? 50 : instagram.followers > 1000 ? 30 : 15);
+                const igHealth = instagram.followers < 200 ? Math.min(50, rawIgHealth) : rawIgHealth;
                 const igHealthColor = igHealth >= 60 ? '#69FF87' : igHealth >= 40 ? '#ffb4ab' : '#ffb4ab';
                 return (
                   <div>
@@ -2154,7 +2186,7 @@ const donutSVG = buildDonutSVG();
                       </div>
                       <div style="flex:1;">
                         <div style="font-size:0.82rem;font-weight:700;color:#e2e0fc;">
-                          {igHealth >= 60 ? 'Gestion activa y efectiva' : igHealth >= 40 ? 'Presencia correcta, margen de mejora' : 'Necesita atencion estrategica'}
+                          {instagram.followers < 200 ? 'Comunidad en crecimiento' : igHealth >= 60 ? 'Gestion activa y efectiva' : igHealth >= 40 ? 'Presencia correcta, margen de mejora' : 'Necesita atencion estrategica'}
                         </div>
                         <div style="font-size:0.68rem;color:#8d909b;margin-top:2px;">
                           {fmt(instagram.followers)} seguidores
