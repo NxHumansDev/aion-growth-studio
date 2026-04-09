@@ -387,21 +387,30 @@ const auditId = Astro.url.searchParams.get('audit') || '';
         });
 
       try {
-        // 1. Create account FIRST (sets session/cookies so subsequent calls work)
-        // When Supabase auth is real: POST /api/auth/signup { email, password }
-        await fetch('/api/dashboard/set-tier', {
+        // 1. Create real Supabase auth account + client + link
+        const websiteUrl = fd.get('website_url') || '';
+        const signupRes = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tier: plan }),
+          body: JSON.stringify({
+            email: accountEmail,
+            password: pw,
+            domain: websiteUrl,
+            plan: plan,
+          }),
         });
+        const signupData = await signupRes.json();
+        if (!signupRes.ok) {
+          throw new Error(signupData.error || 'Error al crear la cuenta');
+        }
 
-        // 2. Save onboarding data (now we have a session via tier cookie)
+        // 2. Save onboarding data (now we have a real session)
         try {
           await fetch('/api/dashboard/save-onboarding', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              website_url: fd.get('website_url'),
+              website_url: websiteUrl,
               business_description: fd.get('business_description'),
               primary_goal: fd.get('primary_goal'),
               geo_scope: fd.get('geo_scope'),
@@ -411,10 +420,9 @@ const auditId = Astro.url.searchParams.get('audit') || '';
               competitors,
             }),
           });
-        } catch { /* Non-fatal in demo mode — onboarding data saved when real auth exists */ }
+        } catch { /* Non-fatal — onboarding saved if session works */ }
 
         // 3. First analysis — reuse recent audit or start new one
-        const websiteUrl = fd.get('website_url') || '';
         const domain = websiteUrl.toString().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
 
         createBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">radar</span> Preparando tu dashboard...';
