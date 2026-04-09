@@ -54,17 +54,26 @@ export async function getIntegration(clientId: string, provider: string): Promis
 
 export async function saveIntegration(integration: Partial<Integration> & { client_id: string; provider: string; refresh_token: string }): Promise<string> {
   const sb = getServiceClient();
-  const { data, error } = await sb
+  // Check if integration already exists
+  const { data: existing } = await sb
     .from('integrations')
-    .upsert({
-      ...integration,
-      status: 'connected',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'client_id,provider' })
     .select('id')
+    .eq('client_id', integration.client_id)
+    .eq('provider', integration.provider)
+    .limit(1)
     .single();
-  if (error) throw new Error(`Failed to save integration: ${error.message}`);
-  return data.id;
+
+  const payload = { ...integration, status: 'connected', updated_at: new Date().toISOString() };
+
+  if (existing) {
+    const { data, error } = await sb.from('integrations').update(payload).eq('id', existing.id).select('id').single();
+    if (error) throw new Error(`Failed to update integration: ${error.message}`);
+    return data.id;
+  } else {
+    const { data, error } = await sb.from('integrations').insert(payload).select('id').single();
+    if (error) throw new Error(`Failed to save integration: ${error.message}`);
+    return data.id;
+  }
 }
 
 export async function disconnectIntegration(clientId: string, provider: string): Promise<void> {

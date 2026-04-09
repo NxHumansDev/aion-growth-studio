@@ -11,7 +11,7 @@ export const prerender = false;
  * OAuth callback from Google. Exchanges code for tokens,
  * lists GA4 properties, and saves the integration.
  */
-export const GET: APIRoute = async ({ url, redirect, cookies }) => {
+export const GET: APIRoute = async ({ url, redirect, cookies, locals }) => {
   const code = url.searchParams.get('code');
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
@@ -32,9 +32,10 @@ export const GET: APIRoute = async ({ url, redirect, cookies }) => {
     clientId = state.clientId;
   } catch {}
 
-  // If we don't have clientId from state, try middleware
+  // If we don't have clientId from state, try middleware locals
   if (clientId === 'unknown') {
-    clientId = cookies.get('aion_client_id')?.value || 'unknown';
+    const client = (locals as any)?.client;
+    if (client?.id) clientId = client.id;
   }
 
   const origin = url.origin;
