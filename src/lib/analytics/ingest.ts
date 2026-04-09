@@ -8,10 +8,12 @@
 import { getIntegration, getValidAccessToken } from '../integrations';
 import { fetchGA4Data, type GA4Report } from './fetch-ga4';
 import { fetchGSCData, type GSCReport } from './fetch-gsc';
+import { auditAnalyticsData, type AnalyticsAudit } from './audit-quality';
 
 export interface AnalyticsData {
   ga4?: GA4Report;
   gsc?: GSCReport;
+  audit?: AnalyticsAudit;
   source: 'google_analytics';
   fetchedAt: string;
   dataQualityScore?: number;
@@ -56,7 +58,11 @@ export async function ingestAnalytics(clientId: string, domain: string): Promise
     console.error(`[analytics] GSC failed for ${domain}:`, (err as Error).message);
   }
 
-  // Data quality score
+  // Audit: detect errors, misconfigurations, and opportunities
+  result.audit = auditAnalyticsData(result.ga4, result.gsc);
+  console.log(`[analytics] Audit for ${domain}: ${result.audit.issues.length} issues, ${result.audit.opportunities.length} opportunities, config score ${result.audit.configScore}/100`);
+
+  // Data quality score (combines data completeness + config health)
   result.dataQualityScore = computeDataQualityScore(result);
 
   return (result.ga4 || result.gsc) ? result : null;
