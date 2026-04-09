@@ -42,6 +42,7 @@ const scoreDir = scoreDelta > 0 ? 'up' : scoreDelta < 0 ? 'down' : 'stable';
 const scoreArrow = scoreDelta > 2 ? '↑' : scoreDelta > 0 ? '↗' : scoreDelta === 0 ? '→' : scoreDelta > -3 ? '↘' : '↓';
 const scoreColor = score >= 70 ? '#1D9E75' : score >= 40 ? '#BA7517' : '#E24B4A';
 const scoreHistory = allSnapshots.map(s => s.score || 0);
+const isFirstWeek = allSnapshots.length <= 1;
 
 // ─── 6 Pillar scores ──────────────────────────────────────────────────────
 interface PillarData {
@@ -353,35 +354,52 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
       <span style="font-size:12px;color:#1A4B8C;font-weight:600;">Conectar →</span>
     </a>
 
-    <!-- ══ BLOQUE 1: Score Global + Tendencia ══ -->
+    <!-- ══ BLOQUE 1: Score Global ══ -->
     <section style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;align-items:center;gap:32px;">
       <!-- Score big number -->
       <div style="text-align:center;min-width:140px;">
         <div style={`font-size:64px;font-weight:900;letter-spacing:-0.04em;color:${scoreColor};line-height:1;`}>{score}</div>
         <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">de 100</div>
       </div>
-      <!-- Trend -->
       <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span style={`font-size:28px;color:${scoreDelta >= 0 ? '#1D9E75' : '#E24B4A'};`}>{scoreArrow}</span>
-          <span style={`font-size:20px;font-weight:800;color:${scoreDelta >= 0 ? '#1D9E75' : '#E24B4A'};`}>
-            {scoreDelta >= 0 ? '+' : ''}{scoreDelta} puntos vs semana pasada
-          </span>
-        </div>
-        {briefing?.summary && (
-          <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">{briefing.summary}</p>
+        {isFirstWeek ? (
+          <!-- First week: welcome, no comparison -->
+          <Fragment>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <span style="font-size:20px;">🎯</span>
+              <span style="font-size:18px;font-weight:800;color:#1a1a2e;">Este es tu punto de partida</span>
+            </div>
+            <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">
+              {briefing?.summary || `Hemos analizado ${client.domain} por primera vez. La próxima semana compararemos cómo evoluciona cada pilar y te daremos recomendaciones basadas en datos reales.`}
+            </p>
+          </Fragment>
+        ) : (
+          <!-- Returning week: show delta -->
+          <Fragment>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+              <span style={`font-size:28px;color:${scoreDelta >= 0 ? '#1D9E75' : '#E24B4A'};`}>{scoreArrow}</span>
+              <span style={`font-size:20px;font-weight:800;color:${scoreDelta >= 0 ? '#1D9E75' : '#E24B4A'};`}>
+                {scoreDelta >= 0 ? '+' : ''}{scoreDelta} puntos vs semana pasada
+              </span>
+            </div>
+            {briefing?.summary && (
+              <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">{briefing.summary}</p>
+            )}
+          </Fragment>
         )}
       </div>
-      <!-- Sparkline mini -->
-      <div style="display:flex;align-items:flex-end;gap:3px;height:48px;min-width:120px;">
-        {scoreHistory.map((v, i) => {
-          const max = Math.max(...scoreHistory, 1);
-          const h = Math.round((v / max) * 48);
-          const isLast = i === scoreHistory.length - 1;
-          const color = isLast ? scoreColor : '#cbd5e1';
-          return <div style={`flex:1;background:${color};height:${h}px;border-radius:2px 2px 0 0;min-width:8px;`}></div>;
-        })}
-      </div>
+      {/* Sparkline only if we have history */}
+      {!isFirstWeek && (
+        <div style="display:flex;align-items:flex-end;gap:3px;height:48px;min-width:120px;">
+          {scoreHistory.map((v, i) => {
+            const max = Math.max(...scoreHistory, 1);
+            const h = Math.round((v / max) * 48);
+            const isLast = i === scoreHistory.length - 1;
+            const color = isLast ? scoreColor : '#cbd5e1';
+            return <div style={`flex:1;background:${color};height:${h}px;border-radius:2px 2px 0 0;min-width:8px;`}></div>;
+          })}
+        </div>
+      )}
     </section>
 
     <!-- ══ BLOQUE 2: 6 Pillar Cards ══ -->
@@ -400,26 +418,58 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;">
               <span style={`font-size:28px;font-weight:900;color:${pColor};letter-spacing:-0.03em;`}>{p.value}</span>
-              <span style={`font-size:12px;font-weight:700;color:${deltaColor};`}>{deltaText}</span>
+              {!isFirstWeek && <span style={`font-size:12px;font-weight:700;color:${deltaColor};`}>{deltaText}</span>}
             </div>
-            <div style="display:flex;align-items:flex-end;gap:2px;height:24px;">
-              {p.sparkline.map((v, i) => {
-                const h = Math.max(2, Math.round((v / max) * 24));
-                const isLast = i === p.sparkline.length - 1;
-                return <div style={`flex:1;background:${isLast ? pColor : '#e2e8f0'};height:${h}px;border-radius:1px 1px 0 0;`}></div>;
-              })}
-            </div>
+            {!isFirstWeek ? (
+              <div style="display:flex;align-items:flex-end;gap:2px;height:24px;">
+                {p.sparkline.map((v, i) => {
+                  const h = Math.max(2, Math.round((v / max) * 24));
+                  const isLast = i === p.sparkline.length - 1;
+                  return <div style={`flex:1;background:${isLast ? pColor : '#e2e8f0'};height:${h}px;border-radius:1px 1px 0 0;`}></div>;
+                })}
+              </div>
+            ) : (
+              <div style="height:24px;display:flex;align-items:center;">
+                <span style="font-size:10px;color:#cbd5e1;">Punto de partida</span>
+              </div>
+            )}
           </a>
         );
       })}
     </section>
 
-    <!-- ══ BLOQUE 3: Cambios esta semana ══ -->
+    <!-- ══ BLOQUE 3: Cambios esta semana / Bienvenida ══ -->
     <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-      <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;margin-bottom:16px;">
-        Cambios esta semana
-      </h3>
-      {(improvements.length > 0 || deteriorations.length > 0) ? (
+      {isFirstWeek ? (
+        <Fragment>
+          <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;margin-bottom:12px;">
+            Tu primer análisis
+          </h3>
+          <div style="display:flex;align-items:flex-start;gap:16px;">
+            <div style="width:44px;height:44px;border-radius:12px;background:#f0f4ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span class="material-symbols-outlined" style="font-size:22px;color:#1A4B8C;">rocket_launch</span>
+            </div>
+            <div>
+              <p style="font-size:14px;color:#434750;line-height:1.6;margin-bottom:12px;">
+                Este es el punto de partida de <strong>{client.name}</strong>. Hemos analizado tu web, tus competidores y tu visibilidad en buscadores e IAs. A partir de la próxima semana:
+              </p>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                {['Compararemos tus datos semana a semana', 'Detectaremos mejoras y deterioros automáticamente', 'Te propondremos acciones concretas basadas en tu evolución', 'Mediremos el impacto real de lo que implementes'].map(item => (
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#434750;">
+                    <span class="material-symbols-outlined" style="font-size:16px;color:#1D9E75;">check_circle</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Fragment>
+      ) : (
+        <Fragment>
+          <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;margin-bottom:16px;">
+            Cambios esta semana
+          </h3>
+          {(improvements.length > 0 || deteriorations.length > 0) ? (
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Lo que ha mejorado</div>
@@ -454,6 +504,8 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         </div>
       ) : (
         <p style="font-size:14px;color:#434750;line-height:1.6;">{stableMessage}</p>
+      )}
+        </Fragment>
       )}
     </section>
 
