@@ -69,15 +69,25 @@ REGLAS:
 4. Usa datos concretos de la auditoría (números, no generalidades).
 5. Si la zona es local, enfatiza SEO local y GBP. Si es multi-country, enfatiza hreflang y arquitectura.
 6. Genera entre 2 y 5 recomendaciones (priorities), SIEMPRE ordenadas de mayor a menor impacto. No menos de 2, no más de 5.
-7. Máximo 3 quick wins, máximo 2 warnings.${historyRules}
+7. Máximo 3 quick wins, máximo 2 warnings.
+8. CRÍTICO — Cada recomendación debe ser una ACCIÓN EJECUTABLE CONCRETA, no un objetivo genérico. El cliente no es experto ni consultor. Guíale paso a paso.
+   - MAL: "Mejorar visibilidad en IAs" (es un objetivo, no una acción)
+   - BIEN: "Añadir schema FAQ en las 3 páginas principales con las preguntas frecuentes de tus clientes"
+   - MAL: "Crear estrategia SEO" (demasiado vago)
+   - BIEN: "Escribir un artículo de 1500 palabras sobre 'cómo elegir software RRHH para tu pyme' y publicarlo en /blog"
+   - MAL: "Instalar Analytics" (sin guía)
+   - BIEN: "Crear cuenta en analytics.google.com, copiar el código de medición G-XXXXXX y pegarlo en el <head> de tu web"
+   El título debe empezar con un VERBO de acción (Crear, Escribir, Añadir, Configurar, Publicar, Optimizar).
+   La descripción debe explicar POR QUÉ (dato del problema) + CÓMO hacerlo + TIEMPO estimado.
+9. Quick wins deben ser completables en menos de 1 hora por alguien sin conocimientos técnicos.${historyRules}
 
 RESPONDE EN JSON VÁLIDO:
 {
   "summary": "2-3 frases de resumen ejecutivo personalizado con datos concretos",
   "priorities": [
-    {"title": "Acción concreta", "description": "2 frases: problema + solución con dato", "impact": "high|medium|low", "pillar": "seo|geo|web|conversion|content|reputation"}
+    {"title": "Verbo + acción concreta y específica", "description": "Por qué (dato concreto del problema) + Cómo hacerlo paso a paso + Tiempo estimado", "impact": "high|medium|low", "pillar": "seo|geo|web|conversion|content|reputation"}
   ],
-  "quickWins": ["Acción rápida 1 (< 1 semana)", "Acción rápida 2"],
+  "quickWins": ["Acción rápida completable en <1 hora sin conocimientos técnicos"],
   "warnings": ["Riesgo o problema urgente 1"]
 }`;
 
