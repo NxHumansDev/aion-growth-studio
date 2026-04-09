@@ -78,9 +78,9 @@ export const POST: APIRoute = async ({ request }) => {
       } catch {}
     }
 
-    // Merge: deduplicate by domain, prefer A entries, fill with B up to 6
+    // Merge: deduplicate by domain, prefer A entries, fill with B up to 8 candidates
     const seenDomains = new Set<string>([domain]);
-    const merged: any[] = [];
+    const candidates: any[] = [];
 
     for (const c of [...competitorsA, ...competitorsB]) {
       try {
@@ -88,14 +88,34 @@ export const POST: APIRoute = async ({ request }) => {
           .hostname.replace(/^www\./, '');
         if (seenDomains.has(d)) continue;
         seenDomains.add(d);
-        merged.push({
+        candidates.push({
           name: (c.name || d).slice(0, 80),
-          url: (c.url || '').slice(0, 120),
+          url: (c.url.startsWith('http') ? c.url : `https://${c.url}`).slice(0, 120),
           why: (c.why || c.snippet || '').slice(0, 150),
         });
-        if (merged.length >= 6) break;
+        if (candidates.length >= 8) break;
       } catch {}
     }
+
+    // Validate: HEAD-check all candidates in parallel, filter out dead domains
+    const validated = await Promise.all(
+      candidates.map(async (c) => {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 4000);
+          const res = await fetch(c.url, {
+            method: 'HEAD',
+            signal: controller.signal,
+            redirect: 'follow',
+          });
+          clearTimeout(timer);
+          return (res.ok || res.status === 403 || res.status === 405) ? c : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const merged = validated.filter(Boolean).slice(0, 6);
 
     return json({ sector, businessScope, location, competitors: merged });
   } catch (err: any) {
