@@ -2362,112 +2362,110 @@ const donutSVG = buildDonutSVG();
             </div>
           )}
 
-          <!-- 5 dimension cards -->
+          <!-- Paid intelligence (only competitive axis — SEO/GEO/Social/Web already in cards above) -->
           <div style="display:flex;flex-direction:column;gap:12px;">
 
-            <!-- SEO axis -->
-            {(() => {
-              const st = ss(health.visibilidad??0);
-              const stStyle = statusStyle(st);
-              const borderColor = st === 'good' ? '#69FF87' : st === 'medium' ? '#ffb4ab' : '#ffb4ab';
-              return (
-                <div class="glass-card" style={`border-left:4px solid ${borderColor};`}>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    <span class="material-symbols-outlined" style="color:#aac7ff;">search</span>
-                    <span style="font-size:0.85rem;font-weight:700;color:#e2e0fc;">SEO Organico</span>
-                    <span class="status-pill" style={`background:${st==='good'?'rgba(105,255,135,0.12)':st==='medium'?'rgba(255,180,171,0.1)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{stStyle.label}</span>
-                  </div>
-                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;margin-bottom:8px;">
-                    {seo
-                      ? hasCompetitorData && ownETV < avgETV
-                        ? `Tu trafico organico (~${fmt(ownETV)} visitas/mes) esta por debajo del promedio competitivo (~${fmt(Math.round(avgETV))} visitas/mes). Gap potencial: ${fmt(trafficGap)} visitas adicionales/mes.`
-                        : `Con ${fmt(seo.keywordsTop10)} keywords en top 10 y ~${fmt(seo.organicTrafficEstimate)} visitas/mes, tu SEO es ${st==='good'?'solido':'mejorable'}.`
-                      : 'No se han podido obtener datos SEO.'}
-                  </p>
-                  {displayCompetitors.length > 0 && (
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                      <span style="font-size:0.72rem;font-weight:700;color:#aac7ff;">{domain}: {fmt(seo?.keywordsTop10)} kw</span>
-                      {displayCompetitors.slice(0,2).map((ct: any, idx: number) => (
-                        <span style={`font-size:0.72rem;color:${idx===0?'#D85A30':'#888780'};`}>{ct.name||ct.domain}: {ct.keywordsTop10 != null ? fmt(ct.keywordsTop10)+' kw' : <span style="color:#8d909b;">sin datos SEO</span>}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <!-- GEO/IA axis -->
-            {(() => {
-              const st = ss(geo?.mentionRate??0);
-              const stStyle = statusStyle(st);
-              const borderColor = st === 'good' ? '#69FF87' : st === 'medium' ? '#ffb4ab' : '#ffb4ab';
-              return (
-                <div class="glass-card" style={`border-left:4px solid ${borderColor};`}>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    <span class="material-symbols-outlined" style="color:#7c3aed;">psychology</span>
-                    <span style="font-size:0.85rem;font-weight:700;color:#e2e0fc;">GEO / IA</span>
-                    <span class="status-pill" style={`background:${st==='good'?'rgba(105,255,135,0.12)':st==='medium'?'rgba(255,180,171,0.1)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{stStyle.label}</span>
-                  </div>
-                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;margin-bottom:8px;">
-                    {geo
-                      ? `Tasa de mencion en IA: ${geo.mentionRate ?? 0}%. ${(geo.mentionRate??0)>=50 ? 'Buena visibilidad en ChatGPT y similares.' : 'Margen de mejora para capturar consultas de usuario en IA.'}${allCompGeoZero ? ' Ningun competidor aparece en IA — primera posicion disponible.' : ''}`
-                      : 'Sin datos de visibilidad en IA.'}
-                  </p>
-                  {!allCompGeoZero && (geo?.competitorMentions?.length ?? 0) > 0 && (
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                      <span style="font-size:0.72rem;font-weight:700;color:#7c3aed;">{domain}: {geo.mentionRate ?? 0}%</span>
-                      {geo.competitorMentions.slice(0,2).map((cm: any, idx: number) => (
-                        <span style={`font-size:0.72rem;color:${idx===0?'#D85A30':'#888780'};`}>{cm.name||cm.domain}: {cm.mentionRate ?? 0}%</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <!-- Paid axis -->
+            <!-- Paid axis (expanded with full comparison table) -->
             {(() => {
               const hasAnyPaid = clientPaidKw > 0 || metaAds?.hasMetaAds;
               const borderColor = hasAnyPaid ? '#69FF87' : '#ffb4ab';
               const compMetaAdsCount = metaAds?.competitorsWithMetaAds ?? 0;
+              const clientAdsCost = seo?.estimatedAdsCost ?? 0;
+              const compMetaDetails = metaAds?.competitorDetails?.filter((c:any) => c.hasMetaAds) || [];
+
+              // Build comparison rows: client + competitors
+              const paidRows = [
+                { name: domain, isClient: true, googleKw: clientPaidKw, googleTraffic: seo?.paidTrafficEstimate ?? 0, adsCost: clientAdsCost, hasMeta: metaAds?.hasMetaAds ?? false },
+                ...displayCompetitors.slice(0,3).map((ct: any) => {
+                  const ctItem = ctItems.find((c: any) => c.domain === ct.domain) || ct;
+                  const metaDetail = metaAds?.competitorDetails?.find((c:any) => (c.domain||c.name||'').toLowerCase().includes((ct.domain||'').split('.')[0]));
+                  return {
+                    name: ct.name || ct.domain,
+                    isClient: false,
+                    googleKw: ctItem.paidKeywords ?? ctItem.paidKeywordsTotal ?? 0,
+                    googleTraffic: ctItem.paidTrafficEstimate ?? 0,
+                    adsCost: ctItem.estimatedAdsCost ?? 0,
+                    hasMeta: metaDetail?.hasMetaAds ?? false,
+                  };
+                }),
+              ];
+
               return (
-                <div class="glass-card" style={`border-left:4px solid ${borderColor};`}>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    <span class="material-symbols-outlined" style="color:#D85A30;">payments</span>
-                    <span style="font-size:0.85rem;font-weight:700;color:#e2e0fc;">Publicidad Pagada</span>
+                <div class="glass-card" style={`border-left:4px solid ${borderColor};padding:28px;`}>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <span class="material-symbols-outlined" style="color:#D85A30;font-size:24px;">payments</span>
+                    <span style="font-size:1rem;font-weight:800;color:#e2e0fc;">Publicidad Pagada — Comparativa</span>
                     <span class="status-pill" style={`background:${hasAnyPaid?'rgba(105,255,135,0.12)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{hasAnyPaid ? 'Activo' : 'Sin inversion'}</span>
                   </div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-                    <span style={`font-size:0.72rem;font-weight:600;padding:4px 12px;border-radius:8px;background:${clientPaidKw>0?'rgba(105,255,135,0.1)':'rgba(141,144,155,0.1)'};color:${clientPaidKw>0?'#69FF87':'#8d909b'};`}>
-                      Google Ads: {clientPaidKw>0 ? `${fmt(clientPaidKw)} kw` : 'inactivo'}
-                    </span>
-                    {metaAds && (
-                      <span style={`font-size:0.72rem;font-weight:600;padding:4px 12px;border-radius:8px;background:${metaAds.hasMetaAds?'rgba(105,255,135,0.1)':'rgba(141,144,155,0.1)'};color:${metaAds.hasMetaAds?'#69FF87':'#8d909b'};`}>
-                        Meta Ads: {metaAds.hasMetaAds ? 'activo' : 'inactivo'}
-                      </span>
-                    )}
+
+                  {/* Comparison table */}
+                  <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                      <thead>
+                        <tr style="border-bottom:1px solid rgba(141,144,155,0.2);">
+                          <th style="text-align:left;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;"></th>
+                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Google Ads KW</th>
+                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Trafico Paid</th>
+                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Coste estimado</th>
+                          <th style="text-align:center;padding:8px 12px;color:#8d909b;font-weight:700;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;">Meta Ads</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paidRows.map((row, idx) => (
+                          <tr style={`border-bottom:1px solid rgba(141,144,155,0.08);${row.isClient ? 'background:rgba(105,255,135,0.04);' : ''}`}>
+                            <td style={`padding:10px 12px;font-weight:${row.isClient ? '700' : '500'};color:${row.isClient ? '#aac7ff' : '#c3c6d2'};`}>
+                              <div style="display:flex;align-items:center;gap:6px;">
+                                <span style={`width:8px;height:8px;border-radius:50%;background:${row.isClient ? '#1A4B8C' : idx===1 ? '#D85A30' : '#888780'};flex-shrink:0;`}></span>
+                                {row.name}
+                                {row.isClient && <span style="font-size:0.6rem;color:#8d909b;font-weight:400;">Tu empresa</span>}
+                              </div>
+                            </td>
+                            <td style="text-align:center;padding:10px 12px;">
+                              <span style={`font-weight:700;color:${row.googleKw > 0 ? '#e2e0fc' : '#8d909b'};`}>
+                                {row.googleKw > 0 ? fmt(row.googleKw) : '—'}
+                              </span>
+                            </td>
+                            <td style="text-align:center;padding:10px 12px;">
+                              <span style={`font-weight:700;color:${row.googleTraffic > 0 ? '#e2e0fc' : '#8d909b'};`}>
+                                {row.googleTraffic > 0 ? fmt(row.googleTraffic) : '—'}
+                              </span>
+                            </td>
+                            <td style="text-align:center;padding:10px 12px;">
+                              <span style={`font-weight:700;color:${row.adsCost > 0 ? '#e2e0fc' : '#8d909b'};`}>
+                                {row.adsCost > 0 ? `€${fmt(row.adsCost)}` : '—'}
+                              </span>
+                            </td>
+                            <td style="text-align:center;padding:10px 12px;">
+                              <span style={`font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:6px;${row.hasMeta ? 'background:rgba(105,255,135,0.1);color:#69FF87;' : 'background:rgba(141,144,155,0.08);color:#8d909b;'}`}>
+                                {row.hasMeta ? 'Activo' : 'No'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;">
-                    {compPaidItems.length > 0 || compMetaAdsCount > 0
-                      ? `${compPaidItems.length > 0 ? `${compPaidItems.length} competidores en Google Ads` : ''}${compPaidItems.length > 0 && compMetaAdsCount > 0 ? ', ' : ''}${compMetaAdsCount > 0 ? `${compMetaAdsCount} en Meta Ads` : ''}.${!hasAnyPaid ? ' Estan capturando demanda que tu no estas monetizando.' : ''}`
-                      : hasAnyPaid
-                        ? 'Estas entre los pocos activos en paid en este mercado.'
-                        : 'Ni tu ni tus competidores invierten en paid.'}
+
+                  {/* Summary text */}
+                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;margin-top:14px;">
+                    {!hasAnyPaid && (compPaidItems.length > 0 || compMetaAdsCount > 0)
+                      ? 'Tus competidores estan invirtiendo en paid y capturando demanda que tu no estas monetizando.'
+                      : !hasAnyPaid
+                        ? 'Ni tu ni tus competidores invierten en publicidad pagada en este mercado.'
+                        : compPaidItems.length === 0 && compMetaAdsCount === 0
+                          ? 'Eres de los pocos activos en paid en este mercado — ventaja competitiva directa.'
+                          : 'Mercado con inversion activa en paid. Revisa si tu presupuesto y segmentacion son competitivos.'}
                   </p>
-                  {(metaAds?.competitorDetails?.length ?? 0) > 0 && (
-                    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
-                      {metaAds!.competitorDetails!.filter((c:any)=>c.hasMetaAds).slice(0,3).map((c:any)=>(
-                        <span style="font-size:0.68rem;background:rgba(216,90,48,0.12);color:#D85A30;padding:3px 10px;border-radius:6px;font-weight:600;">{c.name}</span>
-                      ))}
-                    </div>
-                  )}
+
+                  {/* Google Shopping */}
                   {shopping && (shopping.advertisers?.length ?? 0) > 0 && (
-                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(141,144,155,0.1);">
-                      <div style="font-size:0.68rem;font-weight:700;color:#D85A30;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
-                        Google Shopping
-                        {shopping.clientFound && <span style="font-size:0.65rem;font-weight:600;color:#69FF87;background:rgba(105,255,135,0.1);padding:2px 8px;border-radius:6px;margin-left:6px;">Tu dominio aparece</span>}
+                    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(141,144,155,0.1);">
+                      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;color:#D85A30;">shopping_cart</span>
+                        <span style="font-size:0.75rem;font-weight:700;color:#D85A30;text-transform:uppercase;letter-spacing:0.05em;">Google Shopping</span>
+                        {shopping.clientFound && <span style="font-size:0.65rem;font-weight:600;color:#69FF87;background:rgba(105,255,135,0.1);padding:2px 8px;border-radius:6px;">Tu dominio aparece</span>}
                       </div>
-                      <p style="font-size:0.72rem;color:#c3c6d2;line-height:1.4;margin-bottom:6px;">
+                      <p style="font-size:0.72rem;color:#c3c6d2;line-height:1.4;margin-bottom:8px;">
                         {shopping.advertisers.length} competidores detectados en Google Shopping.
                         {!shopping.clientFound && ' Tu dominio no aparece — oportunidad directa.'}
                       </p>
@@ -2484,53 +2482,7 @@ const donutSVG = buildDonutSVG();
               );
             })()}
 
-            <!-- Social axis -->
-            {(() => {
-              const hasSocial = !!(linkedin || instagram);
-              const borderColor = hasSocial ? '#69FF87' : '#ffb4ab';
-              return (
-                <div class="glass-card" style={`border-left:4px solid ${borderColor};`}>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    <span class="material-symbols-outlined" style="color:#0891b2;">group</span>
-                    <span style="font-size:0.85rem;font-weight:700;color:#e2e0fc;">Social</span>
-                  </div>
-                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;">
-                    {linkedin || instagram
-                      ? `Presencia social detectada: ${linkedin ? `LinkedIn (${fmt(linkedin.followers)} seguidores)` : ''}${linkedin && instagram ? ' y ' : ''}${instagram ? `Instagram (${fmt(instagram.followers)} seguidores)` : ''}.`
-                      : 'No se ha detectado presencia social relevante.'}
-                  </p>
-                </div>
-              );
-            })()}
-
-            <!-- Web axis -->
-            {(() => {
-              const st = ss(ps?.mobile?.performance??0);
-              const stStyle = statusStyle(st);
-              const borderColor = st === 'good' ? '#69FF87' : st === 'medium' ? '#ffb4ab' : '#ffb4ab';
-              return (
-                <div class="glass-card" style={`border-left:4px solid ${borderColor};`}>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    <span class="material-symbols-outlined" style="color:#aac7ff;">speed</span>
-                    <span style="font-size:0.85rem;font-weight:700;color:#e2e0fc;">Web & Velocidad</span>
-                    <span class="status-pill" style={`background:${st==='good'?'rgba(105,255,135,0.12)':st==='medium'?'rgba(255,180,171,0.1)':'rgba(255,180,171,0.12)'};color:${borderColor};`}>{stStyle.label}</span>
-                  </div>
-                  <p style="font-size:0.78rem;color:#c3c6d2;line-height:1.5;margin-bottom:8px;">
-                    {ps
-                      ? `Score PageSpeed movil: ${ps.mobile?.performance ?? '—'}/100${(ps.mobile?.performance??0)<50 ? ' — velocidad critica, impacto directo en conversiones.' : (ps.mobile?.performance??0)<70 ? ' — velocidad mejorable.' : ' — buena velocidad.'}`
-                      : 'Sin datos de PageSpeed.'}
-                  </p>
-                  {ps && (compPS?.items?.length ?? 0) > 0 && (
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                      <span style="font-size:0.72rem;font-weight:700;color:#aac7ff;">{domain}: {ps.mobile?.performance ?? '—'}/100</span>
-                      {compPS.items.slice(0,2).map((cp: any, idx: number) => (
-                        <span style={`font-size:0.72rem;color:${idx===0?'#D85A30':'#888780'};`}>{cp.name||cp.domain}: {cp.mobileScore}/100</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            <!-- Social + Web axes removed — data already shown in competitor cards above -->
           </div>
 
             </div>
