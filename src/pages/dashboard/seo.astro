@@ -35,6 +35,22 @@ const seo = r.seo || {};
 const prevSeo = pr.seo || {};
 const gsc = r.analytics?.gsc;
 const prevGsc = pr.analytics?.gsc;
+const ga4 = r.analytics?.ga4;
+const prevGa4 = pr.analytics?.ga4;
+
+// ─── Helper: extract organic sessions from GA4 trafficSources ─────────────
+function organicSessionsFromGa4(ga4Data: any): number {
+  if (!ga4Data?.trafficSources) return 0;
+  return ga4Data.trafficSources
+    .filter((t: any) => (t.medium || '').toLowerCase() === 'organic')
+    .reduce((sum: number, t: any) => sum + (t.sessions || 0), 0);
+}
+
+const ga4OrganicSessions = organicSessionsFromGa4(ga4);
+const prevGa4OrganicSessions = organicSessionsFromGa4(prevGa4);
+
+const hasGsc = !!gsc && (gsc.totalClicks ?? 0) > 0;
+const hasGa4Organic = ga4OrganicSessions > 0;
 
 // ─── Stat cards data (Keywords Top 10 y Tráfico Orgánico están en el hero) ──
 const stats = [
@@ -64,14 +80,34 @@ const stats = [
     format: 'number',
     tooltip: 'Total de enlaces externos que apuntan a tu web (incluye varios del mismo dominio). La calidad de los enlaces importa más que la cantidad pura.',
   },
-  {
-    label: 'Páginas Indexadas',
-    value: seo.indexedPages || gsc?.indexedPages || '—',
-    prev: prevSeo.indexedPages,
-    icon: 'description',
-    better: 'up',
-    tooltip: 'Páginas tuyas que Google tiene en su índice y puede mostrar en resultados de búsqueda. Se obtiene mediante una búsqueda "site:tudominio.com" en Google.',
-  },
+  (() => {
+    // Cascada: DFS site: search > GSC topPages (páginas con impresiones reales) > GSC sitemap submitted
+    const gscPagesWithImpressions = (gsc?.topPages || []).filter((p: any) => (p.impressions ?? 0) > 0).length;
+    let indexedVal: number | string = '—';
+    let indexedPrev: number | undefined;
+    let indexedTooltip = 'Páginas tuyas que Google tiene en su índice y puede mostrar en resultados de búsqueda.';
+    if (seo.indexedPages) {
+      indexedVal = seo.indexedPages;
+      indexedPrev = prevSeo.indexedPages;
+      indexedTooltip += ' Fuente: búsqueda "site:tudominio.com" (DataForSEO).';
+    } else if (gscPagesWithImpressions > 0) {
+      indexedVal = gscPagesWithImpressions;
+      const prevGscPages = (prevGsc?.topPages || []).filter((p: any) => (p.impressions ?? 0) > 0).length;
+      indexedPrev = prevGscPages > 0 ? prevGscPages : undefined;
+      indexedTooltip += ' Fuente: Search Console (páginas con impresiones en los últimos 7 días — es una muestra, el número real puede ser mayor).';
+    } else if (gsc?.indexedPages) {
+      indexedVal = gsc.indexedPages;
+      indexedTooltip += ' Fuente: Search Console Sitemaps API (URLs enviadas en el sitemap — no necesariamente todas están indexadas).';
+    }
+    return {
+      label: 'Páginas Indexadas',
+      value: indexedVal,
+      prev: indexedPrev,
+      icon: 'description',
+      better: 'up',
+      tooltip: indexedTooltip,
+    };
+  })(),
 ];
 
 // ─── Keywords table ───────────────────────────────────────────────────────
@@ -110,8 +146,27 @@ const kwTop10Curr = seo.keywordsTop10 || 0;
 const kwTop10Prev = prevSeo.keywordsTop10;
 const kwTop10Delta = kwTop10Prev != null ? kwTop10Curr - kwTop10Prev : null;
 
-const trafficCurr = seo.organicTrafficEstimate || 0;
-const trafficPrev = prevSeo.organicTrafficEstimate;
+// Tráfico Orgánico — cascada: GSC clicks reales > GA4 organic sessions > DataForSEO estimate
+let trafficCurr: number;
+let trafficPrev: number | null;
+let trafficSource: 'gsc' | 'ga4' | 'dfs';
+let trafficSourceLabel: string;
+if (hasGsc) {
+  trafficCurr = gsc.totalClicks || 0;
+  trafficPrev = prevGsc?.totalClicks ?? null;
+  trafficSource = 'gsc';
+  trafficSourceLabel = 'GSC · clicks reales';
+} else if (hasGa4Organic) {
+  trafficCurr = ga4OrganicSessions;
+  trafficPrev = prevGa4OrganicSessions || null;
+  trafficSource = 'ga4';
+  trafficSourceLabel = 'GA4 · sesiones orgánicas';
+} else {
+  trafficCurr = seo.organicTrafficEstimate || 0;
+  trafficPrev = prevSeo.organicTrafficEstimate ?? null;
+  trafficSource = 'dfs';
+  trafficSourceLabel = 'Estimado';
+}
 const trafficDelta = trafficPrev != null ? trafficCurr - trafficPrev : null;
 
 // Color palette for hero
@@ -395,7 +450,10 @@ if (seoSkipped) {
 
         <!-- Tráfico Orgánico con sparkline inline -->
         <div style="background:#f7f9ff;border-radius:10px;padding:14px 16px;">
-          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:4px;">Tráfico Orgánico</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;">Tráfico Orgánico</p>
+            <span style={`font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;${trafficSource === 'gsc' ? 'background:#E1F5EE;color:#1D9E75;' : trafficSource === 'ga4' ? 'background:#fef3c7;color:#92400e;' : 'background:#e2e8f0;color:#64748b;'}`}>{trafficSourceLabel}</span>
+          </div>
           <div style="display:flex;align-items:baseline;gap:6px;">
             <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{fmtNum(trafficCurr)}</span>
             {trafficDelta != null && Math.abs(trafficDelta) > 0 && (
@@ -571,11 +629,62 @@ if (seoSkipped) {
     </section>
   )}
 
-  <!-- ══ GSC Real Data (if available) ══ -->
+  <!-- ══ Search Console Overview — 4 big numbers (if connected) ══ -->
+  {hasGsc && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:24px 28px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Search Console — Datos reales</h2>
+        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:3px 10px;border-radius:999px;font-weight:700;">GSC · últimos 7 días</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
+          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Clicks</p>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style="font-size:26px;font-weight:900;color:#1A4B8C;">{fmtNum(gsc.totalClicks || 0)}</span>
+            {prevGsc?.totalClicks != null && Math.abs((gsc.totalClicks || 0) - prevGsc.totalClicks) > 0 && (
+              <span style={`font-size:11px;font-weight:700;color:${(gsc.totalClicks || 0) > prevGsc.totalClicks ? GREEN_HERO : RED_HERO};`}>
+                {(gsc.totalClicks || 0) > prevGsc.totalClicks ? '+' : ''}{fmtNum((gsc.totalClicks || 0) - prevGsc.totalClicks)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
+          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Impresiones</p>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style="font-size:26px;font-weight:900;color:#1a1a2e;">{fmtNum(gsc.totalImpressions || 0)}</span>
+            {prevGsc?.totalImpressions != null && Math.abs((gsc.totalImpressions || 0) - prevGsc.totalImpressions) > 0 && (
+              <span style={`font-size:11px;font-weight:700;color:${(gsc.totalImpressions || 0) > prevGsc.totalImpressions ? GREEN_HERO : RED_HERO};`}>
+                {(gsc.totalImpressions || 0) > prevGsc.totalImpressions ? '+' : ''}{fmtNum((gsc.totalImpressions || 0) - prevGsc.totalImpressions)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
+          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">CTR Medio</p>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style={`font-size:26px;font-weight:900;color:${(gsc.avgCtr || 0) > 5 ? GREEN_HERO : (gsc.avgCtr || 0) > 2 ? ORANGE_HERO : RED_HERO};`}>{(gsc.avgCtr || 0).toFixed(1)}<span style="font-size:14px;color:#64748b;font-weight:600;">%</span></span>
+          </div>
+        </div>
+        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
+          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Posición Media</p>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style={`font-size:26px;font-weight:900;color:${(gsc.avgPosition || 99) <= 10 ? GREEN_HERO : (gsc.avgPosition || 99) <= 20 ? ORANGE_HERO : RED_HERO};`}>{(gsc.avgPosition || 0).toFixed(1)}</span>
+            {prevGsc?.avgPosition != null && Math.abs((gsc.avgPosition || 0) - prevGsc.avgPosition) >= 0.5 && (
+              <span style={`font-size:11px;font-weight:700;color:${(gsc.avgPosition || 0) < prevGsc.avgPosition ? GREEN_HERO : RED_HERO};`}>
+                {(gsc.avgPosition || 0) < prevGsc.avgPosition ? '↑' : '↓'}{Math.abs((gsc.avgPosition || 0) - prevGsc.avgPosition).toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- ══ GSC Top Queries (if available) ══ -->
   {gscQueries.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
-        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Search Console — Datos reales</h2>
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Top Queries — qué buscan para encontrarte</h2>
         <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
       </div>
       <div style="overflow-x:auto;">
@@ -601,6 +710,47 @@ if (seoSkipped) {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <!-- ══ GSC Top Pages (if available) ══ -->
+  {(gsc?.topPages || []).length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Top Pages — páginas con más tráfico orgánico</h2>
+        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">URL</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(gsc.topPages || []).slice(0, 10).map((p: any, i: number) => {
+              // Strip domain for cleaner URL display
+              let shortUrl = p.page || '';
+              try { shortUrl = new URL(p.page).pathname || '/'; } catch {}
+              return (
+                <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.page}>{shortUrl}</td>
+                  <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{p.clicks}</td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{(p.impressions || 0).toLocaleString()}</td>
+                  <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${p.ctr > 5 ? '#1D9E75' : p.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{p.ctr}%</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`font-weight:800;color:${p.position <= 10 ? '#1D9E75' : p.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{p.position}</span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

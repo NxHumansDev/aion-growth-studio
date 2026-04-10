@@ -109,14 +109,14 @@ export async function fetchGSCData(domain: string, accessToken: string): Promise
     ? Math.round(topQueries.reduce((s: number, q: any) => s + q.position, 0) / topQueries.length * 10) / 10
     : 0;
 
-  // Top pages
+  // Top pages (up to 100 for better indexed-pages proxy and richer table)
   let topPages: GSCReport['topPages'] = [];
   try {
     const pageData = await searchAnalytics(workingSiteUrl, accessToken, {
       startDate: formatDate(7),
       endDate: formatDate(1),
       dimensions: ['page'],
-      rowLimit: 10,
+      rowLimit: 100,
     });
     topPages = (pageData.rows || []).map((row: any) => ({
       page: row.keys[0],
