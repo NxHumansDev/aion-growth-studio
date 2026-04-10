@@ -52,6 +52,18 @@ const gscQueries = (gsc?.topQueries || []).slice(0, 10) as Array<{query: string;
 const kwHistory = allSnapshots.map(s => s.pipeline_output?.seo?.keywordsTop10 || 0);
 const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTrafficEstimate || 0);
 
+// ─── Briefing fixes (generated content ready to use) ─────────────────────
+const briefing = r.briefing || {};
+const fixes = (briefing.fixes || []) as Array<{type: string; content: string; where: string}>;
+const fixTypeLabels: Record<string, { label: string; icon: string }> = {
+  meta_description: { label: 'Meta Description', icon: 'description' },
+  meta_title: { label: 'Meta Title', icon: 'title' },
+  schema_organization: { label: 'Schema Organization (JSON-LD)', icon: 'code' },
+  schema_faq: { label: 'Schema FAQ (JSON-LD)', icon: 'quiz' },
+  schema_product: { label: 'Schema Product', icon: 'shopping_bag' },
+  schema_local: { label: 'Schema LocalBusiness', icon: 'location_on' },
+};
+
 // ─── Difficulty badge color ───────────────────────────────────────────────
 function difficultyColor(d: number): { bg: string; fg: string } {
   if (d <= 20) return { bg: '#dcfce7', fg: '#166534' };
@@ -343,5 +355,56 @@ function fmtNum(n: number | string): string {
     </div>
   </section>
 
+  <!-- ══ Generated Fixes (content ready to copy-paste) ══ -->
+  {fixes.length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#1D9E75;">auto_fix_high</span>
+        <div>
+          <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Contenido generado por AION — listo para usar</h2>
+          <p style="font-size:12px;color:#64748b;margin-top:2px;">Copia y pega directamente en tu web. Adaptado a tu negocio y objetivos.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;">
+        {fixes.map((fix, i) => {
+          const meta = fixTypeLabels[fix.type] || { label: fix.type, icon: 'code' };
+          const isCode = fix.type.startsWith('schema');
+          return (
+            <div style={`padding:20px 24px;${i < fixes.length - 1 ? 'border-bottom:1px solid #f0f0f0;' : ''}`}>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="material-symbols-outlined" style="font-size:18px;color:#1A4B8C;">{meta.icon}</span>
+                  <h3 style="font-size:14px;font-weight:700;color:#1a1a2e;">{meta.label}</h3>
+                </div>
+                <button class="btn-copy-fix" data-content={fix.content}
+                  style="display:flex;align-items:center;gap:4px;padding:6px 14px;background:#1A4B8C;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">
+                  <span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>
+                  Copiar
+                </button>
+              </div>
+              <p style="font-size:11px;color:#64748b;margin-bottom:8px;">{fix.where}</p>
+              <div style={`padding:14px;border-radius:8px;font-size:13px;line-height:1.6;${isCode ? 'background:#1a1a2e;color:#e2e8f0;font-family:monospace;font-size:12px;overflow-x:auto;white-space:pre;' : 'background:#f7f9ff;color:#1a1a2e;border:1px solid #e2e8f0;'}`}>
+                {fix.content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )}
+
 </div>
+
+<script>
+  document.querySelectorAll('.btn-copy-fix').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const content = (btn as HTMLElement).dataset.content || '';
+      await navigator.clipboard.writeText(content);
+      const original = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">check</span> Copiado';
+      (btn as HTMLElement).style.background = '#1D9E75';
+      setTimeout(() => { btn.innerHTML = original; (btn as HTMLElement).style.background = '#1A4B8C'; }, 2000);
+    });
+  });
+</script>
 </DashboardLayout>

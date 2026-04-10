@@ -10,11 +10,18 @@ interface BriefingInput {
   clientContext?: string;  // Extended context from buildClientContext()
 }
 
+export interface BriefingFix {
+  type: string;       // 'meta_description', 'meta_title', 'schema_organization', 'schema_faq', etc.
+  content: string;    // The actual content to copy-paste
+  where: string;      // Where to put it
+}
+
 export interface Briefing {
   summary: string;
   priorities: Array<{ title: string; description: string; impact: 'high' | 'medium' | 'low' }>;
   quickWins: string[];
   warnings: string[];
+  fixes: BriefingFix[];
   generatedAt: string;
 }
 
@@ -24,6 +31,19 @@ export async function generateBriefing(input: BriefingInput): Promise<Briefing> 
   }
 
   const { onboarding: ob, auditResults: r, clientName, domain, clientContext } = input;
+
+  // Build on-page issues from crawl data for Sonnet to act on
+  const crawl = r.crawl || {};
+  const onPageIssues: string[] = [];
+  if (!crawl.description) onPageIssues.push('SIN META DESCRIPTION — Google genera una automática que no optimiza clicks');
+  else if (crawl.description.length < 70) onPageIssues.push(`META DESCRIPTION CORTA (${crawl.description.length} chars) — actual: "${crawl.description.slice(0, 80)}"`);
+  if (!crawl.hasSchemaMarkup) onPageIssues.push('SIN SCHEMA MARKUP — ni Organization ni FAQ ni Product. Google y las IAs no entienden tu negocio');
+  if (!crawl.hasSitemap) onPageIssues.push('SIN SITEMAP.XML');
+  if (!crawl.hasCanonical) onPageIssues.push('SIN CANONICAL TAG');
+  if (crawl.imageCount > 0 && crawl.imagesWithAlt < crawl.imageCount) onPageIssues.push(`${crawl.imageCount - crawl.imagesWithAlt} IMÁGENES SIN ALT TEXT de ${crawl.imageCount}`);
+  if (r.pagespeed?.mobile?.performance < 50) onPageIssues.push(`PAGESPEED MOBILE BAJO: ${r.pagespeed.mobile.performance}/100, LCP: ${r.pagespeed.mobile.lcp ? (r.pagespeed.mobile.lcp / 1000).toFixed(1) + 's' : '?'}`);
+  if (!r.gbp?.found && ob.geo_scope === 'local_city') onPageIssues.push('SIN GOOGLE BUSINESS PROFILE — siendo negocio local es crítico');
+  if (r.techstack?.maturityScore < 30) onPageIssues.push(`TECHSTACK MUY BÁSICO (${r.techstack.maturityScore}/100): ${!r.techstack.analytics?.length ? 'sin analytics, ' : ''}${!r.techstack.tagManager?.length ? 'sin tag manager' : ''}`);
 
   // Use extended context if available, otherwise build basic context
   const context = clientContext || `
@@ -47,6 +67,12 @@ DATOS DE LA AUDITORÍA:
 - TechStack maturity: ${r.techstack?.maturityScore ?? '?'}/100
 - Blog activo: ${r.content_cadence?.cadenceLevel ?? 'no detectado'}
 - GBP: ${r.gbp?.found ? `rating ${r.gbp.rating}` : 'no encontrado'}
+- Title actual: "${crawl.title?.slice(0, 60) || 'sin título'}"
+- Meta description actual: "${crawl.description?.slice(0, 160) || 'SIN META DESCRIPTION'}"
+- H1: "${crawl.h1s?.[0]?.slice(0, 60) || 'sin H1'}"
+- Schema types: ${(crawl.schemaTypes || []).join(', ') || 'ninguno'}
+- Contenido: ${crawl.wordCount || '?'} palabras, ${crawl.h2Count || 0} H2s
+${onPageIssues.length > 0 ? '\nPROBLEMAS ON-PAGE DETECTADOS:\n' + onPageIssues.map(i => `- ${i}`).join('\n') : ''}
 `.trim();
 
   const historyRules = clientContext
@@ -79,7 +105,9 @@ REGLAS:
    - BIEN: "Crear cuenta en analytics.google.com, copiar el código de medición G-XXXXXX y pegarlo en el <head> de tu web"
    El título debe empezar con un VERBO de acción (Crear, Escribir, Añadir, Configurar, Publicar, Optimizar).
    La descripción debe explicar POR QUÉ (dato del problema) + CÓMO hacerlo + TIEMPO estimado.
-9. Quick wins deben ser completables en menos de 1 hora por alguien sin conocimientos técnicos.${historyRules}
+9. Quick wins deben ser completables en menos de 1 hora por alguien sin conocimientos técnicos.
+10. GENERA CONTENIDO LISTO PARA USAR: si falta meta description, escríbela. Si falta schema markup, genera el JSON-LD. Si falta un title mejor, proponlo. El cliente debe poder copiar y pegar directamente.
+11. Adapta el contenido generado al negocio, objetivo y público del cliente.${historyRules}
 
 RESPONDE EN JSON VÁLIDO:
 {
@@ -88,8 +116,21 @@ RESPONDE EN JSON VÁLIDO:
     {"title": "Verbo + acción concreta y específica", "description": "Por qué (dato concreto del problema) + Cómo hacerlo paso a paso + Tiempo estimado", "impact": "high|medium|low", "pillar": "seo|geo|web|conversion|content|reputation"}
   ],
   "quickWins": ["Acción rápida completable en <1 hora sin conocimientos técnicos"],
-  "warnings": ["Riesgo o problema urgente 1"]
-}`;
+  "warnings": ["Riesgo o problema urgente 1"],
+  "fixes": [
+    {"type": "meta_description", "content": "Meta description optimizada de 120-155 caracteres con CTA implícito", "where": "Pegar en el <meta name=description> de la home"},
+    {"type": "meta_title", "content": "Title optimizado de 50-60 chars con keyword principal", "where": "Pegar en el <title> de la home"},
+    {"type": "schema_organization", "content": "JSON-LD de Organization completo para pegar en el <head>", "where": "Añadir en el <head> de todas las páginas"},
+    {"type": "schema_faq", "content": "JSON-LD de FAQ con 3-5 preguntas frecuentes del negocio", "where": "Añadir en la página de FAQ o home"}
+  ]
+}
+
+IMPORTANTE sobre fixes:
+- Solo genera fixes para lo que realmente falta o está mal (según los PROBLEMAS ON-PAGE)
+- El contenido debe ser FINAL, listo para copiar y pegar, no un placeholder
+- Meta descriptions: incluye la keyword principal + propuesta de valor + CTA implícito
+- Schema: genera JSON-LD válido y completo
+- Si no hay problemas on-page, fixes puede ser un array vacío`;
 
   try {
     const controller = new AbortController();
@@ -132,6 +173,7 @@ RESPONDE EN JSON VÁLIDO:
       priorities,
       quickWins: (parsed.quickWins || parsed.quick_wins || []).slice(0, 3),
       warnings: (parsed.warnings || []).slice(0, 2),
+      fixes: (parsed.fixes || []).filter((f: any) => f.content && f.type),
       generatedAt: new Date().toISOString(),
     };
   } catch (err) {
@@ -152,6 +194,7 @@ function fallbackBriefing(input: BriefingInput): Briefing {
     ],
     quickWins: ['Verificar que SSL está activo', 'Comprobar velocidad de carga mobile'],
     warnings: score < 40 ? ['Score de presencia digital por debajo del umbral crítico'] : [],
+    fixes: [],
     generatedAt: new Date().toISOString(),
   };
 }
