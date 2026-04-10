@@ -1,0 +1,347 @@
+---
+export const prerender = false;
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClient, getLatestSnapshot, getAllSnapshots } from '../../lib/db';
+import type { Tier } from '../../lib/demo-data';
+
+const client = Astro.locals.client ?? await getClient();
+const tier: Tier = client.tier;
+const snapshot = await getLatestSnapshot(client.id);
+const hasData = snapshot.id !== 'empty';
+if (!hasData) return Astro.redirect('/dashboard');
+
+const allSnapshots = await getAllSnapshots(client.id);
+const prevSnap = allSnapshots.length >= 2 ? allSnapshots[allSnapshots.length - 2] : null;
+
+const r = snapshot.pipeline_output || {};
+const pr = prevSnap?.pipeline_output || {};
+const seo = r.seo || {};
+const prevSeo = pr.seo || {};
+const gsc = r.analytics?.gsc;
+const prevGsc = pr.analytics?.gsc;
+
+// ─── Stat cards data ──────────────────────────────────────────────────────
+const stats = [
+  { label: 'Keywords Top 10', value: seo.keywordsTop10 || 0, prev: prevSeo.keywordsTop10, icon: 'search', better: 'up' },
+  { label: 'Tráfico Orgánico', value: seo.organicTrafficEstimate || 0, prev: prevSeo.organicTrafficEstimate, icon: 'trending_up', better: 'up', format: 'number' },
+  { label: 'Domain Rank', value: seo.domainRank || '—', prev: prevSeo.domainRank, icon: 'shield', better: 'down', format: 'number' },
+  { label: 'Referring Domains', value: seo.referringDomains || '—', prev: prevSeo.referringDomains, icon: 'link', better: 'up' },
+  { label: 'Backlinks', value: seo.backlinksTotal || '—', prev: prevSeo.backlinksTotal, icon: 'hub', better: 'up', format: 'number' },
+  { label: 'Páginas Indexadas', value: seo.indexedPages || gsc?.indexedPages || '—', prev: prevSeo.indexedPages, icon: 'description', better: 'up' },
+];
+
+// ─── Keywords table ───────────────────────────────────────────────────────
+const topKeywords = (seo.topKeywords || []) as Array<{keyword: string; position: number; volume: number; difficulty: number; prevPosition?: number}>;
+
+// Add prev positions
+topKeywords.forEach((kw: any) => {
+  const prevKw = (prevSeo.topKeywords || []).find((pk: any) => pk.keyword === kw.keyword);
+  if (prevKw) kw.prevPosition = prevKw.position;
+});
+
+// ─── Keyword gap ──────────────────────────────────────────────────────────
+const keywordGap = (r.keyword_gap?.items || []).slice(0, 10) as Array<{keyword: string; volume?: number; difficulty?: number; position?: number; competitor?: string; impact?: string; priority?: string}>;
+
+// ─── Competitor comparison ────────────────────────────────────────────────
+const compItems = (r.competitor_traffic?.items || []) as Array<{domain: string; organicTrafficEstimate?: number; keywordsTop10?: number; domainRank?: number}>;
+
+// ─── GSC data ─────────────────────────────────────────────────────────────
+const gscQueries = (gsc?.topQueries || []).slice(0, 10) as Array<{query: string; clicks: number; impressions: number; ctr: number; position: number}>;
+
+// ─── Evolution sparklines ─────────────────────────────────────────────────
+const kwHistory = allSnapshots.map(s => s.pipeline_output?.seo?.keywordsTop10 || 0);
+const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTrafficEstimate || 0);
+
+// ─── Difficulty badge color ───────────────────────────────────────────────
+function difficultyColor(d: number): { bg: string; fg: string } {
+  if (d <= 20) return { bg: '#dcfce7', fg: '#166534' };
+  if (d <= 35) return { bg: '#d9f99d', fg: '#3f6212' };
+  if (d <= 50) return { bg: '#fef9c3', fg: '#854d0e' };
+  if (d <= 65) return { bg: '#fed7aa', fg: '#9a3412' };
+  if (d <= 80) return { bg: '#fecaca', fg: '#991b1b' };
+  return { bg: '#fca5a5', fg: '#7f1d1d' };
+}
+
+function positionChange(curr: number, prev?: number): { text: string; color: string } {
+  if (!prev) return { text: 'new', color: '#1D9E75' };
+  const diff = prev - curr;
+  if (diff > 0) return { text: `↑${diff}`, color: '#1D9E75' };
+  if (diff < 0) return { text: `↓${Math.abs(diff)}`, color: '#E24B4A' };
+  return { text: '=', color: '#94a3b8' };
+}
+
+function fmtNum(n: number | string): string {
+  if (typeof n === 'string') return n;
+  return n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
+}
+---
+
+<DashboardLayout title="SEO" currentPath="/dashboard/pillar/seo" tier={tier} clientName={client.name} domain={client.domain} lastReportMonth={snapshot.month} lastReportDate={snapshot.date}>
+
+<div style="display:flex;flex-direction:column;gap:24px;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:16px;">
+    <a href="/dashboard" style="display:flex;align-items:center;color:#64748b;text-decoration:none;font-size:13px;font-weight:600;">
+      <span class="material-symbols-outlined" style="font-size:18px;margin-right:4px;">arrow_back</span>
+      Resumen
+    </a>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div style="width:48px;height:48px;border-radius:14px;background:#1A4B8C15;display:flex;align-items:center;justify-content:center;">
+      <span class="material-symbols-outlined" style="font-size:24px;color:#1A4B8C;">search</span>
+    </div>
+    <div>
+      <h1 style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">SEO</h1>
+      <p style="font-size:14px;color:#64748b;">Posicionamiento en buscadores y visibilidad orgánica</p>
+    </div>
+  </div>
+
+  <!-- ══ Stat Cards ══ -->
+  <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+    {stats.map(s => {
+      const curr = typeof s.value === 'number' ? s.value : 0;
+      const prev = typeof s.prev === 'number' ? s.prev : null;
+      const delta = prev != null ? curr - prev : null;
+      const isGood = delta != null && ((s.better === 'up' && delta > 0) || (s.better === 'down' && delta < 0));
+      const isBad = delta != null && ((s.better === 'up' && delta < 0) || (s.better === 'down' && delta > 0));
+      const deltaColor = isGood ? '#1D9E75' : isBad ? '#E24B4A' : '#94a3b8';
+      return (
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <span class="material-symbols-outlined" style="font-size:16px;color:#64748b;">{s.icon}</span>
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{s.label}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;">
+            <span style="font-size:26px;font-weight:900;color:#1a1a2e;">{s.format === 'number' && typeof s.value === 'number' ? fmtNum(s.value) : s.value}</span>
+            {delta != null && Math.abs(delta) > 0 && (
+              <span style={`font-size:12px;font-weight:700;color:${deltaColor};`}>
+                {delta > 0 ? '↑' : '↓'}{Math.abs(delta).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </section>
+
+  <!-- ══ Keywords Table (OpenSEO style) ══ -->
+  {topKeywords.length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Keywords posicionadas</h2>
+        <span style="font-size:12px;color:#64748b;">{topKeywords.length} keywords</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Keyword</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Posición</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Cambio</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Volumen</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Dificultad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topKeywords.map((kw, i) => {
+              const change = positionChange(kw.position, kw.prevPosition);
+              const diff = difficultyColor(kw.difficulty || 0);
+              return (
+                <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;max-width:300px;">
+                    <span style="text-transform:capitalize;">{kw.keyword}</span>
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style="font-weight:800;font-size:15px;color:#1a1a2e;">{kw.position || '—'}</span>
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    {change.text === 'new' ? (
+                      <span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">new</span>
+                    ) : (
+                      <span style={`font-weight:700;font-size:12px;color:${change.color};`}>{change.text}</span>
+                    )}
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
+                      {kw.difficulty || '—'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <!-- ══ GSC Real Data (if available) ══ -->
+  {gscQueries.length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Search Console — Datos reales</h2>
+        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Query</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
+            </tr>
+          </thead>
+          <tbody>
+            {gscQueries.map((q, i) => (
+              <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{q.query}</td>
+                <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{q.clicks}</td>
+                <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions.toLocaleString()}</td>
+                <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{q.ctr}%</td>
+                <td style="text-align:center;padding:12px 16px;">
+                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <!-- ══ Keyword Gap (opportunities) ══ -->
+  {keywordGap.length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Oportunidades — Keywords de competidores</h2>
+        <p style="font-size:12px;color:#64748b;margin-top:2px;">Keywords donde tus competidores rankean y tú no</p>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Keyword</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Volumen</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Dificultad</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Competidor</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impacto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {keywordGap.map((kw, i) => {
+              const diff = difficultyColor(kw.difficulty || 50);
+              const impactColor = kw.impact === 'high' ? '#1A4B8C' : kw.impact === 'medium' ? '#BA7517' : '#64748b';
+              return (
+                <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{kw.keyword}</td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
+                      {kw.difficulty || '—'}
+                    </span>
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;font-size:12px;color:#64748b;">{kw.competitor || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;color:white;background:${impactColor};text-transform:uppercase;`}>
+                      {kw.impact || '—'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <!-- ══ Competitor SEO Comparison ══ -->
+  {compItems.length > 0 && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;">
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Competidores — SEO</h2>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f7f9ff;">
+            <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Dominio</th>
+            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">KW Top 10</th>
+            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Tráfico</th>
+            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Domain Rank</th>
+            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">vs Tú</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:#f0f4ff;font-weight:700;">
+            <td style="padding:12px 24px;color:#1A4B8C;">{client.domain}</td>
+            <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{seo.keywordsTop10 || 0}</td>
+            <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{fmtNum(seo.organicTrafficEstimate || 0)}</td>
+            <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{fmtNum(seo.domainRank || 0)}</td>
+            <td style="text-align:center;padding:12px 16px;">—</td>
+          </tr>
+          {compItems.map((c, i) => {
+            const kwDiff = (c.keywordsTop10 || 0) - (seo.keywordsTop10 || 0);
+            return (
+              <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 0 ? 'background:#fafbfd;' : ''}`}>
+                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{c.domain}</td>
+                <td style="text-align:center;padding:12px 16px;">{c.keywordsTop10 || '—'}</td>
+                <td style="text-align:center;padding:12px 16px;">{fmtNum(c.organicTrafficEstimate || 0)}</td>
+                <td style="text-align:center;padding:12px 16px;">{fmtNum(c.domainRank || 0)}</td>
+                <td style="text-align:center;padding:12px 16px;">
+                  {kwDiff > 0 ? (
+                    <span style="background:#FCEBEB;color:#E24B4A;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">+{kwDiff} kw</span>
+                  ) : kwDiff < 0 ? (
+                    <span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">{kwDiff} kw</span>
+                  ) : (
+                    <span style="color:#94a3b8;">=</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  )}
+
+  <!-- ══ Evolution Sparklines ══ -->
+  <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Keywords Top 10 — evolución</p>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:48px;">
+        {kwHistory.map((v, i) => {
+          const max = Math.max(...kwHistory, 1);
+          const h = Math.max(2, Math.round((v / max) * 48));
+          const isLast = i === kwHistory.length - 1;
+          return <div style={`flex:1;background:${isLast ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
+        })}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#94a3b8;">
+        <span>{kwHistory[0]}</span>
+        <span>{kwHistory[kwHistory.length - 1]}</span>
+      </div>
+    </div>
+    <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Tráfico Orgánico — evolución</p>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:48px;">
+        {trafficHistory.map((v, i) => {
+          const max = Math.max(...trafficHistory, 1);
+          const h = Math.max(2, Math.round((v / max) * 48));
+          const isLast = i === trafficHistory.length - 1;
+          return <div style={`flex:1;background:${isLast ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
+        })}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#94a3b8;">
+        <span>{fmtNum(trafficHistory[0])}</span>
+        <span>{fmtNum(trafficHistory[trafficHistory.length - 1])}</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+</DashboardLayout>

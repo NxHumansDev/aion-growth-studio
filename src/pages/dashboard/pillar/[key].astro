@@ -7,6 +7,7 @@ import type { Tier } from '../../../lib/demo-data';
 const { key } = Astro.params;
 const validPillars = ['seo', 'geo', 'web', 'conversion', 'content', 'reputation'];
 if (!key || !validPillars.includes(key)) return Astro.redirect('/dashboard');
+if (key === 'seo') return Astro.redirect('/dashboard/seo');
 
 const client = Astro.locals.client ?? await getClient();
 const tier: Tier = client.tier;
