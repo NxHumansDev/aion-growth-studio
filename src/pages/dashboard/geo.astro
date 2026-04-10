@@ -99,6 +99,87 @@ if (queryGroups.length === 0 && queries.length > 0) {
   queryGroups.push({ stage: 'all', label: 'Todas las consultas', queries });
 }
 
+// ─── GEO Recommendations ────────────────────────────────────────────────
+interface GeoRec {
+  id: string; title: string; description: string; detail: string;
+  impact: 'high' | 'medium' | 'low'; icon: string;
+}
+const geoRecs: GeoRec[] = [];
+
+// 1. TOFU invisibility
+const tofuData = funnel?.tofu;
+if (tofuData && tofuData.total > 0 && (tofuData.mentioned / tofuData.total) < 0.25) {
+  geoRecs.push({
+    id: 'geo-tofu', impact: 'high', icon: 'explore',
+    title: 'Crear contenido de autoridad sectorial para consultas de descubrimiento',
+    description: `Las IAs no te mencionan en ninguna consulta de descubrimiento (${tofuData.mentioned}/${tofuData.total}). Es la fase donde los usuarios buscan opciones genéricas — si no apareces aquí, no entras en su radar.`,
+    detail: `1. Identifica las 3-5 consultas TOFU donde no apareces (ej: "mejores empresas de software RRHH en Barcelona").\n2. Crea contenido largo (>2000 palabras) que responda directamente esas preguntas: guías, comparativas sectoriales, estudios de mercado.\n3. Publica en tu blog con datos estructurados (FAQ schema, HowTo schema) para que los modelos de IA lo indexen.\n4. Busca que medios sectoriales y directorios profesionales te incluyan en sus listados.\n5. Monitoriza en 2-3 semanas si las IAs empiezan a citarte en estas consultas.`,
+  });
+}
+
+// 2. Comparativa gap
+const compData = catBreakdown?.comparativa;
+if (compData && compData.total > 0 && compData.mentioned === 0) {
+  geoRecs.push({
+    id: 'geo-comparativa', impact: 'high', icon: 'balance',
+    title: 'Aparecer en comparativas: las IAs te ignoran cuando comparan opciones',
+    description: `No apareces en ninguna consulta comparativa (0/${compData.total}). Cuando un usuario pide "alternativas a X" o "comparativa de software", las IAs recomiendan a tu competencia, no a ti.`,
+    detail: `1. Crea tu propia página de "vs" comparándote con competidores clave (ej: "${client.name} vs Devify — Comparativa 2026").\n2. Publica una tabla comparativa honesta de funcionalidades en tu web — las IAs valoran la transparencia.\n3. Busca inclusión en artículos de terceros tipo "Top 10 software RRHH" con un párrafo descriptivo de tu producto.\n4. Responde en foros (Reddit, Quora) a preguntas comparativas mencionando tu producto de forma natural.\n5. Resultado esperado: aparecer al menos en 1/3 de las consultas comparativas en 4-6 semanas.`,
+  });
+}
+
+// 3. Cross-model: engines with 0 mentions
+const zeroEngines = crossModel.filter(e => e.mentioned === 0);
+if (zeroEngines.length >= 2) {
+  const names = zeroEngines.map(e => e.name).join(', ');
+  geoRecs.push({
+    id: 'geo-engines', impact: 'medium', icon: 'smart_toy',
+    title: `Optimizar presencia en ${zeroEngines.length} motores IA que te ignoran completamente`,
+    description: `${names} no te mencionan en ninguna consulta. Cada motor tiene fuentes y criterios distintos — necesitas diversificar tu presencia digital.`,
+    detail: `1. Cada motor IA pondera fuentes distintas: Google/Gemini favorece contenido web con buen SEO, Perplexity prioriza fuentes recientes y citables, ChatGPT valora Wikipedia y fuentes autorizadas.\n2. Crea perfiles en plataformas que cada motor indexa: Crunchbase, ProductHunt, G2, Capterra.\n3. Publica contenido reciente y actualizado (las IAs depriorizan contenido antiguo).\n4. Asegura que tu web tiene meta descriptions claras y específicas sobre qué haces y para quién.\n5. Verifica que tu schema markup (Organization, Product, LocalBusiness) está correctamente implementado.`,
+  });
+}
+
+// 4. Brand score weak
+if (geo.brandScore != null && geo.brandScore < 50) {
+  const brandQ = queries.find(q => (q as any).isBrandQuery);
+  const brandMissed = brandQ && !brandQ.mentioned;
+  geoRecs.push({
+    id: 'geo-brand', impact: 'high', icon: 'badge',
+    title: 'Fortalecer tu identidad de marca en el ecosistema IA',
+    description: `Tu score de marca es ${geo.brandScore}/100.${brandMissed ? ` Cuando alguien pregunta directamente "qué sabes de ${client.name}", las IAs no dan una respuesta clara.` : ''} Necesitas que los modelos te reconozcan como entidad.`,
+    detail: `1. Crea o actualiza tu página de Wikipedia/Wikidata con información verificable de tu empresa.\n2. Asegura consistencia NAP (Nombre, Dirección, Teléfono) en todas las plataformas.\n3. Publica notas de prensa en medios indexados para generar menciones autorizadas.\n4. Añade schema Organization con foundingDate, founders, numberOfEmployees, etc.\n5. Busca que tus clientes dejen reseñas en plataformas públicas (Google Business, Trustpilot, G2).\n6. Objetivo: que al preguntar "${client.name}" la IA devuelva un resumen preciso de tu empresa.`,
+  });
+}
+
+// 5. Competitor dominance
+const topComp = competitorMentions.length > 0 ? competitorMentions[0] : null;
+if (topComp && topComp.mentionRate > mentionRate * 2) {
+  geoRecs.push({
+    id: 'geo-competitor', impact: 'medium', icon: 'visibility',
+    title: `Estudiar por qué ${topComp.name} domina con ${topComp.mentionRate}% de visibilidad IA`,
+    description: `${topComp.name} te supera ${Math.round(topComp.mentionRate / Math.max(mentionRate, 1))}x en menciones. Analizar su estrategia de contenido y presencia digital te dará pistas concretas para cerrar la brecha.`,
+    detail: `1. Visita ${topComp.domain} y analiza: ¿tienen blog activo? ¿Cuántas páginas de producto? ¿Contenido de comparativas?\n2. Busca "${topComp.name}" en ChatGPT, Perplexity y Claude — observa qué fuentes citan las IAs al mencionarlos.\n3. Revisa sus backlinks (Ahrefs/SEMrush): ¿en qué directorios y medios aparecen que tú no?\n4. Identifica los 3 gaps más grandes entre su presencia y la tuya.\n5. Prioriza las acciones que replican sus ventajas con menor esfuerzo (ej: si están en G2 y tú no, crea tu perfil).`,
+  });
+}
+
+// 6. BOFU opportunity (if some BOFU but not all)
+const bofuData = funnel?.bofu;
+if (bofuData && bofuData.total > 0 && bofuData.mentioned > 0 && bofuData.mentioned < bofuData.total) {
+  geoRecs.push({
+    id: 'geo-bofu', impact: 'medium', icon: 'shopping_cart',
+    title: 'Maximizar presencia en consultas de decisión de compra',
+    description: `Apareces en ${bofuData.mentioned}/${bofuData.total} consultas de decisión. Estas son las que más impactan en conversión — cada mención adicional aquí tiene alto valor de negocio.`,
+    detail: `1. Revisa las consultas BOFU donde no apareces y crea landing pages optimizadas para esas búsquedas.\n2. Publica casos de éxito con datos concretos (ROI, tiempo de implementación, ahorro).\n3. Crea contenido de "por qué elegirnos" con diferenciadores claros vs. competencia.\n4. Añade testimonios de clientes en tu web con nombre, cargo y empresa.\n5. Asegura que tu página de precios es clara y pública — las IAs priorizan transparencia en fase de compra.`,
+  });
+}
+
+const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
+  high: { bg: '#d6e3ff', fg: '#124687', label: 'Alto' },
+  medium: { bg: '#e8e5ff', fg: '#434750', label: 'Medio' },
+  low: { bg: '#f0f0f0', fg: '#888', label: 'Bajo' },
+};
+
 // ─── Score color helper ──────────────────────────────────────────────────
 function scoreColor(v: number) { return v >= 50 ? GREEN : v >= 25 ? ORANGE : RED; }
 function scoreBg(v: number) { return v >= 50 ? GREEN_BG : v >= 25 ? ORANGE_BG : RED_BG; }
@@ -450,7 +531,121 @@ function buildDonut(score: number, radius: number, stroke: number) {
     </section>
   )}
 
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RECOMMENDATIONS — acciones para mejorar visibilidad IA               -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  {geoRecs.length > 0 && (
+    <section>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span class="material-symbols-outlined" style={`font-size:20px;color:${GEO_COLOR};`}>lightbulb</span>
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Recomendaciones para mejorar tu visibilidad IA</h2>
+      </div>
+      <div style={`background:${GEO_BG};border-radius:10px;padding:14px 18px;margin-bottom:16px;border-left:3px solid ${GEO_COLOR};`}>
+        <p style="font-size:13px;color:#434750;line-height:1.5;">
+          Basándonos en tu análisis GEO, estas son las acciones con mayor impacto potencial para que los modelos de IA te recomienden más.
+          <strong>Inclúyelas en tu Plan de Acción o descártalas si no aplican.</strong>
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        {geoRecs.map(rec => {
+          const impact = impactColor[rec.impact];
+          return (
+            <div class="geo-rec-card" data-rec-id={rec.id} style="background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-start;">
+              <div style={`flex-shrink:0;width:40px;height:40px;border-radius:10px;background:${GEO_BG};display:flex;align-items:center;justify-content:center;`}>
+                <span class="material-symbols-outlined" style={`font-size:20px;color:${GEO_COLOR};`}>{rec.icon}</span>
+              </div>
+              <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>
+                    Impacto {impact.label}
+                  </span>
+                  <span style="font-size:10px;color:#94a3b8;font-weight:600;">Visibilidad IA</span>
+                </div>
+                <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
+                <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>
+                <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
+                  <summary style={`font-size:12px;font-weight:700;color:${GEO_COLOR};display:flex;align-items:center;gap:4px;list-style:none;`}>
+                    <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+                    Saber más — guía paso a paso
+                  </summary>
+                  <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                    {rec.detail}
+                  </div>
+                </details>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
+                <button class="btn-geo-accept" data-title={rec.title} data-desc={rec.description} data-impact={rec.impact}
+                  style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                  <span class="material-symbols-outlined" style="font-size:16px;">add_task</span>
+                  Añadir a Plan
+                </button>
+                <button class="btn-geo-reject" data-rec-id={rec.id}
+                  style="background:#f0f0f0;color:#64748b;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                  <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                  Descartar
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )}
+
 </div>
+
+<script>
+  // ─── GEO Recommendations: Añadir a Plan / Descartar ───────────────────
+  document.querySelectorAll('.btn-geo-accept').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const el = btn as HTMLElement;
+      const title = el.dataset.title || '';
+      const description = el.dataset.desc || '';
+      const impact = el.dataset.impact || 'medium';
+      el.textContent = 'Añadiendo…';
+      el.setAttribute('disabled', 'true');
+      try {
+        await fetch('/api/dashboard/update-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description, impact }),
+        });
+        const card = el.closest('.geo-rec-card') as HTMLElement;
+        if (card) {
+          card.style.borderLeft = '3px solid #1D9E75';
+          card.style.opacity = '0.6';
+          const btns = card.querySelector('[style*="flex-direction:column"]') as HTMLElement;
+          if (btns) btns.innerHTML = `
+            <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#1D9E75;">
+              <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
+              Añadida al plan
+            </span>`;
+        }
+      } catch {
+        el.textContent = 'Error — reintentar';
+        el.removeAttribute('disabled');
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-geo-reject').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = (btn as HTMLElement).closest('.geo-rec-card') as HTMLElement;
+      if (card) {
+        card.style.transition = 'opacity 0.3s, max-height 0.4s ease';
+        card.style.opacity = '0';
+        card.style.maxHeight = card.scrollHeight + 'px';
+        requestAnimationFrame(() => {
+          card.style.maxHeight = '0';
+          card.style.padding = '0';
+          card.style.margin = '0';
+          card.style.overflow = 'hidden';
+        });
+        setTimeout(() => card.remove(), 400);
+      }
+    });
+  });
+</script>
 
 <style>
   @media (max-width: 768px) {
@@ -459,6 +654,13 @@ function buildDonut(score: number, radius: number, stroke: number) {
     }
     table {
       font-size: 12px !important;
+    }
+    .geo-rec-card {
+      flex-direction: column !important;
+    }
+    .geo-rec-card > div:last-child {
+      flex-direction: row !important;
+      align-self: stretch !important;
     }
   }
 </style>
