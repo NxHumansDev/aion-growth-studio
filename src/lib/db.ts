@@ -280,6 +280,7 @@ export interface ClientOnboarding {
   sector?: string;
   instagram_handle?: string;
   linkedin_url?: string;
+  primary_kpis?: Array<{ key: string; label: string; target?: number }>;
   completed_at?: string;
 }
 

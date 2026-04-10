@@ -128,6 +128,27 @@ const prefillLI = existing?.linkedin_url
           style="margin-top:12px;" />
       </div>
 
+      <!-- 2b. Primary KPIs -->
+      <div class="section" id="kpi-section" data-saved={JSON.stringify(existing?.primary_kpis || [])} style="display:none;">
+        <label>
+          <span class="material-symbols-outlined" style="font-size:18px;margin-right:4px;color:#1A4B8C;">monitoring</span>
+          ¿Que indicadores quieres monitorizar?
+        </label>
+        <p class="hint">Hemos seleccionado 3 KPIs clave para tu objetivo. Puedes cambiarlos si prefieres otros. Estos indicadores apareceran como metricas principales en tu dashboard.</p>
+
+        <div id="kpi-suggested" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+
+        <button type="button" id="btn-show-all-kpis" style="background:none;border:1px solid #ddd;border-radius:8px;padding:8px 16px;font-size:13px;color:#1A4B8C;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;width:fit-content;">
+          <span class="material-symbols-outlined" style="font-size:16px;">tune</span>
+          Elegir otros indicadores
+        </button>
+
+        <div id="kpi-all" style="display:none;margin-top:16px;">
+          <p class="hint" style="margin-bottom:10px;">Selecciona 3 indicadores que quieras monitorizar:</p>
+          <div id="kpi-all-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+
       <!-- 3. Geographic scope + URL architecture -->
       <div class="section">
         <label>
@@ -309,6 +330,132 @@ const prefillLI = existing?.linkedin_url
       });
     });
 
+    // ── KPI selection based on goal ─────────────────────────────────────
+    const ALL_KPIS = [
+      { key: 'seo.keywordsTop10', label: 'Keywords Top 10', desc: 'Palabras clave posicionadas en los 10 primeros resultados de Google', icon: 'search' },
+      { key: 'seo.traffic', label: 'Trafico Organico', desc: 'Visitas mensuales desde buscadores (sin pagar)', icon: 'trending_up' },
+      { key: 'seo.domainRank', label: 'Domain Rank', desc: 'Autoridad de tu dominio frente a la competencia (0-100)', icon: 'military_tech' },
+      { key: 'geo.mentionRate', label: 'Visibilidad en IA', desc: 'Porcentaje de consultas en ChatGPT/Perplexity donde te mencionan', icon: 'psychology' },
+      { key: 'web.mobile', label: 'PageSpeed Movil', desc: 'Velocidad de carga en movil (0-100). Impacta en SEO y conversion', icon: 'speed' },
+      { key: 'conversion.score', label: 'Funnel de Conversion', desc: 'Capacidad de tu web para convertir visitas en leads o ventas (0-100)', icon: 'conversion_path' },
+      { key: 'reputation.score', label: 'Reputacion', desc: 'Reviews, menciones en prensa y presencia social combinadas', icon: 'star' },
+      { key: 'score', label: 'Score Global AION', desc: 'Puntuacion global de presencia digital (combinacion ponderada)', icon: 'insights' },
+      { key: 'web.desktop', label: 'PageSpeed Desktop', desc: 'Velocidad de carga en escritorio (0-100)', icon: 'computer' },
+    ];
+
+    const GOAL_KPIS: Record<string, string[]> = {
+      generate_leads: ['seo.keywordsTop10', 'conversion.score', 'seo.traffic'],
+      sell_online: ['seo.traffic', 'conversion.score', 'web.mobile'],
+      brand_positioning: ['seo.domainRank', 'geo.mentionRate', 'reputation.score'],
+      local_traffic: ['reputation.score', 'seo.keywordsTop10', 'web.mobile'],
+      other: ['seo.keywordsTop10', 'seo.traffic', 'conversion.score'],
+    };
+
+    // Pre-existing KPIs from saved onboarding
+    const savedKpis: Array<{key:string;label:string;target?:number}> = JSON.parse(document.getElementById('kpi-section')?.getAttribute('data-saved') || '[]');
+    let selectedKpis: Array<{key:string;label:string;target?:number}> = savedKpis.length ? [...savedKpis] : [];
+
+    function renderKpiSuggested(goalKpiKeys: string[]) {
+      const container = document.getElementById('kpi-suggested')!;
+      // Use saved KPIs if available, otherwise use goal suggestions
+      const kpiKeys = selectedKpis.length === 3 ? selectedKpis.map(k => k.key) : goalKpiKeys;
+      const kpis = kpiKeys.map(key => ALL_KPIS.find(k => k.key === key)!).filter(Boolean);
+
+      container.innerHTML = kpis.map(kpi => {
+        const saved = selectedKpis.find(s => s.key === kpi.key);
+        return `
+        <div class="kpi-card" data-key="${kpi.key}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f0f4ff;border:2px solid #1A4B8C;border-radius:10px;">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#1A4B8C;">${kpi.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:#1a1a2e;">${kpi.label}</div>
+            <div style="font-size:12px;color:#666;margin-top:2px;">${kpi.desc}</div>
+          </div>
+          <div style="text-align:right;">
+            <label style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Objetivo 6 meses</label>
+            <input type="number" class="kpi-target" data-key="${kpi.key}" placeholder="ej: ${kpi.key.includes('Rate') || kpi.key.includes('score') || kpi.key.includes('mobile') || kpi.key.includes('desktop') ? '70' : '200'}"
+              value="${saved?.target ?? ''}"
+              style="width:80px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;" />
+          </div>
+        </div>`;
+      }).join('');
+
+      // Update selectedKpis
+      if (!selectedKpis.length) {
+        selectedKpis = kpis.map(k => ({ key: k.key, label: k.label }));
+      }
+    }
+
+    function renderAllKpis() {
+      const container = document.getElementById('kpi-all-list')!;
+      const selectedKeys = new Set(selectedKpis.map(k => k.key));
+
+      container.innerHTML = ALL_KPIS.map(kpi => {
+        const isSelected = selectedKeys.has(kpi.key);
+        return `
+        <label class="kpi-option" data-key="${kpi.key}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid ${isSelected ? '#1A4B8C' : '#ddd'};border-radius:8px;cursor:pointer;background:${isSelected ? '#f0f4ff' : 'white'};transition:all 0.15s;">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} style="accent-color:#1A4B8C;" />
+          <span class="material-symbols-outlined" style="font-size:18px;color:${isSelected ? '#1A4B8C' : '#888'};">${kpi.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:#1a1a2e;">${kpi.label}</div>
+            <div style="font-size:11px;color:#888;">${kpi.desc}</div>
+          </div>
+        </label>`;
+      }).join('');
+
+      // Click handlers
+      container.querySelectorAll('.kpi-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          const key = (opt as HTMLElement).dataset.key!;
+          const cb = opt.querySelector('input[type="checkbox"]') as HTMLInputElement;
+          const kpiInfo = ALL_KPIS.find(k => k.key === key)!;
+
+          if (cb.checked && !(e.target as HTMLElement).matches('input')) {
+            // Uncheck
+            cb.checked = false;
+            selectedKpis = selectedKpis.filter(k => k.key !== key);
+          } else if (!cb.checked) {
+            if (selectedKpis.length >= 3) {
+              // Remove oldest and add new
+              selectedKpis.shift();
+            }
+            cb.checked = true;
+            selectedKpis.push({ key, label: kpiInfo.label });
+          }
+
+          // Re-render suggested with new selection
+          renderKpiSuggested(selectedKpis.map(k => k.key));
+          renderAllKpis();
+        });
+      });
+    }
+
+    // Show KPI section when goal is selected
+    document.getElementById('goal-group')?.addEventListener('click', () => {
+      setTimeout(() => {
+        const goal = (document.querySelector('input[name="primary_goal"]:checked') as HTMLInputElement)?.value;
+        if (goal) {
+          document.getElementById('kpi-section')!.style.display = 'block';
+          if (!selectedKpis.length) {
+            renderKpiSuggested(GOAL_KPIS[goal] || GOAL_KPIS.other);
+          }
+        }
+      }, 50);
+    });
+
+    // Show all KPIs button
+    document.getElementById('btn-show-all-kpis')?.addEventListener('click', () => {
+      const allDiv = document.getElementById('kpi-all')!;
+      allDiv.style.display = allDiv.style.display === 'none' ? 'block' : 'none';
+      if (allDiv.style.display === 'block') renderAllKpis();
+    });
+
+    // Auto-show if goal already selected (editing onboarding)
+    if (document.querySelector('input[name="primary_goal"]:checked')) {
+      const goal = (document.querySelector('input[name="primary_goal"]:checked') as HTMLInputElement).value;
+      document.getElementById('kpi-section')!.style.display = 'block';
+      renderKpiSuggested(selectedKpis.length ? selectedKpis.map(k => k.key) : (GOAL_KPIS[goal] || GOAL_KPIS.other));
+    }
+
     // ── Website URL verification ──────────────────────────────────────────
     const urlInput = document.getElementById('website_url') as HTMLInputElement;
     const urlCheck = document.getElementById('url-check')!;
@@ -471,6 +618,11 @@ const prefillLI = existing?.linkedin_url
         sector: fd.get('sector') || null,
         instagram_handle: (fd.get('instagram_handle') || '').replace(/^@/, '') || null,
         linkedin_url: fd.get('linkedin_url') || null,
+        primary_kpis: selectedKpis.map(k => {
+          const targetInput = document.querySelector(`.kpi-target[data-key="${k.key}"]`) as HTMLInputElement;
+          const target = targetInput ? parseInt(targetInput.value, 10) : undefined;
+          return { key: k.key, label: k.label, ...(target && !isNaN(target) ? { target } : {}) };
+        }),
       };
 
       try {

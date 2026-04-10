@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       sector: body.sector || null,
       instagram_handle: body.instagram_handle || null,
       linkedin_url: body.linkedin_url || null,
+      primary_kpis: Array.isArray(body.primary_kpis) ? body.primary_kpis : [],
     };
 
     await saveClientOnboarding(onboardingData);

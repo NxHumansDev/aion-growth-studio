@@ -2,14 +2,19 @@
 export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import ActionItem from '../../components/dashboard/ActionItem.astro';
-import { getClient, getLatestSnapshot, getAllSnapshots, getActiveRecommendations, getAllRecommendations, findAuditByEmail, createSnapshotFromAudit } from '../../lib/db';
+import { getClient, getLatestSnapshot, getAllSnapshots, getActiveRecommendations, getAllRecommendations, findAuditByEmail, createSnapshotFromAudit, getClientOnboarding } from '../../lib/db';
 import { getIntegration } from '../../lib/integrations';
 import type { Tier } from '../../lib/demo-data';
 
 const client = Astro.locals.client ?? await getClient();
 const user = Astro.locals.user;
-let snapshot = await getLatestSnapshot(client.id);
+const [snapshotRaw, onboarding] = await Promise.all([
+  getLatestSnapshot(client.id),
+  getClientOnboarding(client.id),
+]);
+let snapshot = snapshotRaw;
 const isEmptySnapshot = snapshot.id === 'empty';
+const clientKpis = onboarding?.primary_kpis || [];
 
 // Auto-link: if no snapshots, try to find a completed audit by user email
 if (isEmptySnapshot && user?.email) {
@@ -161,6 +166,35 @@ const pillars: PillarData[] = pillarDefs.map(p => ({
   prev: extractPillar(pr, p.key),
   sparkline: allSnapshots.map(s => extractPillar(s.pipeline_output || {}, p.key)),
 }));
+
+// ─── Client KPIs (from onboarding) ──────────────────────────────────────
+function extractKpiValue(data: any, key: string): number | null {
+  if (!data) return null;
+  switch (key) {
+    case 'score': return data.score?.total ?? null;
+    case 'seo.keywordsTop10': return data.seo?.keywordsTop10 ?? null;
+    case 'seo.traffic': return data.seo?.organicTrafficEstimate ?? null;
+    case 'seo.domainRank': return data.seo?.domainRank ?? null;
+    case 'geo.mentionRate': return data.geo?.mentionRate ?? null;
+    case 'web.mobile': return data.pagespeed?.mobile?.performance ?? null;
+    case 'web.desktop': return data.pagespeed?.desktop?.performance ?? null;
+    case 'conversion.score': return data.conversion?.funnelScore ?? null;
+    case 'reputation.score': {
+      const rating = data.gbp?.rating ?? data.reputation?.combinedRating ?? 0;
+      return rating > 0 ? Math.round(rating * 20) : null;
+    }
+    default: return null;
+  }
+}
+
+const kpiDisplay = clientKpis.map((kpi: any) => {
+  const current = extractKpiValue(r, kpi.key);
+  const previous = extractKpiValue(pr, kpi.key);
+  const target = kpi.target ?? null;
+  const delta = current != null && previous != null ? current - previous : null;
+  const progressPct = target && current != null ? Math.min(100, Math.round((current / target) * 100)) : null;
+  return { ...kpi, current, previous, delta, progressPct };
+});
 
 // ─── Changes this week ────────────────────────────────────────────────────
 interface Change { text: string; pillar: string; }
@@ -414,6 +448,47 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         </div>
       )}
     </section>
+
+    <!-- ══ BLOQUE 1b: Client KPIs ══ -->
+    {kpiDisplay.length > 0 && (
+      <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+        {kpiDisplay.map((kpi: any) => {
+          const val = kpi.current;
+          const delta = kpi.delta;
+          const target = kpi.target;
+          const pct = kpi.progressPct;
+          const deltaColor = delta != null ? (delta > 0 ? '#1D9E75' : delta < 0 ? '#E24B4A' : '#94a3b8') : '#94a3b8';
+          const isOnTrack = pct != null && pct >= 50;
+          return (
+            <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{kpi.label}</span>
+                {delta != null && (
+                  <span style={`font-size:12px;font-weight:700;color:${deltaColor};`}>{delta > 0 ? '+' : ''}{typeof delta === 'number' && Math.abs(delta) > 100 ? `${(delta/1000).toFixed(1)}K` : delta}</span>
+                )}
+              </div>
+              <div style="font-size:32px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;line-height:1;">
+                {val != null ? (val > 9999 ? `${(val/1000).toFixed(1)}K` : val.toLocaleString()) : '—'}
+              </div>
+              {target && (
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:3px;">
+                    <span>Objetivo: {target > 9999 ? `${(target/1000).toFixed(0)}K` : target.toLocaleString()}</span>
+                    <span style={`font-weight:700;color:${isOnTrack ? '#1D9E75' : '#BA7517'};`}>{pct}%</span>
+                  </div>
+                  <div style="background:#f0f0f0;border-radius:999px;height:4px;overflow:hidden;">
+                    <div style={`background:${isOnTrack ? '#1D9E75' : '#BA7517'};height:100%;width:${pct}%;border-radius:999px;transition:width 0.3s;`}></div>
+                  </div>
+                </div>
+              )}
+              {!target && (
+                <a href="/dashboard/settings" style="font-size:10px;color:#1A4B8C;text-decoration:none;">Definir objetivo →</a>
+              )}
+            </div>
+          );
+        })}
+      </section>
+    )}
 
     <!-- ══ BLOQUE 2: 6 Pillar Cards ══ -->
     <section style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px;">
