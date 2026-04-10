@@ -480,11 +480,9 @@ export async function acceptRecommendation(recId: string, clientId: string, acce
     title: rec.title,
     description: rec.description,
     impact: rec.impact,
-    source: rec.source,
+    source: rec.source || 'radar',
     status: 'pending',
-    accepted_by: acceptedBy || null,
-    accepted_at: new Date().toISOString(),
-    expected_kpis: rec.expected_kpis || [],
+    data: { ...(rec.data || {}), accepted_by: acceptedBy || null },
   }).select('id').single();
 
   if (error) { console.error('[action_plan] Insert failed:', error.message); return null; }
