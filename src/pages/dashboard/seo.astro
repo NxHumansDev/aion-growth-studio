@@ -86,6 +86,83 @@ function fmtNum(n: number | string): string {
   if (typeof n === 'string') return n;
   return n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
 }
+
+// ─── On-page SEO audit ───────────────────────────────────────────────────
+const crawl = r.crawl || {};
+const content = r.content || {};
+const ssl = r.ssl || {};
+const pagespeed = r.pagespeed || {};
+const techstack = r.techstack || {};
+const scoreBreakdown = r.score?.breakdown || {};
+const seoSkipped = seo.skipped === true;
+
+interface SeoIssue { severity: 'critical' | 'warning' | 'good'; label: string; detail: string; }
+const onPageIssues: SeoIssue[] = [];
+
+if (crawl.title) {
+  const len = (crawl.title as string).length;
+  if (len > 60) onPageIssues.push({ severity: 'warning', label: 'Title demasiado largo', detail: `${len} caracteres (recomendado: 50-60)` });
+  else if (len < 30) onPageIssues.push({ severity: 'warning', label: 'Title demasiado corto', detail: `${len} caracteres. Usa más espacio para keywords.` });
+  else onPageIssues.push({ severity: 'good', label: 'Title correcto', detail: `${len} caracteres` });
+} else { onPageIssues.push({ severity: 'critical', label: 'Sin meta title', detail: 'Sin título definido — fundamental para SEO' }); }
+
+if (crawl.description) {
+  const len = (crawl.description as string).length;
+  if (len > 160) onPageIssues.push({ severity: 'warning', label: 'Meta description largo', detail: `${len} chars — Google lo cortará` });
+  else if (len < 70) onPageIssues.push({ severity: 'warning', label: 'Meta description corto', detail: `${len} chars — aprovecha más espacio` });
+  else onPageIssues.push({ severity: 'good', label: 'Meta description ok', detail: `${len} chars` });
+} else { onPageIssues.push({ severity: 'critical', label: 'Sin meta description', detail: 'Google generará una automática — menos clicks' }); }
+
+const h1Count = (crawl.h1s as any[])?.length || 0;
+if (h1Count === 0) onPageIssues.push({ severity: 'critical', label: 'Sin H1', detail: 'Sin encabezado principal' });
+else if (h1Count > 1) onPageIssues.push({ severity: 'warning', label: `${h1Count} H1s`, detail: 'Debería haber solo 1 H1' });
+else onPageIssues.push({ severity: 'good', label: 'H1 correcto', detail: `"${((crawl.h1s as any[])?.[0] || '').slice(0, 40)}"` });
+
+if (crawl.imageCount > 0 && (crawl.imagesWithAlt as number) < (crawl.imageCount as number)) onPageIssues.push({ severity: 'warning', label: `${(crawl.imageCount as number) - (crawl.imagesWithAlt as number)} imágenes sin alt`, detail: 'Google no puede ver imágenes sin alt text' });
+else if (crawl.imageCount > 0) onPageIssues.push({ severity: 'good', label: 'Imágenes con alt text', detail: 'Todas las imágenes tienen texto alternativo' });
+
+if (ssl.valid) onPageIssues.push({ severity: 'good', label: 'SSL activo', detail: `${ssl.protocol || 'TLS'} — expira en ${ssl.daysUntilExpiry || '?'} días` });
+else onPageIssues.push({ severity: 'critical', label: 'Sin SSL', detail: 'Chrome marca tu web como "No segura"' });
+
+if (crawl.hasSchemaMarkup) onPageIssues.push({ severity: 'good', label: 'Schema markup', detail: `Tipos: ${((crawl.schemaTypes as any[]) || []).join(', ')}` });
+else onPageIssues.push({ severity: 'warning', label: 'Sin schema markup', detail: 'Google y las IAs no entienden tu negocio' });
+
+if (crawl.hasSitemap) onPageIssues.push({ severity: 'good', label: 'Sitemap', detail: 'Google descubre tus páginas' });
+else onPageIssues.push({ severity: 'warning', label: 'Sin sitemap.xml', detail: 'Google no descubre todas tus páginas' });
+
+if (crawl.hasCanonical) onPageIssues.push({ severity: 'good', label: 'Canonical', detail: 'Evita duplicados' });
+else onPageIssues.push({ severity: 'warning', label: 'Sin canonical', detail: 'Posible contenido duplicado' });
+
+const mobilePS = pagespeed.mobile?.performance;
+if (mobilePS >= 90) onPageIssues.push({ severity: 'good', label: `PageSpeed mobile: ${mobilePS}`, detail: 'Excelente' });
+else if (mobilePS >= 50) onPageIssues.push({ severity: 'warning', label: `PageSpeed mobile: ${mobilePS}`, detail: 'Mejorable' });
+else if (mobilePS) onPageIssues.push({ severity: 'critical', label: `PageSpeed mobile: ${mobilePS}`, detail: `LCP: ${pagespeed.mobile?.lcp ? ((pagespeed.mobile.lcp as number)/1000).toFixed(1)+'s' : '?'}` });
+
+if ((crawl.wordCount as number) < 300) onPageIssues.push({ severity: 'warning', label: `${crawl.wordCount} palabras`, detail: 'Poco contenido para SEO' });
+if ((crawl.internalLinks as number) < 5) onPageIssues.push({ severity: 'warning', label: `${crawl.internalLinks} enlaces internos`, detail: 'Pocos enlaces dificultan el crawling' });
+
+const criticals = onPageIssues.filter(i => i.severity === 'critical');
+const warnings = onPageIssues.filter(i => i.severity === 'warning');
+const goods = onPageIssues.filter(i => i.severity === 'good');
+
+const sevIcon: Record<string, { icon: string; color: string; bg: string }> = {
+  critical: { icon: 'error', color: '#E24B4A', bg: '#FCEBEB' },
+  warning: { icon: 'warning', color: '#BA7517', bg: '#FAEEDA' },
+  good: { icon: 'check_circle', color: '#1D9E75', bg: '#E1F5EE' },
+};
+
+// Qualitative assessment
+const seoScore = scoreBreakdown.seo ?? 0;
+let assessment = '';
+if (seoSkipped) {
+  assessment = `${client.name} aún no tiene presencia medible en buscadores — no se detectan keywords posicionadas ni tráfico orgánico. ${criticals.length > 0 ? `Hay ${criticals.length} problema${criticals.length > 1 ? 's' : ''} crítico${criticals.length > 1 ? 's' : ''} de SEO on-page que resolver primero.` : ''} ${(crawl.wordCount as number) > 500 ? `La buena noticia: tu web tiene ${crawl.wordCount} palabras de contenido, ${ssl.valid ? 'SSL activo' : ''} y ${crawl.hasSitemap ? 'sitemap' : ''} — hay base para trabajar.` : ''}`;
+} else if (seoScore < 30) {
+  assessment = `Visibilidad SEO crítica (${seoScore}/100). Con ${seo.keywordsTop10 || 0} keywords en top 10 y ~${seo.organicTrafficEstimate || 0} visitas orgánicas, la web está prácticamente invisible en Google.`;
+} else if (seoScore < 60) {
+  assessment = `SEO en desarrollo (${seoScore}/100). ${seo.keywordsTop10 || 0} keywords en top 10. Hay base pero la brecha con competidores es grande.`;
+} else {
+  assessment = `SEO competitivo (${seoScore}/100). ${seo.keywordsTop10 || 0} keywords en top 10 con ~${(seo.organicTrafficEstimate || 0).toLocaleString()} visitas.`;
+}
 ---
 
 <DashboardLayout title="SEO" currentPath="/dashboard/pillar/seo" tier={tier} clientName={client.name} domain={client.domain} lastReportMonth={snapshot.month} lastReportDate={snapshot.date}>
@@ -109,6 +186,46 @@ function fmtNum(n: number | string): string {
       <p style="font-size:14px;color:#64748b;">Posicionamiento en buscadores y visibilidad orgánica</p>
     </div>
   </div>
+
+  <!-- ══ Diagnóstico Ejecutivo IA ══ -->
+  <section style="background:linear-gradient(135deg, #000e41, #001f70);border-radius:16px;padding:24px 28px;color:white;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span class="material-symbols-outlined" style="font-size:18px;color:#69ff87;">auto_awesome</span>
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#69ff87;">Diagnóstico AION</span>
+    </div>
+    <p style="font-size:15px;line-height:1.7;color:#e2e8f0;">{assessment}</p>
+  </section>
+
+  <!-- ══ Auditoría SEO On-Page ══ -->
+  <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Auditoría SEO On-Page</h2>
+        <p style="font-size:12px;color:#64748b;margin-top:2px;">Estado técnico de tu web para buscadores</p>
+      </div>
+      <div style="display:flex;gap:6px;">
+        {criticals.length > 0 && <span style="background:#FCEBEB;color:#E24B4A;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{criticals.length} críticos</span>}
+        {warnings.length > 0 && <span style="background:#FAEEDA;color:#BA7517;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{warnings.length} avisos</span>}
+        {goods.length > 0 && <span style="background:#E1F5EE;color:#1D9E75;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{goods.length} ok</span>}
+      </div>
+    </div>
+    <div style="padding:4px 0;">
+      {[...criticals, ...warnings, ...goods].map(issue => {
+        const s = sevIcon[issue.severity];
+        return (
+          <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 24px;border-bottom:1px solid #f8f8f8;">
+            <div style={`width:28px;height:28px;border-radius:8px;background:${s.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`}>
+              <span class="material-symbols-outlined" style={`font-size:16px;color:${s.color};`}>{s.icon}</span>
+            </div>
+            <div>
+              <p style="font-size:13px;font-weight:700;color:#1a1a2e;">{issue.label}</p>
+              <p style="font-size:12px;color:#64748b;line-height:1.4;margin-top:2px;">{issue.detail}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
 
   <!-- ══ Stat Cards ══ -->
   <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
@@ -354,6 +471,49 @@ function fmtNum(n: number | string): string {
       </div>
     </div>
   </section>
+
+  <!-- ══ Content Analysis ══ -->
+  {content.valueProposition && (
+    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:24px;">
+      <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:12px;">Análisis de contenido</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Propuesta de valor</p>
+          <p style="font-size:13px;color:#434750;line-height:1.5;">{content.valueProposition}</p>
+        </div>
+        <div>
+          <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Audiencia detectada</p>
+          <p style="font-size:13px;color:#434750;line-height:1.5;">{content.audienceMatch || '—'}</p>
+        </div>
+      </div>
+      {((content.strengths as any[])?.length > 0 || (content.weaknesses as any[])?.length > 0) && (
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0;">
+          {(content.strengths as any[])?.length > 0 && (
+            <div>
+              <p style="font-size:11px;font-weight:700;color:#1D9E75;text-transform:uppercase;margin-bottom:6px;">Fortalezas</p>
+              {(content.strengths as string[]).map((s: string) => (
+                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
+                  <span class="material-symbols-outlined" style="font-size:14px;color:#1D9E75;margin-top:2px;">check</span>
+                  <span style="font-size:12px;color:#434750;">{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(content.weaknesses as any[])?.length > 0 && (
+            <div>
+              <p style="font-size:11px;font-weight:700;color:#E24B4A;text-transform:uppercase;margin-bottom:6px;">Debilidades</p>
+              {(content.weaknesses as string[]).map((w: string) => (
+                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
+                  <span class="material-symbols-outlined" style="font-size:14px;color:#E24B4A;margin-top:2px;">close</span>
+                  <span style="font-size:12px;color:#434750;">{w}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )}
 
   <!-- ══ Generated Fixes (content ready to copy-paste) ══ -->
   {fixes.length > 0 && (
