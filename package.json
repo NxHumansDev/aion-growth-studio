@@ -15,6 +15,7 @@
     "@astrojs/tailwind": "^5.0.0",
     "@astrojs/vercel": "^7.8.2",
     "@notionhq/client": "^2.3.0",
+    "@sparticuz/chromium": "^143.0.4",
     "@supabase/supabase-js": "^2.100.0",
     "astro": "^4.0.0",
     "axios": "^1.13.6",
@@ -22,6 +23,7 @@
     "dotenv": "^17.3.1",
     "marked": "^17.0.2",
     "notion-to-md": "^3.1.9",
+    "puppeteer-core": "^24.40.0",
     "tailwindcss": "^3.3.5",
     "tldts": "^7.0.23"
   },

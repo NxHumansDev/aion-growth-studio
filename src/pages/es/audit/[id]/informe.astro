@@ -1128,7 +1128,7 @@ const donutSVG = buildDonutSVG();
           <span style="width:1px;height:18px;background:rgba(141,144,155,0.2);display:inline-block;"></span>
           <span class="top-bar-title">{domain}</span>
         </div>
-        <a class="btn-export" href={`/es/audit/${id}/pdf`} target="_blank">
+        <a class="btn-export" id="btn-pdf" href={`/api/audit/pdf?id=${id}`} onclick="this.textContent='Generando PDF...';this.style.pointerEvents='none';setTimeout(()=>{this.innerHTML='<span class=\\'material-symbols-outlined\\' style=\\'font-size:16px\\'>picture_as_pdf</span> Exportar PDF';this.style.pointerEvents='auto'},15000)">
           <span class="material-symbols-outlined" style="font-size:16px;">picture_as_pdf</span>
           Exportar PDF
         </a>

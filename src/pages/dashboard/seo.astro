@@ -17,134 +17,42 @@ const r = snapshot.pipeline_output || {};
 const pr = prevSnap?.pipeline_output || {};
 const seo = r.seo || {};
 const prevSeo = pr.seo || {};
-const crawl = r.crawl || {};
-const content = r.content || {};
-const ssl = r.ssl || {};
-const techstack = r.techstack || {};
 const gsc = r.analytics?.gsc;
 const prevGsc = pr.analytics?.gsc;
-const insights = r.insights || {};
-const pagespeed = r.pagespeed || {};
-const scoreBreakdown = r.score?.breakdown || {};
 
-const seoSkipped = seo.skipped === true;
-
-// ─── Stat cards ───────────────────────────────────────────────────────────
-const stats = seoSkipped ? [
-  { label: 'Score SEO', value: scoreBreakdown.seo ?? '—', icon: 'search', suffix: '/100' },
-  { label: 'Palabras en web', value: crawl.wordCount || '—', icon: 'text_fields' },
-  { label: 'Páginas internas', value: crawl.internalLinks || '—', icon: 'link' },
-  { label: 'Imágenes', value: `${crawl.imagesWithAlt || 0}/${crawl.imageCount || 0} con alt`, icon: 'image' },
-  { label: 'Schema Markup', value: crawl.hasSchemaMarkup ? 'Sí' : 'No', icon: 'code' },
-  { label: 'Sitemap', value: crawl.hasSitemap ? 'Sí' : 'No', icon: 'map' },
-] : [
-  { label: 'Keywords Top 10', value: seo.keywordsTop10 || 0, prev: prevSeo.keywordsTop10, icon: 'search', better: 'up' as const },
-  { label: 'Tráfico Orgánico', value: seo.organicTrafficEstimate || 0, prev: prevSeo.organicTrafficEstimate, icon: 'trending_up', better: 'up' as const, fmt: 'num' },
-  { label: 'Domain Rank', value: seo.domainRank || '—', prev: prevSeo.domainRank, icon: 'shield', better: 'down' as const, fmt: 'num' },
-  { label: 'Referring Domains', value: seo.referringDomains || '—', icon: 'link' },
-  { label: 'Backlinks', value: seo.backlinksTotal || '—', icon: 'hub', fmt: 'num' },
-  { label: 'Indexadas', value: seo.indexedPages || gsc?.indexedPages || '—', icon: 'description' },
+// ─── Stat cards data ──────────────────────────────────────────────────────
+const stats = [
+  { label: 'Keywords Top 10', value: seo.keywordsTop10 || 0, prev: prevSeo.keywordsTop10, icon: 'search', better: 'up' },
+  { label: 'Tráfico Orgánico', value: seo.organicTrafficEstimate || 0, prev: prevSeo.organicTrafficEstimate, icon: 'trending_up', better: 'up', format: 'number' },
+  { label: 'Domain Rank', value: seo.domainRank || '—', prev: prevSeo.domainRank, icon: 'shield', better: 'down', format: 'number' },
+  { label: 'Referring Domains', value: seo.referringDomains || '—', prev: prevSeo.referringDomains, icon: 'link', better: 'up' },
+  { label: 'Backlinks', value: seo.backlinksTotal || '—', prev: prevSeo.backlinksTotal, icon: 'hub', better: 'up', format: 'number' },
+  { label: 'Páginas Indexadas', value: seo.indexedPages || gsc?.indexedPages || '—', prev: prevSeo.indexedPages, icon: 'description', better: 'up' },
 ];
 
-// ─── Keywords ─────────────────────────────────────────────────────────────
-const topKeywords = (seo.topKeywords || []) as any[];
+// ─── Keywords table ───────────────────────────────────────────────────────
+const topKeywords = (seo.topKeywords || []) as Array<{keyword: string; position: number; volume: number; difficulty: number; prevPosition?: number}>;
+
+// Add prev positions
 topKeywords.forEach((kw: any) => {
   const prevKw = (prevSeo.topKeywords || []).find((pk: any) => pk.keyword === kw.keyword);
   if (prevKw) kw.prevPosition = prevKw.position;
 });
 
-const keywordGap = (r.keyword_gap?.items || []).slice(0, 10) as any[];
-const compItems = (r.competitor_traffic?.items || []) as any[];
-const gscQueries = (gsc?.topQueries || []).slice(0, 10) as any[];
-const seoPages = (r.seo_pages?.items || r.seo_pages?.pages || []).slice(0, 10) as any[];
+// ─── Keyword gap ──────────────────────────────────────────────────────────
+const keywordGap = (r.keyword_gap?.items || []).slice(0, 10) as Array<{keyword: string; volume?: number; difficulty?: number; position?: number; competitor?: string; impact?: string; priority?: string}>;
 
-// ─── On-page SEO issues ──────────────────────────────────────────────────
-interface SeoIssue { severity: 'critical' | 'warning' | 'good'; label: string; detail: string; }
-const onPageIssues: SeoIssue[] = [];
+// ─── Competitor comparison ────────────────────────────────────────────────
+const compItems = (r.competitor_traffic?.items || []) as Array<{domain: string; organicTrafficEstimate?: number; keywordsTop10?: number; domainRank?: number}>;
 
-// Title
-if (crawl.title) {
-  const len = crawl.title.length;
-  if (len > 60) onPageIssues.push({ severity: 'warning', label: 'Title demasiado largo', detail: `${len} caracteres (recomendado: 50-60). Google lo cortará en los resultados.` });
-  else if (len < 30) onPageIssues.push({ severity: 'warning', label: 'Title demasiado corto', detail: `${len} caracteres. Usa más espacio para incluir keywords.` });
-  else onPageIssues.push({ severity: 'good', label: 'Title correcto', detail: `${len} caracteres — longitud ideal.` });
-} else {
-  onPageIssues.push({ severity: 'critical', label: 'Sin meta title', detail: 'Tu web no tiene título definido. Es fundamental para SEO.' });
-}
+// ─── GSC data ─────────────────────────────────────────────────────────────
+const gscQueries = (gsc?.topQueries || []).slice(0, 10) as Array<{query: string; clicks: number; impressions: number; ctr: number; position: number}>;
 
-// Description
-if (crawl.description) {
-  const len = crawl.description.length;
-  if (len > 160) onPageIssues.push({ severity: 'warning', label: 'Meta description largo', detail: `${len} caracteres (recomendado: 120-160). Google lo cortará.` });
-  else if (len < 70) onPageIssues.push({ severity: 'warning', label: 'Meta description corto', detail: `${len} caracteres. Aprovecha más espacio para convencer al usuario de hacer click.` });
-  else onPageIssues.push({ severity: 'good', label: 'Meta description correcto', detail: `${len} caracteres — bien optimizado.` });
-} else {
-  onPageIssues.push({ severity: 'critical', label: 'Sin meta description', detail: 'Google generará una descripción automática que probablemente no sea la mejor para tu negocio.' });
-}
+// ─── Evolution sparklines ─────────────────────────────────────────────────
+const kwHistory = allSnapshots.map(s => s.pipeline_output?.seo?.keywordsTop10 || 0);
+const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTrafficEstimate || 0);
 
-// H1
-const h1Count = crawl.h1s?.length || 0;
-if (h1Count === 0) onPageIssues.push({ severity: 'critical', label: 'Sin H1', detail: 'No tienes encabezado principal. Google usa el H1 para entender de qué va tu página.' });
-else if (h1Count > 1) onPageIssues.push({ severity: 'warning', label: `${h1Count} H1s detectados`, detail: 'Debería haber solo 1 H1 por página. Múltiples H1 confunden a los buscadores.' });
-else onPageIssues.push({ severity: 'good', label: 'H1 correcto', detail: `"${(crawl.h1s?.[0] || '').slice(0, 50)}"` });
-
-// Images
-if (crawl.imageCount > 0 && crawl.imagesWithAlt < crawl.imageCount) {
-  const missing = crawl.imageCount - crawl.imagesWithAlt;
-  onPageIssues.push({ severity: 'warning', label: `${missing} imágenes sin alt text`, detail: 'Google no puede "ver" imágenes sin alt text. Afecta al SEO de imágenes y accesibilidad.' });
-} else if (crawl.imageCount > 0) {
-  onPageIssues.push({ severity: 'good', label: 'Imágenes con alt text', detail: 'Todas las imágenes tienen texto alternativo.' });
-}
-
-// SSL
-if (ssl.valid) onPageIssues.push({ severity: 'good', label: 'SSL activo', detail: `${ssl.protocol || 'TLS'} — certificado de ${ssl.issuer || 'desconocido'}. Expira en ${ssl.daysUntilExpiry || '?'} días.` });
-else onPageIssues.push({ severity: 'critical', label: 'Sin SSL/HTTPS', detail: 'Tu web no tiene certificado SSL. Google penaliza las webs sin HTTPS y Chrome las marca como "No seguras".' });
-
-// Schema
-if (crawl.hasSchemaMarkup) onPageIssues.push({ severity: 'good', label: 'Schema markup detectado', detail: `Tipos: ${(crawl.schemaTypes || []).join(', ')}` });
-else onPageIssues.push({ severity: 'warning', label: 'Sin schema markup', detail: 'Los datos estructurados ayudan a Google a entender tu contenido y mostrar rich snippets.' });
-
-// Sitemap
-if (!crawl.hasSitemap) onPageIssues.push({ severity: 'warning', label: 'Sin sitemap.xml', detail: 'El sitemap ayuda a Google a descubrir todas tus páginas. Créalo y súbelo a Search Console.' });
-else onPageIssues.push({ severity: 'good', label: 'Sitemap detectado', detail: 'Google puede descubrir tus páginas correctamente.' });
-
-// Canonical
-if (crawl.hasCanonical) onPageIssues.push({ severity: 'good', label: 'Canonical configurado', detail: 'Evita problemas de contenido duplicado.' });
-else onPageIssues.push({ severity: 'warning', label: 'Sin canonical tag', detail: 'Puede causar problemas de contenido duplicado si tu web es accesible desde varias URLs.' });
-
-// PageSpeed
-const mobilePS = pagespeed.mobile?.performance;
-if (mobilePS) {
-  if (mobilePS >= 90) onPageIssues.push({ severity: 'good', label: `PageSpeed mobile: ${mobilePS}/100`, detail: 'Excelente velocidad — Google te premia.' });
-  else if (mobilePS >= 50) onPageIssues.push({ severity: 'warning', label: `PageSpeed mobile: ${mobilePS}/100`, detail: 'Velocidad media. Mejorar compresión de imágenes y CSS ayudaría.' });
-  else onPageIssues.push({ severity: 'critical', label: `PageSpeed mobile: ${mobilePS}/100`, detail: `Tu web es lenta en móvil. LCP: ${pagespeed.mobile?.lcp ? (pagespeed.mobile.lcp / 1000).toFixed(1) + 's' : '?'}. Google penaliza por encima de 2.5s.` });
-}
-
-// Content
-if (crawl.wordCount < 300) onPageIssues.push({ severity: 'warning', label: `Solo ${crawl.wordCount} palabras en la home`, detail: 'Google prefiere páginas con contenido sustancial. 800+ palabras es ideal para la home.' });
-else if (crawl.wordCount >= 800) onPageIssues.push({ severity: 'good', label: `${crawl.wordCount} palabras`, detail: 'Buen volumen de contenido en la home.' });
-
-// Internal links
-if (crawl.internalLinks < 5) onPageIssues.push({ severity: 'warning', label: `Solo ${crawl.internalLinks} enlaces internos`, detail: 'Pocos enlaces internos dificultan que Google descubra el resto de tus páginas.' });
-
-const criticals = onPageIssues.filter(i => i.severity === 'critical');
-const warnings = onPageIssues.filter(i => i.severity === 'warning');
-const goods = onPageIssues.filter(i => i.severity === 'good');
-
-// ─── Qualitative assessment ──────────────────────────────────────────────
-const seoScore = scoreBreakdown.seo ?? 0;
-let assessment = '';
-if (seoSkipped) {
-  assessment = `${client.name} aún no tiene presencia medible en buscadores — DataForSEO no detecta keywords posicionadas ni tráfico orgánico estimado. Esto significa que cuando alguien busca tus servicios en Google, no te encuentra. ${criticals.length > 0 ? `Hay ${criticals.length} problema${criticals.length > 1 ? 's' : ''} crítico${criticals.length > 1 ? 's' : ''} de SEO on-page que resolver antes de que el posicionamiento sea posible.` : ''} La buena noticia: tu web tiene ${crawl.wordCount || 0} palabras de contenido, SSL activo y sitemap — hay base para trabajar.`;
-} else if (seoScore < 30) {
-  assessment = `Visibilidad SEO crítica (${seoScore}/100). Con ${seo.keywordsTop10 || 0} keywords en top 10 y ~${seo.organicTrafficEstimate || 0} visitas orgánicas, la web está prácticamente invisible en Google. Tus competidores captan el tráfico que debería ser tuyo.`;
-} else if (seoScore < 60) {
-  assessment = `Visibilidad SEO en desarrollo (${seoScore}/100). ${seo.keywordsTop10 || 0} keywords en top 10 generan ~${seo.organicTrafficEstimate || 0} visitas. Hay base pero la brecha con competidores es grande. Prioriza las keywords de alto volumen donde ya estás en posiciones 10-20.`;
-} else {
-  assessment = `SEO competitivo (${seoScore}/100). ${seo.keywordsTop10 || 0} keywords en top 10 con ~${(seo.organicTrafficEstimate || 0).toLocaleString()} visitas orgánicas. Buen posicionamiento — foco en defender posiciones y atacar keywords de competidores.`;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Difficulty badge color ───────────────────────────────────────────────
 function difficultyColor(d: number): { bg: string; fg: string } {
   if (d <= 20) return { bg: '#dcfce7', fg: '#166534' };
   if (d <= 35) return { bg: '#d9f99d', fg: '#3f6212' };
@@ -154,19 +62,18 @@ function difficultyColor(d: number): { bg: string; fg: string } {
   return { bg: '#fca5a5', fg: '#7f1d1d' };
 }
 
+function positionChange(curr: number, prev?: number): { text: string; color: string } {
+  if (!prev) return { text: 'new', color: '#1D9E75' };
+  const diff = prev - curr;
+  if (diff > 0) return { text: `↑${diff}`, color: '#1D9E75' };
+  if (diff < 0) return { text: `↓${Math.abs(diff)}`, color: '#E24B4A' };
+  return { text: '=', color: '#94a3b8' };
+}
+
 function fmtNum(n: number | string): string {
   if (typeof n === 'string') return n;
   return n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
 }
-
-const sevIcon: Record<string, { icon: string; color: string; bg: string }> = {
-  critical: { icon: 'error', color: '#E24B4A', bg: '#FCEBEB' },
-  warning: { icon: 'warning', color: '#BA7517', bg: '#FAEEDA' },
-  good: { icon: 'check_circle', color: '#1D9E75', bg: '#E1F5EE' },
-};
-
-const kwHistory = allSnapshots.map(s => s.pipeline_output?.seo?.keywordsTop10 || 0);
-const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTrafficEstimate || 0);
 ---
 
 <DashboardLayout title="SEO" currentPath="/dashboard/pillar/seo" tier={tier} clientName={client.name} domain={client.domain} lastReportMonth={snapshot.month} lastReportDate={snapshot.date}>
@@ -191,23 +98,14 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
     </div>
   </div>
 
-  <!-- ══ Valoración Ejecutiva IA ══ -->
-  <section style="background:linear-gradient(135deg, #000e41, #001f70);border-radius:16px;padding:24px 28px;color:white;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span class="material-symbols-outlined" style="font-size:18px;color:#69ff87;">auto_awesome</span>
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#69ff87;">Diagnóstico AION</span>
-    </div>
-    <p style="font-size:15px;line-height:1.7;color:#e2e8f0;">{assessment}</p>
-  </section>
-
   <!-- ══ Stat Cards ══ -->
   <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
     {stats.map(s => {
       const curr = typeof s.value === 'number' ? s.value : 0;
-      const prev = (s as any).prev != null ? (s as any).prev : null;
+      const prev = typeof s.prev === 'number' ? s.prev : null;
       const delta = prev != null ? curr - prev : null;
-      const isGood = delta != null && (((s as any).better === 'up' && delta > 0) || ((s as any).better === 'down' && delta < 0));
-      const isBad = delta != null && (((s as any).better === 'up' && delta < 0) || ((s as any).better === 'down' && delta > 0));
+      const isGood = delta != null && ((s.better === 'up' && delta > 0) || (s.better === 'down' && delta < 0));
+      const isBad = delta != null && ((s.better === 'up' && delta < 0) || (s.better === 'down' && delta > 0));
       const deltaColor = isGood ? '#1D9E75' : isBad ? '#E24B4A' : '#94a3b8';
       return (
         <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
@@ -216,7 +114,7 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
             <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{s.label}</span>
           </div>
           <div style="display:flex;align-items:baseline;gap:8px;">
-            <span style="font-size:26px;font-weight:900;color:#1a1a2e;">{(s as any).fmt === 'num' && typeof s.value === 'number' ? fmtNum(s.value) : s.value}{(s as any).suffix || ''}</span>
+            <span style="font-size:26px;font-weight:900;color:#1a1a2e;">{s.format === 'number' && typeof s.value === 'number' ? fmtNum(s.value) : s.value}</span>
             {delta != null && Math.abs(delta) > 0 && (
               <span style={`font-size:12px;font-weight:700;color:${deltaColor};`}>
                 {delta > 0 ? '↑' : '↓'}{Math.abs(delta).toLocaleString()}
@@ -228,38 +126,7 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
     })}
   </section>
 
-  <!-- ══ SEO On-Page Audit ══ -->
-  <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
-      <div>
-        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Auditoría SEO On-Page</h2>
-        <p style="font-size:12px;color:#64748b;margin-top:2px;">Estado técnico de tu web para buscadores</p>
-      </div>
-      <div style="display:flex;gap:6px;">
-        {criticals.length > 0 && <span style="background:#FCEBEB;color:#E24B4A;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{criticals.length} críticos</span>}
-        {warnings.length > 0 && <span style="background:#FAEEDA;color:#BA7517;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{warnings.length} avisos</span>}
-        {goods.length > 0 && <span style="background:#E1F5EE;color:#1D9E75;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">{goods.length} ok</span>}
-      </div>
-    </div>
-    <div style="padding:4px 0;">
-      {[...criticals, ...warnings, ...goods].map(issue => {
-        const s = sevIcon[issue.severity];
-        return (
-          <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 24px;border-bottom:1px solid #f8f8f8;">
-            <div style={`width:28px;height:28px;border-radius:8px;background:${s.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`}>
-              <span class="material-symbols-outlined" style={`font-size:16px;color:${s.color};`}>{s.icon}</span>
-            </div>
-            <div>
-              <p style="font-size:13px;font-weight:700;color:#1a1a2e;">{issue.label}</p>
-              <p style="font-size:12px;color:#64748b;line-height:1.4;margin-top:2px;">{issue.detail}</p>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </section>
-
-  <!-- ══ Keywords Table ══ -->
+  <!-- ══ Keywords Table (OpenSEO style) ══ -->
   {topKeywords.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
@@ -271,28 +138,36 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
           <thead>
             <tr style="background:#f7f9ff;">
               <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Keyword</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Cambio</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Volumen</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Dificultad</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Posición</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Cambio</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Volumen</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Dificultad</th>
             </tr>
           </thead>
           <tbody>
-            {topKeywords.map((kw: any, i: number) => {
+            {topKeywords.map((kw, i) => {
+              const change = positionChange(kw.position, kw.prevPosition);
               const diff = difficultyColor(kw.difficulty || 0);
-              const prev = kw.prevPosition;
-              const change = !prev ? { text: 'new', color: '#1D9E75' } : prev > kw.position ? { text: `↑${prev - kw.position}`, color: '#1D9E75' } : prev < kw.position ? { text: `↓${kw.position - prev}`, color: '#E24B4A' } : { text: '=', color: '#94a3b8' };
               return (
                 <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
-                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;text-transform:capitalize;">{kw.keyword}</td>
-                  <td style="text-align:center;padding:12px 16px;font-weight:800;font-size:15px;color:#1a1a2e;">{kw.position || '—'}</td>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;max-width:300px;">
+                    <span style="text-transform:capitalize;">{kw.keyword}</span>
+                  </td>
                   <td style="text-align:center;padding:12px 16px;">
-                    {change.text === 'new' ? <span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">new</span>
-                    : <span style={`font-weight:700;font-size:12px;color:${change.color};`}>{change.text}</span>}
+                    <span style="font-weight:800;font-size:15px;color:#1a1a2e;">{kw.position || '—'}</span>
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    {change.text === 'new' ? (
+                      <span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">new</span>
+                    ) : (
+                      <span style={`font-weight:700;font-size:12px;color:${change.color};`}>{change.text}</span>
+                    )}
                   </td>
                   <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
                   <td style="text-align:center;padding:12px 16px;">
-                    <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>{kw.difficulty || '—'}</span>
+                    <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
+                      {kw.difficulty || '—'}
+                    </span>
                   </td>
                 </tr>
               );
@@ -303,116 +178,93 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
     </section>
   )}
 
-  <!-- ══ GSC Real Data ══ -->
+  <!-- ══ GSC Real Data (if available) ══ -->
   {gscQueries.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
         <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Search Console — Datos reales</h2>
         <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
       </div>
-      <div style="padding:16px 24px;background:#f0f4ff;border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="material-symbols-outlined" style="font-size:16px;color:#1A4B8C;">auto_awesome</span>
-          <p style="font-size:12px;color:#434750;">
-            {gsc.totalClicks > 0 && gsc.avgPosition <= 20
-              ? `Recibes ${gsc.totalClicks} clicks semanales de Google con posición media ${gsc.avgPosition}. ${gscQueries.filter((q: any) => q.ctr < 2 && q.impressions > 50).length > 0 ? 'Hay keywords con muchas impresiones y CTR bajo — optimizar los titles puede aumentar clicks sin cambiar posiciones.' : 'El CTR es razonable para tus posiciones actuales.'}`
-              : gsc.totalImpressions > 0
-                ? `Google muestra tu web ${gsc.totalImpressions} veces pero solo recibes ${gsc.totalClicks} clicks. Tus titles y descriptions necesitan ser más atractivos.`
-                : 'Aún no hay suficientes datos en Search Console para analizar.'}
-          </p>
-        </div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:#f7f9ff;">
-            <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Query</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
-          </tr>
-        </thead>
-        <tbody>
-          {gscQueries.map((q: any, i: number) => (
-            <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
-              <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{q.query}</td>
-              <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{q.clicks}</td>
-              <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions.toLocaleString()}</td>
-              <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{q.ctr}%</td>
-              <td style="text-align:center;padding:12px 16px;">
-                <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position}</span>
-              </td>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Query</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {gscQueries.map((q, i) => (
+              <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{q.query}</td>
+                <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{q.clicks}</td>
+                <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions.toLocaleString()}</td>
+                <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{q.ctr}%</td>
+                <td style="text-align:center;padding:12px 16px;">
+                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   )}
 
-  <!-- ══ Keyword Gap ══ -->
+  <!-- ══ Keyword Gap (opportunities) ══ -->
   {keywordGap.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;">
         <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Oportunidades — Keywords de competidores</h2>
         <p style="font-size:12px;color:#64748b;margin-top:2px;">Keywords donde tus competidores rankean y tú no</p>
       </div>
-      <div style="padding:16px 24px;background:#FFF8EE;border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="material-symbols-outlined" style="font-size:16px;color:#BA7517;">auto_awesome</span>
-          <p style="font-size:12px;color:#7a5a1a;">
-            Tus competidores posicionan {keywordGap.length}+ keywords donde tú no apareces. Las de dificultad baja (<35) son las más rápidas de atacar con contenido específico.
-          </p>
-        </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f7f9ff;">
+              <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Keyword</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Volumen</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Dificultad</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Competidor</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impacto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {keywordGap.map((kw, i) => {
+              const diff = difficultyColor(kw.difficulty || 50);
+              const impactColor = kw.impact === 'high' ? '#1A4B8C' : kw.impact === 'medium' ? '#BA7517' : '#64748b';
+              return (
+                <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{kw.keyword}</td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
+                      {kw.difficulty || '—'}
+                    </span>
+                  </td>
+                  <td style="text-align:center;padding:12px 16px;font-size:12px;color:#64748b;">{kw.competitor || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;">
+                    <span style={`font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;color:white;background:${impactColor};text-transform:uppercase;`}>
+                      {kw.impact || '—'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:#f7f9ff;">
-            <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Keyword</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Volumen</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Dificultad</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Competidor</th>
-            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impacto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {keywordGap.map((kw: any, i: number) => {
-            const diff = difficultyColor(kw.difficulty || 50);
-            return (
-              <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
-                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{kw.keyword}</td>
-                <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
-                <td style="text-align:center;padding:12px 16px;">
-                  <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>{kw.difficulty || '—'}</span>
-                </td>
-                <td style="text-align:center;padding:12px 16px;font-size:12px;color:#64748b;">{kw.competitor || '—'}</td>
-                <td style="text-align:center;padding:12px 16px;">
-                  <span style={`font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;color:white;background:${kw.impact === 'high' ? '#1A4B8C' : kw.impact === 'medium' ? '#BA7517' : '#64748b'};text-transform:uppercase;`}>{kw.impact || '—'}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </section>
   )}
 
-  <!-- ══ Competitors ══ -->
+  <!-- ══ Competitor SEO Comparison ══ -->
   {compItems.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;">
         <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Competidores — SEO</h2>
-      </div>
-      <div style="padding:16px 24px;background:#f0f4ff;border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="material-symbols-outlined" style="font-size:16px;color:#1A4B8C;">auto_awesome</span>
-          <p style="font-size:12px;color:#434750;">
-            {compItems[0] && (seo.organicTrafficEstimate || 0) > 0
-              ? `Tu principal competidor (${compItems[0].domain}) tiene ${Math.round((compItems[0].organicTrafficEstimate || 0) / Math.max(seo.organicTrafficEstimate || 1, 1))}x más tráfico orgánico que tú. La brecha en keywords es de ${(compItems[0].keywordsTop10 || 0) - (seo.keywordsTop10 || 0)} keywords.`
-              : compItems[0]
-                ? `Tu principal competidor (${compItems[0].domain}) tiene ${fmtNum(compItems[0].organicTrafficEstimate || 0)} visitas orgánicas y ${compItems[0].keywordsTop10 || 0} keywords en top 10. Este es tu benchmark a superar.`
-                : ''}
-          </p>
-        </div>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
@@ -421,6 +273,7 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
             <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">KW Top 10</th>
             <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Tráfico</th>
             <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Domain Rank</th>
+            <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">vs Tú</th>
           </tr>
         </thead>
         <tbody>
@@ -429,60 +282,30 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
             <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{seo.keywordsTop10 || 0}</td>
             <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{fmtNum(seo.organicTrafficEstimate || 0)}</td>
             <td style="text-align:center;padding:12px 16px;color:#1A4B8C;">{fmtNum(seo.domainRank || 0)}</td>
+            <td style="text-align:center;padding:12px 16px;">—</td>
           </tr>
-          {compItems.map((c: any, i: number) => (
-            <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 0 ? 'background:#fafbfd;' : ''}`}>
-              <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{c.domain}</td>
-              <td style="text-align:center;padding:12px 16px;">{c.keywordsTop10 || '—'}</td>
-              <td style="text-align:center;padding:12px 16px;">{fmtNum(c.organicTrafficEstimate || 0)}</td>
-              <td style="text-align:center;padding:12px 16px;">{fmtNum(c.domainRank || 0)}</td>
-            </tr>
-          ))}
+          {compItems.map((c, i) => {
+            const kwDiff = (c.keywordsTop10 || 0) - (seo.keywordsTop10 || 0);
+            return (
+              <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 0 ? 'background:#fafbfd;' : ''}`}>
+                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{c.domain}</td>
+                <td style="text-align:center;padding:12px 16px;">{c.keywordsTop10 || '—'}</td>
+                <td style="text-align:center;padding:12px 16px;">{fmtNum(c.organicTrafficEstimate || 0)}</td>
+                <td style="text-align:center;padding:12px 16px;">{fmtNum(c.domainRank || 0)}</td>
+                <td style="text-align:center;padding:12px 16px;">
+                  {kwDiff > 0 ? (
+                    <span style="background:#FCEBEB;color:#E24B4A;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">+{kwDiff} kw</span>
+                  ) : kwDiff < 0 ? (
+                    <span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">{kwDiff} kw</span>
+                  ) : (
+                    <span style="color:#94a3b8;">=</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-    </section>
-  )}
-
-  <!-- ══ Content Assessment ══ -->
-  {content.valueProposition && (
-    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:24px;">
-      <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:12px;">Análisis de contenido</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div>
-          <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Propuesta de valor</p>
-          <p style="font-size:13px;color:#434750;line-height:1.5;">{content.valueProposition}</p>
-        </div>
-        <div>
-          <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Audiencia detectada</p>
-          <p style="font-size:13px;color:#434750;line-height:1.5;">{content.audienceMatch || '—'}</p>
-        </div>
-      </div>
-      {(content.strengths?.length > 0 || content.weaknesses?.length > 0) && (
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0;">
-          {content.strengths?.length > 0 && (
-            <div>
-              <p style="font-size:11px;font-weight:700;color:#1D9E75;text-transform:uppercase;margin-bottom:6px;">Fortalezas</p>
-              {(content.strengths as string[]).map((s: string) => (
-                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
-                  <span class="material-symbols-outlined" style="font-size:14px;color:#1D9E75;margin-top:2px;">check</span>
-                  <span style="font-size:12px;color:#434750;line-height:1.4;">{s}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {content.weaknesses?.length > 0 && (
-            <div>
-              <p style="font-size:11px;font-weight:700;color:#E24B4A;text-transform:uppercase;margin-bottom:6px;">Debilidades</p>
-              {(content.weaknesses as string[]).map((w: string) => (
-                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
-                  <span class="material-symbols-outlined" style="font-size:14px;color:#E24B4A;margin-top:2px;">close</span>
-                  <span style="font-size:12px;color:#434750;line-height:1.4;">{w}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </section>
   )}
 
@@ -494,8 +317,13 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
         {kwHistory.map((v, i) => {
           const max = Math.max(...kwHistory, 1);
           const h = Math.max(2, Math.round((v / max) * 48));
-          return <div style={`flex:1;background:${i === kwHistory.length - 1 ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
+          const isLast = i === kwHistory.length - 1;
+          return <div style={`flex:1;background:${isLast ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
         })}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#94a3b8;">
+        <span>{kwHistory[0]}</span>
+        <span>{kwHistory[kwHistory.length - 1]}</span>
       </div>
     </div>
     <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
@@ -504,8 +332,13 @@ const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTraf
         {trafficHistory.map((v, i) => {
           const max = Math.max(...trafficHistory, 1);
           const h = Math.max(2, Math.round((v / max) * 48));
-          return <div style={`flex:1;background:${i === trafficHistory.length - 1 ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
+          const isLast = i === trafficHistory.length - 1;
+          return <div style={`flex:1;background:${isLast ? '#1A4B8C' : '#e2e8f0'};height:${h}px;border-radius:2px 2px 0 0;`}></div>;
         })}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#94a3b8;">
+        <span>{fmtNum(trafficHistory[0])}</span>
+        <span>{fmtNum(trafficHistory[trafficHistory.length - 1])}</span>
       </div>
     </div>
   </section>
