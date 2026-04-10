@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ request }) => {
     await page.goto(printUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 
     // Wait for any animations/fonts to settle
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Generate PDF
     const pdfBuffer = await page.pdf({
