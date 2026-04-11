@@ -128,7 +128,7 @@ const opportunitiesJson = JSON.stringify(opportunities);
             <input type="text" id="strat-growth" placeholder="Ej: software RRHH, control horario, consultoría digital…"
               value={currentStrategy.growthService || ''}
               style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;" />
-            <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Déjalo vacío si no quieres priorizar ninguno en particular.</p>
+            <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Se guarda al pulsar <strong>"Guardar keywords prioritarias"</strong> abajo · Déjalo vacío si no quieres priorizar ninguno.</p>
           </div>
 
         </div>
@@ -145,13 +145,16 @@ const opportunitiesJson = JSON.stringify(opportunities);
         </p>
 
         <!-- Add custom keyword -->
-        <div style="display:flex;gap:8px;margin-bottom:16px;padding:14px;background:#f7f9ff;border-radius:10px;border:1px dashed #cbd5e1;">
-          <input type="text" id="kw-custom-input" placeholder="Añadir una keyword manualmente…"
-            style="flex:1;padding:9px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
-          <button id="kw-custom-add" style={`background:${SEO_COLOR};color:white;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;`}>
-            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:3px;">add</span>
-            Añadir
-          </button>
+        <div style="margin-bottom:16px;padding:14px;background:#f7f9ff;border-radius:10px;border:1px dashed #cbd5e1;">
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="kw-custom-input" placeholder="Añadir una keyword manualmente…"
+              style="flex:1;padding:9px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+            <button id="kw-custom-add" style={`background:${SEO_COLOR};color:white;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;`}>
+              <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:3px;">add</span>
+              Añadir
+            </button>
+          </div>
+          <p style="font-size:11px;color:#64748b;margin-top:6px;">Detectamos automáticamente la intención y estimamos viabilidad. El volumen real lo sabrás tras el siguiente audit.</p>
         </div>
 
         <!-- Opportunity list -->
@@ -207,12 +210,15 @@ const opportunitiesJson = JSON.stringify(opportunities);
     </div>
 
     <!-- Footer actions -->
-    <div style="padding:20px 32px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0;background:#fafbfd;border-radius:0 0 20px 20px;">
+    <div style="padding:20px 32px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0;background:#fafbfd;border-radius:0 0 20px 20px;flex-wrap:wrap;">
       <button id="kw-modal-cancel" style="background:transparent;border:none;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
-      <button id="kw-modal-save" style={`background:${SEO_COLOR};color:white;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;`}>
-        <span class="material-symbols-outlined" style="font-size:16px;">save</span>
-        Guardar keywords prioritarias
-      </button>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <p id="kw-save-error" style="display:none;font-size:12px;color:#E24B4A;font-weight:600;margin:0;"></p>
+        <button id="kw-modal-save" style={`background:${SEO_COLOR};color:white;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;`}>
+          <span class="material-symbols-outlined" style="font-size:16px;">save</span>
+          Guardar keywords prioritarias
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -271,6 +277,40 @@ const opportunitiesJson = JSON.stringify(opportunities);
 
     document.querySelectorAll('.kw-opp-row').forEach(bindRow);
 
+    // ─── Heuristic scoring for manually added keywords ───────────────
+    // No real volume/difficulty until next audit — we label intent and
+    // estimate feasibility from keyword shape so the badge always appears.
+    const TRANSACTIONAL = ['precio','precios','comprar','contratar','cotizacion','cotización','presupuesto','tarifa','tarifas','barato','software','app','herramienta','plataforma','servicio'];
+    const COMMERCIAL = ['mejor','mejores','comparativa','vs','alternativa','alternativas','review','reseña','resena','opinion','opiniones','ranking','top'];
+    function scoreManualKeyword(kw) {
+      const k = kw.toLowerCase();
+      const tokens = k.split(/\s+/).filter(Boolean);
+      let intent = 'informational';
+      if (TRANSACTIONAL.some(function(m) { return k.indexOf(m) !== -1; })) intent = 'transactional';
+      else if (COMMERCIAL.some(function(m) { return k.indexOf(m) !== -1; })) intent = 'commercial';
+      // Heuristic feasibility: longer/more specific = easier (less competition),
+      // single broad terms = harder. Transactional intent boosts one notch.
+      let feasibility = 'medium';
+      if (tokens.length >= 4) feasibility = 'high';
+      else if (tokens.length <= 1) feasibility = 'low';
+      if (intent === 'transactional' && feasibility === 'low') feasibility = 'medium';
+      if (intent === 'transactional' && feasibility === 'medium' && tokens.length >= 3) feasibility = 'high';
+      return { keyword: kw, intent: intent, feasibility: feasibility, source: 'manual', rationale: 'Añadida manualmente — estimación heurística hasta el próximo audit' };
+    }
+
+    function feasibilityBadgeHtml(feas) {
+      const map = {
+        high: { bg: '#d1fae5', fg: '#065f46', label: 'Viabilidad alta' },
+        medium: { bg: '#fef3c7', fg: '#92400e', label: 'Viabilidad media' },
+        low: { bg: '#fee2e2', fg: '#991b1b', label: 'Viabilidad baja' },
+      };
+      const m = map[feas] || map.medium;
+      return '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;background:' + m.bg + ';color:' + m.fg + ';">' + m.label + '</span>';
+    }
+    function intentLabelFor(intent) {
+      return intent === 'transactional' ? 'Compra' : intent === 'commercial' ? 'Comparación' : 'Información';
+    }
+
     // Add custom keyword
     customAdd.addEventListener('click', function() {
       const val = customInput.value.trim();
@@ -286,7 +326,7 @@ const opportunitiesJson = JSON.stringify(opportunities);
         customInput.value = '';
         return;
       }
-      const data = { keyword: val, source: 'manual' };
+      const data = scoreManualKeyword(val);
       const row = document.createElement('label');
       row.className = 'kw-opp-row manual';
       row.setAttribute('data-keyword', val);
@@ -294,11 +334,14 @@ const opportunitiesJson = JSON.stringify(opportunities);
       row.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #1A4B8C;border-radius:10px;cursor:pointer;background:#f0f4ff;';
       row.innerHTML =
         '<input type="checkbox" class="kw-cb" checked style="accent-color:#1A4B8C;width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-top:2px;">' +
-        '<div style="flex:1;">' +
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
             '<span style="font-size:14px;font-weight:700;color:#1a1a2e;">' + val + '</span>' +
+            feasibilityBadgeHtml(data.feasibility) +
+            '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;background:#f1f5f9;color:#475569;">' + intentLabelFor(data.intent) + '</span>' +
             '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;background:#f3e8ff;color:#6b21a8;">Manual</span>' +
           '</div>' +
+          '<p style="font-size:11px;color:#64748b;margin-top:4px;font-style:italic;">↳ ' + data.rationale + '</p>' +
         '</div>';
       list.appendChild(row);
       bindRow(row);
@@ -313,11 +356,27 @@ const opportunitiesJson = JSON.stringify(opportunities);
     }
 
     // Save
+    const errorEl = document.getElementById('kw-save-error');
+    function showSaveError(msg) {
+      if (!errorEl) return;
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+    function clearSaveError() {
+      if (!errorEl) return;
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+
     saveBtn.addEventListener('click', async function() {
+      clearSaveError();
+      const demandInput = document.querySelector('input[name="demandType"]:checked');
+      const focusInput = document.querySelector('input[name="focus"]:checked');
+      const growthInput = document.getElementById('strat-growth');
       const strategy = {
-        demandType: (document.querySelector('input[name="demandType"]:checked') || {}).value || 'existing',
-        focus: (document.querySelector('input[name="focus"]:checked') || {}).value || 'quality',
-        growthService: (document.getElementById('strat-growth') || {}).value || '',
+        demandType: demandInput ? demandInput.value : 'existing',
+        focus: focusInput ? focusInput.value : 'quality',
+        growthService: growthInput ? growthInput.value : '',
       };
 
       const selected = [];
@@ -331,7 +390,7 @@ const opportunitiesJson = JSON.stringify(opportunities);
       });
 
       if (selected.length === 0) {
-        alert('Selecciona al menos 1 keyword');
+        showSaveError('Selecciona al menos 1 keyword antes de guardar');
         return;
       }
 
@@ -344,9 +403,18 @@ const opportunitiesJson = JSON.stringify(opportunities);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ priority_keywords: selected, keyword_strategy: strategy }),
         });
-        if (!res.ok) throw new Error('Save failed');
+        if (!res.ok) {
+          let errMsg = 'Error ' + res.status;
+          try {
+            const body = await res.json();
+            if (body && body.error) errMsg += ': ' + body.error;
+          } catch (_) {}
+          throw new Error(errMsg);
+        }
         window.location.reload();
       } catch (err) {
+        console.error('[keyword-save]', err);
+        showSaveError((err && err.message) ? err.message : 'Error al guardar');
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">save</span> Reintentar';
       }

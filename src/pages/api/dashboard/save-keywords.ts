@@ -24,12 +24,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const priorityKeywords = body.priority_keywords as PriorityKeyword[] | undefined;
     const keywordStrategy = body.keyword_strategy as KeywordStrategy | undefined;
 
-    const existing = await getClientOnboarding(client.id);
-    if (!existing) {
-      return new Response(JSON.stringify({ error: 'Complete onboarding first' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    // If no onboarding row exists, seed a minimal one so keyword config
+    // is never blocked by onboarding state. The client can complete the
+    // rest of onboarding later.
+    const existing = (await getClientOnboarding(client.id)) || { client_id: client.id };
 
     await saveClientOnboarding({
       ...existing,
