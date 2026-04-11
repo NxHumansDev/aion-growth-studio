@@ -16,12 +16,11 @@ import { runKeywordGap } from './modules/keyword-gap';
 import { runTechStack } from './modules/techstack';
 import { runConversion } from './modules/conversion';
 import { runScore } from './modules/score';
-import { runInsights } from './modules/insights';
 import { runContentCadence } from './modules/content-cadence';
 import { runReputation } from './modules/reputation';
 import { runMetaAds } from './modules/meta-ads';
 import { runGoogleShopping } from './modules/google-shopping';
-import { runQAAgent } from './modules/qa-agent';
+import { runGrowthAgent } from '../ai/growth-agent';
 import { runCompetitorPageSpeed } from './modules/competitor-pagespeed';
 import { NEXT_STEP } from './types';
 import type { AuditStep, AuditStepOrDone, ModuleResult, AuditPageData, CrawlResult } from './types';
@@ -69,8 +68,7 @@ export const STEP_TIMEOUTS: Record<string, number> = {
   instagram: 90_000,
   linkedin: 90_000,
   reputation: 30_000,
-  insights: 90_000,
-  qa: 90_000,
+  growth_agent: 180_000, // Sonnet draft + structural + Opus QA + corrections — up to ~90s total in practice
   score: 15_000,
   competitors: 30_000,
   competitor_pagespeed: 120_000,
@@ -253,8 +251,25 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
     case 'score':
       return runScore(results);
 
-    case 'insights':
-      return runInsights(url, results);
+    case 'growth_agent': {
+      // Unified analysis: Sonnet draft → structural validate → Opus QA → corrections.
+      // Runs with minimal context (no client onboarding yet — audit is anonymous until
+      // the client signs up and links it). first-run.ts copies the result verbatim to
+      // snapshot.pipeline_output so the audit report and dashboard share the exact same
+      // growth_analysis. Zero drift audit → dashboard.
+      const hostname = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } })();
+      const analysis = await runGrowthAgent({
+        clientName: hostname,
+        domain: hostname,
+        sector: (results.sector as any)?.sector,
+        onboarding: null,
+        pipelineOutput: results,
+        priorSnapshot: null,
+      });
+      // Module result shape — return analysis directly so it lands in results.growth_agent.
+      // Audit report reads from audit.results.growth_agent (which == GrowthAnalysis).
+      return analysis as any;
+    }
 
     case 'meta_ads': {
       const comps: Array<{ name: string; url: string }> =
@@ -270,9 +285,6 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
         (results.competitors as any)?.competitors || [];
       return runGoogleShopping(url, topKw, comps);
     }
-
-    case 'qa':
-      return runQAAgent(results);
 
     default:
       return { skipped: true, reason: `Unknown step: ${step}` };

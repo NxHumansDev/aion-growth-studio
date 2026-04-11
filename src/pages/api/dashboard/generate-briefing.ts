@@ -1,12 +1,25 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { getClientOnboarding, getLatestSnapshot, IS_DEMO } from '../../../lib/db';
-import { generateBriefing } from '../../../lib/briefing';
+import {
+  getClientOnboarding, getLatestSnapshot, IS_DEMO, getClientById,
+  getActionPlan, getCompletedActions, getRejectedRecommendations,
+} from '../../../lib/db';
+import { runGrowthAgent } from '../../../lib/ai/growth-agent';
 
 /**
  * POST /api/dashboard/generate-briefing
- * Generates a personalized briefing from onboarding data + latest audit snapshot.
+ *
+ * Regenerates the Growth Agent analysis with enriched client context
+ * (onboarding, priority keywords, strategy, action history) and stores
+ * it in the latest snapshot's pipeline_output.growth_analysis.
+ *
+ * Use when the client has edited their onboarding / priority keywords
+ * and wants their dashboard narrative to reflect the new context —
+ * otherwise the initial analysis from the audit pipeline is used.
+ *
+ * Name kept as "generate-briefing" for backward compatibility; this
+ * is internally the Growth Agent regenerate endpoint.
  */
 export const POST: APIRoute = async ({ locals }) => {
   const client = (locals as any).client;
@@ -19,14 +32,6 @@ export const POST: APIRoute = async ({ locals }) => {
   }
 
   try {
-    const onboarding = await getClientOnboarding(client.id);
-    if (!onboarding) {
-      return new Response(JSON.stringify({ error: 'Complete onboarding first' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const snapshot = await getLatestSnapshot(client.id);
     if (snapshot.id === 'empty') {
       return new Response(JSON.stringify({ error: 'No audit data available' }), {
@@ -35,14 +40,32 @@ export const POST: APIRoute = async ({ locals }) => {
       });
     }
 
-    const briefing = await generateBriefing({
-      onboarding,
-      auditResults: snapshot.pipeline_output,
+    const [onboarding, clientFull, inProgress, completed, rejected] = await Promise.all([
+      getClientOnboarding(client.id),
+      getClientById(client.id).catch(() => null),
+      getActionPlan(client.id).catch(() => []),
+      getCompletedActions(client.id).catch(() => []),
+      getRejectedRecommendations(client.id).catch(() => []),
+    ]);
+
+    // Full Growth Agent pass: Sonnet draft → structural → Opus QA → corrections
+    const growthAnalysis = await runGrowthAgent({
       clientName: client.name,
       domain: client.domain,
+      sector: clientFull?.sector,
+      tier: clientFull?.tier,
+      onboarding,
+      pipelineOutput: snapshot.pipeline_output || {},
+      priorityKeywords: onboarding?.priority_keywords,
+      keywordStrategy: onboarding?.keyword_strategy,
+      actionHistory: {
+        completed: completed.map((a: any) => ({ title: a.title, impact: a.impact, completedAt: a.completed_at })),
+        inProgress: inProgress.filter((a: any) => a.status === 'in_progress').map((a: any) => ({ title: a.title, impact: a.impact })),
+        rejected: rejected.map((r: any) => ({ title: r.title, reason: r.rejected_reason })),
+      },
     });
 
-    // Store briefing in snapshot (non-blocking update)
+    // Store in snapshot
     if (!IS_DEMO) {
       const { createClient } = await import('@supabase/supabase-js');
       const url = import.meta.env?.SUPABASE_URL || process.env.SUPABASE_URL;
@@ -50,12 +73,12 @@ export const POST: APIRoute = async ({ locals }) => {
       if (url && key) {
         const sb = createClient(url, key);
         await sb.from('snapshots')
-          .update({ pipeline_output: { ...snapshot.pipeline_output, briefing } })
+          .update({ pipeline_output: { ...snapshot.pipeline_output, growth_analysis: growthAnalysis } })
           .eq('id', snapshot.id);
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, briefing }), {
+    return new Response(JSON.stringify({ ok: true, growth_analysis: growthAnalysis }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

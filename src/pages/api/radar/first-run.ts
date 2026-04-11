@@ -1,14 +1,9 @@
 import type { APIRoute } from 'astro';
 import {
   findRecentAuditByDomain, createSnapshotFromAudit, IS_DEMO,
-  getClientOnboarding, getAllSnapshots, logRecommendation,
-  getActionPlan, getCompletedActions, getRejectedRecommendations,
-  getClientById,
+  getAllSnapshots, logRecommendation, getSupabase,
 } from '../../../lib/db';
-import { createAuditPage } from '../../../lib/audit/supabase-storage';
-import { generateBriefing } from '../../../lib/briefing';
-import { runGrowthAgent } from '../../../lib/ai/growth-agent';
-import { getSupabase } from '../../../lib/db';
+import { createAuditPage, getAuditPage } from '../../../lib/audit/supabase-storage';
 
 export const prerender = false;
 
@@ -19,7 +14,13 @@ export const prerender = false;
  * Logic:
  * 1. Check if a recent audit (< 12h) exists for this domain → reuse it
  * 2. If not, start a new audit pipeline
- * 3. If linked, generate briefing + seed initial recommendations
+ * 3. If linked, copy growth_analysis from audit to snapshot and seed recommendations
+ *
+ * The audit pipeline already ran the Growth Agent at its final step
+ * (src/lib/audit/runner.ts → case 'growth_agent'), so the analysis is
+ * already verified by Opus QA and stored in audit.results.growth_agent.
+ * first-run.ts just copies it verbatim — zero regeneration, zero drift
+ * between audit report and dashboard.
  *
  * Body: { domain: string, clientId: string, email?: string, clientName?: string }
  */
@@ -41,18 +42,16 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (recentAudit) {
       // Reuse existing audit — link as first snapshot
-      let snapshotId: string | null = null;
       try {
-        snapshotId = await createSnapshotFromAudit(recentAudit.id, clientId);
+        await createSnapshotFromAudit(recentAudit.id, clientId);
       } catch (e) {
         console.log(`[first-run] Snapshot link note: ${(e as Error).message}`);
       }
 
-      // Generate briefing + seed recommendations from the audit data
       try {
-        await seedRecommendationsFromAudit(clientId, clientName || cleanDomain, cleanDomain);
+        await seedFromAudit(clientId, recentAudit.id, cleanDomain);
       } catch (e) {
-        console.error(`[first-run] Recommendation seeding failed:`, (e as Error).message);
+        console.error(`[first-run] Seeding failed:`, (e as Error).message);
       }
 
       return new Response(JSON.stringify({
@@ -79,108 +78,58 @@ export const POST: APIRoute = async ({ request }) => {
 };
 
 /**
- * After linking a snapshot, generate a personalized briefing and seed
- * initial recommendations so the client sees actionable items on first load.
+ * Copy the Growth Agent analysis from the completed audit into the
+ * client's snapshot, then seed the recommendations log from the
+ * prioritizedActions. No LLM calls — the audit pipeline already did
+ * all the generation and QA.
  */
-async function seedRecommendationsFromAudit(clientId: string, clientName: string, domain: string) {
-  const onboarding = await getClientOnboarding(clientId);
-  const snapshots = await getAllSnapshots(clientId);
-  if (snapshots.length === 0) return;
+async function seedFromAudit(clientId: string, auditId: string, domain: string) {
+  const audit = await getAuditPage(auditId);
+  const auditResults = audit.results || {};
+  const growthAnalysis = auditResults.growth_agent as any;
 
-  const latest = snapshots[snapshots.length - 1];
-  const auditResults = latest.pipeline_output || {};
-  const priorSnapshot = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
-
-  // Generate briefing with Sonnet (legacy — kept until commit 3)
-  const briefing = await generateBriefing({
-    onboarding: onboarding || { client_id: clientId } as any,
-    auditResults,
-    clientName,
-    domain,
-  });
-
-  console.log(`[first-run] Briefing generated: ${briefing.priorities.length} priorities, ${briefing.quickWins.length} quick wins`);
-
-  // Generate Growth Agent analysis (unified, coherent narrative + actions)
-  // Runs in parallel to briefing during transition. Fails soft — won't block first-run.
-  let growthAnalysis: any = null;
-  try {
-    const [client, inProgress, completed, rejected] = await Promise.all([
-      getClientById(clientId).catch(() => null),
-      getActionPlan(clientId).catch(() => []),
-      getCompletedActions(clientId).catch(() => []),
-      getRejectedRecommendations(clientId).catch(() => []),
-    ]);
-
-    growthAnalysis = await runGrowthAgent({
-      clientName,
-      domain,
-      sector: client?.sector,
-      tier: client?.tier,
-      onboarding,
-      pipelineOutput: auditResults,
-      priorSnapshot: priorSnapshot ? { date: priorSnapshot.date, pipeline_output: priorSnapshot.pipeline_output || {} } : null,
-      priorityKeywords: onboarding?.priority_keywords,
-      keywordStrategy: onboarding?.keyword_strategy,
-      actionHistory: {
-        completed: completed.map(a => ({ title: a.title, impact: a.impact, completedAt: a.completed_at })),
-        inProgress: inProgress.filter(a => a.status === 'in_progress').map(a => ({ title: a.title, impact: a.impact })),
-        rejected: rejected.map(r => ({ title: r.title, reason: r.rejected_reason })),
-      },
-    });
-    console.log(`[first-run] Growth Agent: ${growthAnalysis.prioritizedActions.length} actions, model=${growthAnalysis.model}`);
-  } catch (e) {
-    console.error(`[first-run] Growth Agent failed (non-blocking):`, (e as Error).message);
+  if (!growthAnalysis || !Array.isArray(growthAnalysis.prioritizedActions)) {
+    console.warn(`[first-run] No growth_analysis in audit ${auditId} — client dashboard will show metric-only view`);
+    return;
   }
 
-  // Save briefing + growth_analysis into the snapshot
+  // Copy growth_analysis into the snapshot's pipeline_output so dashboard
+  // pages read the exact same analysis that the audit report shows.
+  const snapshots = await getAllSnapshots(clientId);
+  if (snapshots.length === 0) return;
+  const latest = snapshots[snapshots.length - 1];
+
   try {
     const sb = getSupabase();
-    const updated: Record<string, any> = { ...auditResults, briefing };
-    if (growthAnalysis) updated.growth_analysis = growthAnalysis;
+    const updated: Record<string, any> = {
+      ...(latest.pipeline_output || {}),
+      growth_analysis: growthAnalysis,
+    };
     await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', latest.id);
   } catch (e) {
     console.error(`[first-run] Snapshot save failed:`, (e as Error).message);
   }
 
-  // Seed recommendations — prefer Growth Agent prioritizedActions, fall back to briefing.priorities
-  const actionsToSeed = growthAnalysis?.prioritizedActions?.length
-    ? growthAnalysis.prioritizedActions
-    : null;
-
-  if (actionsToSeed) {
-    for (const action of actionsToSeed) {
-      await logRecommendation({
-        client_id: clientId,
-        source: 'growth_agent',
-        pillar: action.pillar,
-        title: action.title,
-        description: action.description,
-        impact: action.businessImpact || 'high',
-        status: 'pending',
-        data: {
-          rank: action.rank,
-          detail: action.detail,
-          expectedOutcome: action.expectedOutcome,
-          effort: action.effort,
-          timeframe: action.timeframe,
-          rationale: action.rationale,
-          linkedGap: action.linkedGap,
-        },
-      });
-    }
-    console.log(`[first-run] Seeded ${actionsToSeed.length} Growth Agent actions for ${domain}`);
-  } else {
-    for (const priority of briefing.priorities) {
-      await logRecommendation({
-        client_id: clientId,
-        source: 'radar',
-        title: priority.title,
-        description: priority.description,
-        impact: priority.impact || 'high',
-        status: 'pending',
-      });
-    }
-    console.log(`[first-run] Seeded ${briefing.priorities.length} briefing priorities (fallback) for ${domain}`);
+  // Seed recommendations from prioritizedActions — rank + pillar + full detail
+  for (const action of growthAnalysis.prioritizedActions) {
+    await logRecommendation({
+      client_id: clientId,
+      source: 'growth_agent',
+      pillar: action.pillar,
+      title: action.title,
+      description: action.description,
+      impact: action.businessImpact || 'high',
+      status: 'pending',
+      data: {
+        rank: action.rank,
+        detail: action.detail,
+        expectedOutcome: action.expectedOutcome,
+        effort: action.effort,
+        timeframe: action.timeframe,
+        rationale: action.rationale,
+        linkedGap: action.linkedGap,
+      },
+    });
   }
+  console.log(`[first-run] Seeded ${growthAnalysis.prioritizedActions.length} actions for ${domain}`);
 }

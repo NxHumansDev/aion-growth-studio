@@ -59,9 +59,33 @@ const rep = (!r.reputation?.skipped && r.reputation?.reputationLevel && r.reputa
 const repRaw = r.reputation || {}; // always available, even when reputationLevel === 'no_data'
 const metaAds = (!r.meta_ads?.skipped && r.meta_ads) ? r.meta_ads : null;
 const shopping = (!r.google_shopping?.skipped && r.google_shopping) ? r.google_shopping : null;
-const qa = r.qa || null;
-const qaSuppressed: string[] = qa?.suppressedSections || [];
-const insights = r.insights || {};
+// Growth Agent unified analysis — audit.results.growth_agent is set by the
+// pipeline's final step (already verified by Opus QA internally). The whole
+// audit report reads its narratives from here, so audit ↔ dashboard ↔ chat
+// share the exact same text. Legacy insights/qa fields fall back to empty.
+const growthAnalysis = (r.growth_agent || {}) as any;
+const execSummary = growthAnalysis.executiveSummary || null;
+const pillarAnalysisGA = growthAnalysis.pillarAnalysis || {};
+const prioritizedActionsGA: any[] = Array.isArray(growthAnalysis.prioritizedActions) ? growthAnalysis.prioritizedActions : [];
+const auditSummariesGA = growthAnalysis.auditSummaries || {};
+const upsidePotentialGA = execSummary?.upsidePotential || null;
+
+// Synthesize the legacy-shaped insights object from growth_analysis so the
+// existing template slots (summary, bullets, initiatives, visibility/benchmark/experience summaries)
+// keep working with zero visual changes. If growth_analysis is missing,
+// fall back to any legacy insights that might exist in old audits.
+const legacyInsights = (r.insights || {}) as any;
+const insights: any = execSummary ? {
+  summary: [execSummary.headline, execSummary.situation].filter(Boolean).join(' '),
+  bullets: (execSummary.criticalGaps || []).slice(0, 3),
+  initiatives: prioritizedActionsGA.slice(0, 4).map((a: any) => ({ title: a.title, description: a.description })),
+  visibilitySummary: pillarAnalysisGA.seo?.assessment || null,
+  benchmarkSummary: auditSummariesGA.benchmark || null,
+  experienceSummary: auditSummariesGA.experience || null,
+} : legacyInsights;
+
+const qa = null;                        // legacy qa suppression no longer used
+const qaSuppressed: string[] = [];
 const linkedin = (!r.linkedin?.skipped && r.linkedin?.found) ? r.linkedin : null;
 const instagram = (!r.instagram?.skipped && r.instagram?.found) ? r.instagram : null;
 const content = (!r.content?.skipped && r.content) ? r.content : null;
@@ -1225,6 +1249,18 @@ const donutSVG = buildDonutSVG();
                 <p style="font-size:0.88rem;color:#c3c6d2;line-height:1.6;max-width:520px;">
                   {healthSummaryText}
                 </p>
+
+                {upsidePotentialGA && upsidePotentialGA.metric && upsidePotentialGA.potential && (
+                  <div style="margin-top:18px;padding:14px 18px;background:linear-gradient(135deg,rgba(105,255,135,0.12),rgba(93,209,164,0.08));border-left:3px solid #69FF87;border-radius:8px;max-width:520px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                      <span class="material-symbols-outlined" style="font-size:16px;color:#69FF87;">trending_up</span>
+                      <span style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#69FF87;">Potencial cuantificado</span>
+                    </div>
+                    <p style="font-size:0.88rem;color:#e2e8f0;line-height:1.5;margin:0;">
+                      Podrías pasar de <strong style="color:#fff;">{upsidePotentialGA.current}</strong> a <strong style="color:#fff;">{upsidePotentialGA.potential}</strong> en <strong style="color:#fff;">{upsidePotentialGA.timeframe}</strong>{upsidePotentialGA.dependency ? ` — ${upsidePotentialGA.dependency}` : ''}.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <!-- Right: Gauge -->

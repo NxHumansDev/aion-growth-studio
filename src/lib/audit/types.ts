@@ -20,10 +20,9 @@ export type AuditStep =
   | 'techstack'
   | 'conversion'
   | 'score'
-  | 'insights'
   | 'meta_ads'
   | 'google_shopping'
-  | 'qa';
+  | 'growth_agent';
 
 export type AuditStepOrDone = AuditStep | 'done';
 export type AuditStatus = 'processing' | 'completed' | 'error';
@@ -33,8 +32,8 @@ export const STEP_ORDER: AuditStep[] = [
   'gbp', 'reputation', 'traffic', 'seo', 'seo_pages', 'content_cadence',
   'competitors', 'competitor_traffic', 'keyword_gap',
   'geo', 'competitor_pagespeed',
-  'instagram', 'linkedin', 'techstack', 'conversion', 'score', 'insights',
-  'meta_ads', 'google_shopping', 'qa',
+  'instagram', 'linkedin', 'techstack', 'conversion', 'score',
+  'meta_ads', 'google_shopping', 'growth_agent',
 ];
 
 export const STEP_PROGRESS: Record<AuditStep, number> = {
@@ -58,11 +57,10 @@ export const STEP_PROGRESS: Record<AuditStep, number> = {
   linkedin: 73,
   techstack: 77,
   conversion: 83,
-  score: 90,
-  insights: 95,
-  meta_ads: 97,
-  google_shopping: 98,
-  qa: 100,
+  score: 88,
+  meta_ads: 92,
+  google_shopping: 94,
+  growth_agent: 100,
 };
 
 export const NEXT_STEP: Record<AuditStep, AuditStepOrDone> = {
@@ -86,11 +84,12 @@ export const NEXT_STEP: Record<AuditStep, AuditStepOrDone> = {
   linkedin: 'techstack',
   techstack: 'conversion',
   conversion: 'score',
-  score: 'insights',
-  insights: 'qa',       // meta_ads & google_shopping already run in Phase 3 (parallel)
+  // Growth Agent replaces old insights + qa steps. Internally it does
+  // Sonnet draft → structural validation → Opus QA → surgical corrections.
+  score: 'growth_agent',
   meta_ads: 'google_shopping',  // kept for reference but not reached in normal flow
-  google_shopping: 'qa',
-  qa: 'done',
+  google_shopping: 'growth_agent',
+  growth_agent: 'done',
 };
 
 export interface ModuleResult {

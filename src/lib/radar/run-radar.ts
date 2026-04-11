@@ -9,7 +9,6 @@ import {
   getSupabase,
 } from '../db';
 import { analyzeEvolution } from './diff-engine';
-import { generateBriefing } from '../briefing';
 import { buildClientContext } from './client-context';
 import { ingestAnalytics } from '../analytics/ingest';
 import { runGrowthAgent } from '../ai/growth-agent';
@@ -162,39 +161,16 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
       console.log(`[radar] Saved ${meaningfulCorrelations.length} action→KPI correlations as learnings`);
     }
 
-    // 5. Build full client context and generate new recommendations
+    // 5. Regenerate Growth Agent analysis with enriched client context.
+    // The audit pipeline already produced one analysis (in audit.results.growth_agent)
+    // with minimal context. Here we re-run it with the full client picture:
+    // onboarding, priority keywords, action history, prior snapshot trend, etc.
+    // Then seed new recommendations from prioritizedActions (only ones not already tracked).
     const ctx = await buildClientContext(client.id, client.name, client.domain);
     const onboarding = ctx.onboarding;
     if (onboarding) {
       const latestSnapshot = snapshots[snapshots.length - 1];
-      const briefing = await generateBriefing({
-        onboarding,
-        auditResults: latestSnapshot.pipeline_output,
-        clientName: client.name,
-        domain: client.domain,
-        clientContext: ctx.text,
-      });
 
-      // Seed new recommendations (only ones not already tracked)
-      const existingTitles = new Set(allRecs.map(r => r.title.toLowerCase()));
-      let newCount = 0;
-      for (const priority of briefing.priorities || []) {
-        if (!existingTitles.has(priority.title.toLowerCase())) {
-          await logRecommendation({
-            client_id: client.id,
-            source: 'radar',
-            title: priority.title,
-            description: priority.description,
-            impact: priority.impact || 'high',
-            status: 'pending',
-          });
-          newCount++;
-        }
-      }
-      result.newRecommendations = newCount;
-
-      // 5b. Growth Agent — unified weekly narrative (executive summary,
-      // pillar analyses, prioritized actions). Fails soft: non-blocking.
       try {
         const [clientRow, inProgress, completed, rejected] = await Promise.all([
           getClientById(client.id).catch(() => null),
@@ -234,6 +210,34 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
           const updated = { ...snapData.pipeline_output, growth_analysis: growthAnalysis };
           await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
         }
+
+        // Seed new recommendations from prioritizedActions (dedupe by title)
+        const existingTitles = new Set(allRecs.map(r => r.title.toLowerCase()));
+        let newCount = 0;
+        for (const action of growthAnalysis.prioritizedActions || []) {
+          if (!existingTitles.has(action.title.toLowerCase())) {
+            await logRecommendation({
+              client_id: client.id,
+              source: 'growth_agent',
+              pillar: action.pillar,
+              title: action.title,
+              description: action.description,
+              impact: action.businessImpact || 'high',
+              status: 'pending',
+              data: {
+                rank: action.rank,
+                detail: action.detail,
+                expectedOutcome: action.expectedOutcome,
+                effort: action.effort,
+                timeframe: action.timeframe,
+                rationale: action.rationale,
+                linkedGap: action.linkedGap,
+              },
+            });
+            newCount++;
+          }
+        }
+        result.newRecommendations = newCount;
       } catch (err) {
         console.error(`[radar] Growth Agent failed (non-blocking) for ${client.domain}:`, (err as Error).message);
       }

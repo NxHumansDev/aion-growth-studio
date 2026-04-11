@@ -1,12 +1,17 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { saveClientOnboarding, getClientOnboarding, getLatestSnapshot, IS_DEMO, logRecommendation } from '../../../lib/db';
-import { generateBriefing } from '../../../lib/briefing';
+import {
+  saveClientOnboarding, getClientOnboarding, getLatestSnapshot, IS_DEMO,
+  logRecommendation, getClientById, getActionPlan, getCompletedActions, getRejectedRecommendations,
+} from '../../../lib/db';
+import { runGrowthAgent } from '../../../lib/ai/growth-agent';
 
 /**
  * POST /api/dashboard/save-onboarding
- * Saves the onboarding business context and auto-generates a personalized briefing.
+ * Saves the onboarding business context and regenerates the Growth Agent
+ * analysis with the new client context (so the dashboard narrative reflects
+ * the updated business description, goal, keywords, etc).
  */
 export const POST: APIRoute = async ({ request, locals }) => {
   const client = (locals as any).client;
@@ -44,21 +49,38 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     await saveClientOnboarding(onboardingData);
 
-    // Auto-generate briefing if we have audit data
-    let briefingGenerated = false;
+    // Regenerate Growth Agent analysis with updated client context.
+    // Fails soft — the dashboard still renders with the previous snapshot data.
+    let regenerated = false;
     const snapshot = await getLatestSnapshot(client.id);
     if (snapshot.id !== 'empty') {
       try {
-        const onboarding = await getClientOnboarding(client.id);
+        const [onboarding, clientFull, inProgress, completed, rejected] = await Promise.all([
+          getClientOnboarding(client.id),
+          getClientById(client.id).catch(() => null),
+          getActionPlan(client.id).catch(() => []),
+          getCompletedActions(client.id).catch(() => []),
+          getRejectedRecommendations(client.id).catch(() => []),
+        ]);
+
         if (onboarding) {
-          const briefing = await generateBriefing({
-            onboarding,
-            auditResults: snapshot.pipeline_output,
+          const growthAnalysis = await runGrowthAgent({
             clientName: client.name,
             domain: client.domain,
+            sector: clientFull?.sector,
+            tier: clientFull?.tier,
+            onboarding,
+            pipelineOutput: snapshot.pipeline_output || {},
+            priorityKeywords: onboarding.priority_keywords,
+            keywordStrategy: onboarding.keyword_strategy,
+            actionHistory: {
+              completed: completed.map((a: any) => ({ title: a.title, impact: a.impact, completedAt: a.completed_at })),
+              inProgress: inProgress.filter((a: any) => a.status === 'in_progress').map((a: any) => ({ title: a.title, impact: a.impact })),
+              rejected: rejected.map((r: any) => ({ title: r.title, reason: r.rejected_reason })),
+            },
           });
 
-          // Save briefing into snapshot
+          // Save growth_analysis into snapshot
           if (!IS_DEMO) {
             const { createClient } = await import('@supabase/supabase-js');
             const url = import.meta.env?.SUPABASE_URL || process.env.SUPABASE_URL;
@@ -66,31 +88,42 @@ export const POST: APIRoute = async ({ request, locals }) => {
             if (url && key) {
               const sb = createClient(url, key);
               await sb.from('snapshots')
-                .update({ pipeline_output: { ...snapshot.pipeline_output, briefing } })
+                .update({ pipeline_output: { ...snapshot.pipeline_output, growth_analysis: growthAnalysis } })
                 .eq('id', snapshot.id);
             }
           }
-          // Seed briefing priorities as trackable recommendations
-          for (const priority of briefing.priorities || []) {
+
+          // Seed prioritizedActions as trackable recommendations
+          for (const action of growthAnalysis.prioritizedActions || []) {
             logRecommendation({
               client_id: client.id,
-              source: 'briefing',
-              title: priority.title,
-              description: priority.description,
-              impact: priority.impact || 'high',
+              source: 'growth_agent',
+              pillar: action.pillar,
+              title: action.title,
+              description: action.description,
+              impact: action.businessImpact || 'high',
               status: 'pending',
+              data: {
+                rank: action.rank,
+                detail: action.detail,
+                expectedOutcome: action.expectedOutcome,
+                effort: action.effort,
+                timeframe: action.timeframe,
+                rationale: action.rationale,
+                linkedGap: action.linkedGap,
+              },
             }).catch(() => {});
           }
 
-          briefingGenerated = true;
-          console.log('[save-onboarding] Briefing auto-generated for', client.domain);
+          regenerated = true;
+          console.log('[save-onboarding] Growth Agent regenerated for', client.domain);
         }
       } catch (err) {
-        console.error('[save-onboarding] Briefing generation failed (non-blocking):', (err as Error).message);
+        console.error('[save-onboarding] Growth Agent regeneration failed (non-blocking):', (err as Error).message);
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, briefingGenerated }), {
+    return new Response(JSON.stringify({ ok: true, regenerated }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

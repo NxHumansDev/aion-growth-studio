@@ -401,16 +401,22 @@ ${comps.slice(0, 3).map((c: any) => `- ${c.name || c.url}${c.domain ? ' ('+c.dom
   return sections.join('\n\n');
 }
 
-// ─── Main entry point ───────────────────────────────────────────────────
+// ─── Sonnet draft generation ────────────────────────────────────────────
+// Private helper. Makes one call to Sonnet and returns a validated draft.
+// Called by runGrowthAgent; may be invoked twice if the first draft fails
+// structural validation (second call includes feedback about what to fix).
 
-export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAnalysis> {
-  if (!ANTHROPIC_API_KEY) {
-    console.warn('[growth-agent] No ANTHROPIC_API_KEY — returning fallback');
-    return fallbackAnalysis(input);
-  }
+async function generateSonnetDraft(
+  input: GrowthAgentInput,
+  feedback?: string,
+): Promise<GrowthAnalysis | null> {
+  if (!ANTHROPIC_API_KEY) return null;
 
   const contextBlock = buildInputContext(input);
-  const userTask = `Analiza los datos de este cliente y genera el JSON completo del análisis. Recuerda: coherencia absoluta entre executiveSummary, pillarAnalysis y prioritizedActions. Cada criticalGap debe tener acción correspondiente.`;
+  const baseTask = `Analiza los datos de este cliente y genera el JSON completo del análisis. Recuerda: coherencia absoluta entre executiveSummary, pillarAnalysis y prioritizedActions. Cada criticalGap debe tener acción correspondiente.`;
+  const userTask = feedback
+    ? `${baseTask}\n\n**IMPORTANTE — tu intento anterior tuvo estos problemas estructurales, corrígelos en esta nueva respuesta**:\n${feedback}`
+    : baseTask;
 
   try {
     const controller = new AbortController();
@@ -429,7 +435,7 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
         max_tokens: 4096,
         temperature: 0.2,
         // Prompt caching: system + context are cache breakpoints.
-        // The next call (chat follow-up, fase 4) reuses the cached blocks at 10% cost.
+        // The next call (chat follow-up, QA, retry) reuses the cached blocks at 10% cost.
         system: [
           {
             type: 'text',
@@ -456,17 +462,18 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.error(`[growth-agent] API error ${res.status}: ${errText.slice(0, 500)}`);
-      return fallbackAnalysis(input);
+      console.error(`[growth-agent] Sonnet API error ${res.status}: ${errText.slice(0, 500)}`);
+      return null;
     }
 
     const data = await res.json();
     const rawText = data?.content?.[0]?.text || '';
-    console.log(`[growth-agent] raw response length: ${rawText.length}, stop_reason: ${data?.stop_reason}`);
+    console.log(`[growth-agent] sonnet draft length: ${rawText.length}, stop_reason: ${data?.stop_reason}${feedback ? ' (retry)' : ''}`);
+
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error(`[growth-agent] No JSON in response. Preview: ${rawText.slice(0, 300)}`);
-      return fallbackAnalysis(input);
+      console.error(`[growth-agent] No JSON in Sonnet response. Preview: ${rawText.slice(0, 300)}`);
+      return null;
     }
 
     let parsed: any;
@@ -474,22 +481,78 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
       parsed = JSON.parse(jsonMatch[0]);
     } catch (parseErr) {
       console.error(`[growth-agent] JSON parse failed: ${(parseErr as Error).message}. Preview: ${jsonMatch[0].slice(0, 300)}`);
-      return fallbackAnalysis(input);
+      return null;
     }
-    const validated = validateAndNormalize(parsed, input);
 
-    // Log cache metrics if available (prompt caching savings)
     if (data.usage) {
       const { cache_creation_input_tokens, cache_read_input_tokens, input_tokens, output_tokens } = data.usage;
-      console.log(`[growth-agent] tokens: input=${input_tokens} out=${output_tokens} cache_write=${cache_creation_input_tokens || 0} cache_read=${cache_read_input_tokens || 0}`);
+      console.log(`[growth-agent] sonnet tokens: input=${input_tokens} out=${output_tokens} cache_write=${cache_creation_input_tokens || 0} cache_read=${cache_read_input_tokens || 0}`);
     }
 
-    return validated;
+    return validateAndNormalize(parsed, input);
   } catch (err) {
     const e = err as Error;
-    console.error(`[growth-agent] Error: ${e.name}: ${e.message}${e.stack ? '\n' + e.stack.split('\n').slice(0, 5).join('\n') : ''}`);
+    console.error(`[growth-agent] Sonnet error: ${e.name}: ${e.message}`);
+    return null;
+  }
+}
+
+// ─── Main entry point ───────────────────────────────────────────────────
+// Full quality pipeline: Sonnet generate → structural validate → (retry
+// once with feedback if structural fails) → Opus QA review → apply
+// corrections. Callers get a single contract: "give me data, I give you
+// verified analysis". QA cannot be accidentally skipped — it's an internal
+// step of this function, not a separate pipeline step.
+
+export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAnalysis> {
+  if (!ANTHROPIC_API_KEY) {
+    console.warn('[growth-agent] No ANTHROPIC_API_KEY — returning fallback');
     return fallbackAnalysis(input);
   }
+
+  const { validateStructural, runQAReview, applyCorrections } = await import('./growth-agent-qa');
+
+  // ── Step 1: Sonnet draft ──────────────────────────────────────
+  let draft = await generateSonnetDraft(input);
+  if (!draft) {
+    console.warn('[growth-agent] Sonnet draft failed — using fallback');
+    return fallbackAnalysis(input);
+  }
+
+  // ── Step 2: Structural validation (free, deterministic) ──────
+  let structural = validateStructural(draft);
+  if (!structural.valid) {
+    console.warn(`[growth-agent] Structural validation failed (attempt 1): ${structural.errors.join(' | ')}`);
+    // Retry once with feedback about what to fix
+    const retry = await generateSonnetDraft(input, structural.errors.join('\n- '));
+    if (retry) {
+      draft = retry;
+      structural = validateStructural(draft);
+    }
+    if (!structural.valid) {
+      console.error(`[growth-agent] Structural validation still failing after retry: ${structural.errors.join(' | ')} — returning fallback`);
+      return fallbackAnalysis(input);
+    }
+  }
+
+  // ── Step 3: Opus QA review (catches subtle factual/coherence issues) ──
+  let qa;
+  try {
+    qa = await runQAReview(draft, input.pipelineOutput);
+  } catch (err) {
+    console.error('[growth-agent] QA threw, skipping:', (err as Error).message);
+    qa = { approved: true, corrections: [], summary: 'QA crashed' };
+  }
+
+  // ── Step 4: Apply corrections surgically ───────────────────────
+  if (qa.approved && qa.corrections.length === 0) {
+    console.log(`[growth-agent] QA ${qa.summary}`);
+    return { ...draft, qaPassed: true, qaNotes: [qa.summary] };
+  }
+
+  const final = applyCorrections(draft, qa.corrections);
+  console.log(`[growth-agent] QA applied ${qa.corrections.length} corrections: ${qa.summary}`);
+  return final;
 }
 
 // ─── Validation & normalization ─────────────────────────────────────────
