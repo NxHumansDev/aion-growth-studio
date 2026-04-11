@@ -267,10 +267,15 @@ async function translateToSpanish(text: string): Promise<string | null> {
 
 export async function runCrawl(url: string): Promise<CrawlResult> {
   try {
+    // Timeout 20s (was 10s): some WordPress/PHP sites take 3-8s to respond
+    // the first time (cold cache, heavy plugins). 10s was too tight and caused
+    // intermittent failures that cascaded to all downstream modules.
     const response = await axios.get(url, {
-      timeout: 10000,
+      timeout: 20000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0; +https://aiongrowth.studio)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
       },
       maxRedirects: 5,
       validateStatus: (status) => status < 500,

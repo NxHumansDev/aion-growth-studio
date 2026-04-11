@@ -39,7 +39,13 @@ const DATA_POINTS: DataPoint[] = [
   { id: 'geo.categories', label: 'AI category breakdown', critical: false, check: r => Object.keys(r.geo?.categoryBreakdown ?? {}).length >= 3 },
   { id: 'geo.narrative', label: 'AI executive narrative', critical: false, check: r => !!r.geo?.executiveNarrative },
   { id: 'score.total', label: 'Health score', critical: true, check: r => r.score?.total != null },
-  { id: 'insights.bullets', label: 'Executive insights', critical: true, check: r => (r.insights?.bullets?.length ?? 0) >= 1 },
+  // Growth Agent unified analysis replaced the old insights.ts module after commit 5.
+  // Counts as OK when the agent produced an executive headline OR at least 1 prioritized action.
+  { id: 'growth_agent.analysis', label: 'Executive analysis', critical: true, check: r => {
+    const ga = r.growth_agent;
+    if (!ga || ga.skipped) return false;
+    return !!ga.executiveSummary?.headline || (ga.prioritizedActions?.length ?? 0) >= 1;
+  }},
 
   // ── Competitor data (per competitor — dynamically counted) ──
   { id: 'competitors.identified', label: 'Competitors identified', critical: true, check: r => (r.competitors?.competitors?.length ?? 0) >= 2 },
