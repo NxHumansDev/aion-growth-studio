@@ -536,84 +536,82 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         <span class="material-symbols-outlined" style="font-size:18px;color:#1D9E75;">check_circle</span>
       </div>
     )}
-    {hasAnalytics && (
+    {hasAnalytics && (() => {
+      // ─── Metric definitions ──────────────────────────────────────────
+      type Metric = {
+        label: string;
+        current: number | null;
+        prev: number | null;
+        format: (v: number) => string;
+        better: 'up' | 'down';
+        source: 'GA4' | 'GSC';
+      };
+      const fmtNum = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}K` : v.toLocaleString();
+      const fmtPct = (v: number) => `${(Math.round(v * 10) / 10)}%`;
+      const fmtPos = (v: number) => v.toFixed(1);
+      const orgSess = (data: any) => {
+        const sources = data?.analytics?.ga4?.trafficSources;
+        if (!sources) return null;
+        const total = sources.filter((t: any) => (t.medium || '').toLowerCase() === 'organic')
+          .reduce((sum: number, t: any) => sum + (t.sessions || 0), 0);
+        return total > 0 ? total : null;
+      };
+      const metrics: Metric[] = [
+        { label: 'Visitas', current: ga4?.sessions ?? null, prev: prevGa4?.sessions ?? null, format: fmtNum, better: 'up', source: 'GA4' },
+        { label: 'Usuarios', current: ga4?.users ?? null, prev: prevGa4?.users ?? null, format: fmtNum, better: 'up', source: 'GA4' },
+        { label: 'Sesiones orgánicas', current: orgSess(r), prev: orgSess(pr), format: fmtNum, better: 'up', source: 'GA4' },
+        { label: 'Conversiones', current: ga4?.conversions ?? null, prev: prevGa4?.conversions ?? null, format: fmtNum, better: 'up', source: 'GA4' },
+        { label: 'Clicks Google', current: gsc?.totalClicks ?? null, prev: prevGsc?.totalClicks ?? null, format: fmtNum, better: 'up', source: 'GSC' },
+        { label: 'Impresiones', current: gsc?.totalImpressions ?? null, prev: prevGsc?.totalImpressions ?? null, format: fmtNum, better: 'up', source: 'GSC' },
+        { label: 'CTR medio', current: gsc?.avgCtr ?? null, prev: prevGsc?.avgCtr ?? null, format: fmtPct, better: 'up', source: 'GSC' },
+        { label: 'Posición media', current: gsc?.avgPosition ?? null, prev: prevGsc?.avgPosition ?? null, format: fmtPos, better: 'down', source: 'GSC' },
+      ];
+      const sourceBadge = { GA4: { bg: '#fef3c7', fg: '#92400e' }, GSC: { bg: '#E1F5EE', fg: '#1D9E75' } };
+
+      return (
       <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
           <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">analytics</span>
           <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Tu web esta semana</h3>
-          <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GA4</span>
+          <span style="font-size:10px;background:#f0f4ff;color:#1A4B8C;padding:3px 10px;border-radius:999px;font-weight:700;">Datos reales · GA4 + GSC</span>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;">
-          {/* Sessions */}
-          {ga4 && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Visitas</p>
-              <div style="display:flex;align-items:baseline;gap:6px;">
-                <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.sessions?.toLocaleString()}</span>
-                {prevGa4?.sessions && (
-                  <span style={`font-size:11px;font-weight:700;color:${ga4.sessions >= prevGa4.sessions ? '#1D9E75' : '#E24B4A'};`}>
-                    {ga4.sessions >= prevGa4.sessions ? '↑' : '↓'}{Math.abs(Math.round(((ga4.sessions - prevGa4.sessions) / prevGa4.sessions) * 100))}%
-                  </span>
-                )}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+          {metrics.map(m => {
+            const hasData = m.current != null;
+            const hasPrev = m.prev != null && m.prev !== 0;
+            let deltaPct: number | null = null;
+            let deltaAbs: number | null = null;
+            if (hasData && hasPrev && m.prev != null && m.current != null) {
+              deltaAbs = m.current - m.prev;
+              deltaPct = Math.round((deltaAbs / Math.abs(m.prev)) * 100);
+            }
+            const isPositive = deltaAbs != null && deltaAbs !== 0
+              ? (m.better === 'up' ? deltaAbs > 0 : deltaAbs < 0)
+              : null;
+            const deltaColor = isPositive == null ? '#94a3b8' : isPositive ? '#1D9E75' : '#E24B4A';
+            const arrow = deltaAbs == null ? '' : deltaAbs > 0 ? '↑' : deltaAbs < 0 ? '↓' : '';
+            const badge = sourceBadge[m.source];
+            return (
+              <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                  <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{m.label}</p>
+                  <span style={`font-size:8px;font-weight:800;padding:2px 6px;border-radius:999px;background:${badge.bg};color:${badge.fg};letter-spacing:0.04em;`}>{m.source}</span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1;">{hasData ? m.format(m.current!) : '—'}</span>
+                  {deltaPct != null && deltaPct !== 0 && (
+                    <span style={`font-size:13px;font-weight:800;color:${deltaColor};white-space:nowrap;`}>
+                      {arrow} {deltaPct > 0 ? '+' : ''}{deltaPct}%
+                    </span>
+                  )}
+                </div>
+                <p style="font-size:11px;color:#94a3b8;font-weight:500;">
+                  {!hasData ? 'Sin datos' : !hasPrev ? 'Primera semana' : deltaAbs === 0 ? 'Sin cambios · vs. semana anterior' : 'vs. semana anterior'}
+                </p>
               </div>
-            </div>
-          )}
-
-          {/* Users */}
-          {ga4 && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Usuarios</p>
-              <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.users?.toLocaleString()}</span>
-            </div>
-          )}
-
-          {/* Bounce Rate */}
-          {ga4?.bounceRate != null && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Bounce Rate</p>
-              <span style={`font-size:24px;font-weight:900;color:${ga4.bounceRate > 70 ? '#E24B4A' : ga4.bounceRate > 50 ? '#BA7517' : '#1D9E75'};`}>{ga4.bounceRate}%</span>
-            </div>
-          )}
-
-          {/* Conversions */}
-          {ga4?.conversions != null && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Conversiones</p>
-              <span style={`font-size:24px;font-weight:900;color:${ga4.conversions > 0 ? '#1D9E75' : '#94a3b8'};`}>{ga4.conversions}</span>
-            </div>
-          )}
-
-          {/* GSC Clicks */}
-          {gsc?.totalClicks != null && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Clicks Google</p>
-              <div style="display:flex;align-items:baseline;gap:6px;">
-                <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{gsc.totalClicks.toLocaleString()}</span>
-                {prevGsc?.totalClicks != null && (
-                  <span style={`font-size:11px;font-weight:700;color:${gsc.totalClicks >= prevGsc.totalClicks ? '#1D9E75' : '#E24B4A'};`}>
-                    {gsc.totalClicks >= prevGsc.totalClicks ? '↑' : '↓'}{Math.abs(gsc.totalClicks - prevGsc.totalClicks)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* GSC Avg Position */}
-          {gsc?.avgPosition != null && gsc.avgPosition > 0 && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Posición media</p>
-              <span style={`font-size:24px;font-weight:900;color:${gsc.avgPosition <= 10 ? '#1D9E75' : gsc.avgPosition <= 20 ? '#BA7517' : '#E24B4A'};`}>{gsc.avgPosition}</span>
-            </div>
-          )}
-
-          {/* Mobile % */}
-          {ga4?.deviceBreakdown?.mobile != null && (
-            <div style="background:#f7f9ff;border-radius:10px;padding:14px;">
-              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:4px;">Mobile</p>
-              <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{ga4.deviceBreakdown.mobile}%</span>
-            </div>
-          )}
+            );
+          })}
         </div>
 
         {/* Top keyword from GSC */}
@@ -647,7 +645,8 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
           </div>
         )}
       </section>
-    )}
+      );
+    })()}
 
     <!-- ══ BLOQUE 3: Cambios esta semana / Bienvenida ══ -->
     <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
