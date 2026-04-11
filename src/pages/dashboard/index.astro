@@ -438,55 +438,30 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
           )}
         </div>
 
-        <!-- Right: Executive narrative + pillar breakdown -->
-        <div style="display:flex;flex-direction:column;gap:18px;min-width:0;">
-          <!-- Headline / welcome text -->
-          <div>
-            {isFirstWeek ? (
-              <Fragment>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-                  <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">rocket_launch</span>
-                  <span style="font-size:16px;font-weight:800;color:#1a1a2e;">{execHeadline || 'Este es tu punto de partida'}</span>
-                </div>
-                <p style="font-size:13px;color:#64748b;line-height:1.55;">
-                  {execSituation || briefing?.summary || `Hemos analizado ${client.domain} por primera vez. A partir de la próxima semana compararemos cómo evoluciona cada pilar.`}
-                </p>
-              </Fragment>
-            ) : (
-              <Fragment>
-                {execHeadline && (
-                  <p style="font-size:15px;font-weight:800;color:#1a1a2e;line-height:1.4;margin-bottom:6px;">{execHeadline}</p>
-                )}
-                {(execSituation || briefing?.summary) && (
-                  <p style="font-size:13px;color:#64748b;line-height:1.55;">{execSituation || briefing?.summary}</p>
-                )}
-              </Fragment>
-            )}
-          </div>
-
-          <!-- Pillar breakdown mini-bars (visual desglose of the 5 main pillars) -->
-          <div style="display:flex;flex-direction:column;gap:7px;padding-top:16px;border-top:1px solid #f0f0f0;">
-            <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;">Desglose por pilar</p>
-            {[
-              { key: 'seo', label: 'SEO orgánico' },
-              { key: 'geo', label: 'Visibilidad IA' },
-              { key: 'web', label: 'Web & técnico' },
-              { key: 'conversion', label: 'Conversión' },
-              { key: 'reputation', label: 'Reputación' },
-            ].map(p => {
-              const val = extractPillar(r, p.key);
-              const color = val >= 70 ? '#1D9E75' : val >= 40 ? '#BA7517' : '#E24B4A';
-              return (
-                <div style="display:grid;grid-template-columns:120px 1fr 32px;gap:12px;align-items:center;">
-                  <span style="font-size:12px;font-weight:600;color:#434750;">{p.label}</span>
-                  <div style="height:8px;background:#f0f4ff;border-radius:999px;overflow:hidden;position:relative;">
-                    <div style={`position:absolute;inset:0 auto 0 0;width:${val}%;background:${color};border-radius:999px;transition:width 0.6s ease;`}></div>
-                  </div>
-                  <span style={`font-size:13px;font-weight:800;color:${color};text-align:right;`}>{val}</span>
-                </div>
-              );
-            })}
-          </div>
+        <!-- Right: Executive headline + situation narrative from unified agent -->
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:12px;min-width:0;">
+          {isFirstWeek ? (
+            <Fragment>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span class="material-symbols-outlined" style="font-size:24px;color:#1A4B8C;">rocket_launch</span>
+                <h3 style="font-size:20px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1.2;margin:0;">{execHeadline || 'Este es tu punto de partida'}</h3>
+              </div>
+              <p style="font-size:14px;color:#434750;line-height:1.65;margin:0;">
+                {execSituation || briefing?.summary || `Hemos analizado ${client.domain} por primera vez. A partir de la próxima semana compararemos cómo evoluciona cada pilar y te propondremos acciones concretas basadas en tus datos.`}
+              </p>
+            </Fragment>
+          ) : (
+            <Fragment>
+              {execHeadline ? (
+                <h3 style="font-size:20px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1.2;margin:0;">{execHeadline}</h3>
+              ) : (
+                <h3 style="font-size:20px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1.2;margin:0;">Resumen de la semana</h3>
+              )}
+              {(execSituation || briefing?.summary) && (
+                <p style="font-size:14px;color:#434750;line-height:1.65;margin:0;">{execSituation || briefing?.summary}</p>
+              )}
+            </Fragment>
+          )}
         </div>
 
       </div>
