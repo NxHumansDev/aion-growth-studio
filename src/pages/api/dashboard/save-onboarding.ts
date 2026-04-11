@@ -102,7 +102,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
               title: action.title,
               description: action.description,
               impact: action.businessImpact || 'high',
-              status: 'pending',
               data: {
                 rank: action.rank,
                 detail: action.detail,

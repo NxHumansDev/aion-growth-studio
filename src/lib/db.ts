@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import {
   DEMO_CLIENT, DEMO_SNAPSHOTS, DEMO_ALERTS, DEMO_CONTEXT_ENTRIES,
-  DEMO_RECOMMENDATIONS, DEMO_ONBOARDING,
+  DEMO_RECOMMENDATIONS, DEMO_ONBOARDING, DEMO_USERS,
   type Client, type Snapshot, type Alert, type ContextEntry, type Tier,
 } from './demo-data';
 
 export { type Client, type Snapshot, type Alert, type ContextEntry, type Tier };
-export { DEMO_USERS } from './demo-data';
+export { DEMO_USERS };
 
 export const IS_DEMO = !import.meta.env.SUPABASE_URL;
 

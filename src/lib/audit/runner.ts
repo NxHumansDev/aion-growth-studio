@@ -362,13 +362,6 @@ export async function executeStep(step: AuditStep, audit: AuditPageData): Promis
       triggerSocialPrefetch(audit.id, crawlResult);
     }
 
-    // QA: if correctedInsights provided, update insights in results for downstream use
-    if (step === 'qa' && (result as any).correctedInsights) {
-      audit.results.insights = {
-        ...(audit.results.insights || {}),
-        ...(result as any).correctedInsights,
-      };
-    }
   } catch (err: any) {
     result = { error: err.message?.slice(0, 150) || 'Module failed unexpectedly' };
   }

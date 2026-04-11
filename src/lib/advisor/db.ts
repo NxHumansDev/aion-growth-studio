@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+const IS_DEMO = !import.meta.env?.SUPABASE_URL && !process.env.SUPABASE_URL;
+
 function getSupabase() {
   const url = import.meta.env?.SUPABASE_URL || process.env.SUPABASE_URL;
   const key = import.meta.env?.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -19,6 +21,7 @@ export async function createThread(clientId: string, title?: string): Promise<st
 }
 
 export async function getThreads(clientId: string, limit = 20) {
+  if (IS_DEMO) return [];
   const sb = getSupabase();
   const { data } = await sb.from('advisor_threads')
     .select('id, title, last_message_at, created_at')
@@ -109,6 +112,9 @@ export interface BudgetCheck {
 }
 
 export async function checkBudget(clientId: string): Promise<BudgetCheck> {
+  if (IS_DEMO) {
+    return { allowed: true, dailyUsed: 0, monthlyUsed: 0 };
+  }
   const sb = getSupabase();
   const month = new Date().toISOString().slice(0, 7); // '2026-04'
   const today = new Date().toISOString().slice(0, 10); // '2026-04-08'

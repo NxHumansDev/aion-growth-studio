@@ -87,9 +87,6 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
         if (moduleKey === 'sector' && (stepResult as any).sector) {
           extraProps.sector = (stepResult as any).sector;
         }
-        if (moduleKey === 'qa' && (stepResult as any).correctedInsights) {
-          await saveModuleResult(auditId, 'insights', (stepResult as any).correctedInsights, 'qa', {});
-        }
         await saveModuleResult(auditId, moduleKey, stepResult, nextStep, extraProps);
         currentStep = nextStep;
       }
@@ -223,7 +220,6 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
               title: action.title,
               description: action.description,
               impact: action.businessImpact || 'high',
-              status: 'pending',
               data: {
                 rank: action.rank,
                 detail: action.detail,

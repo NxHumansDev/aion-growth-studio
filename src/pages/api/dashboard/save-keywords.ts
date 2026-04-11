@@ -2,7 +2,7 @@ export const prerender = false;
 
 import type { APIRoute } from 'astro';
 import { saveClientOnboarding, getClientOnboarding, logInteraction } from '../../../lib/db';
-import type { PriorityKeyword, KeywordStrategy } from '../../../lib/db';
+import type { PriorityKeyword, KeywordStrategy, ClientOnboarding } from '../../../lib/db';
 
 /**
  * POST /api/dashboard/save-keywords
@@ -27,7 +27,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // If no onboarding row exists, seed a minimal one so keyword config
     // is never blocked by onboarding state. The client can complete the
     // rest of onboarding later.
-    const existing = (await getClientOnboarding(client.id)) || { client_id: client.id };
+    const existing: ClientOnboarding =
+      (await getClientOnboarding(client.id)) || ({ client_id: client.id } as ClientOnboarding);
 
     await saveClientOnboarding({
       ...existing,

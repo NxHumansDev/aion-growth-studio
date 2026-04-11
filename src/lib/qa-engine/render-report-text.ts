@@ -41,7 +41,24 @@ export function renderReportText(results: Record<string, any>, domain: string): 
   const comps     = results.competitors || {};
   const ct        = results.competitor_traffic || {};
   const ctItems   = (ct.items || []).filter((c: any) => !c.apiError);
-  const insights  = results.insights || {};
+  // Growth Agent unified analysis (replaces old insights). Normalizes to the
+  // legacy shape (summary + bullets + initiatives) so the rest of this renderer
+  // doesn't need to change.
+  const growthAnalysis = (results.growth_agent || {}) as any;
+  const exec = growthAnalysis.executiveSummary || {};
+  const insights = {
+    summary: [exec.headline, exec.situation].filter(Boolean).join(' '),
+    bullets: Array.isArray(exec.criticalGaps) ? [
+      exec.headline || '',
+      ...exec.criticalGaps,
+    ].filter(Boolean) : [],
+    initiatives: Array.isArray(growthAnalysis.prioritizedActions)
+      ? growthAnalysis.prioritizedActions.slice(0, 4).map((a: any) => ({
+          title: a.title,
+          description: a.description,
+        }))
+      : [],
+  };
   const rep       = results.reputation || {};
   const conv      = results.conversion || {};
   const score     = results.score || {};
@@ -87,7 +104,7 @@ export function renderReportText(results: Record<string, any>, domain: string): 
       lines.push(`Domain rank:          ${seo.domainRank}`);
     } else if ((seo.keywordsTop10 ?? 0) > 100) {
       // High-authority domain but DR API failed — don't say "no authority"
-      lines.push(`Domain rank:          No disponible (API no devolvió dato, el dominio tiene ${fmt(seo.keywordsTop10)} keywords posicionadas)`);
+      lines.push(`Domain rank:          No disponible (API no devolvió dato, el dominio tiene ${fmtNum(seo.keywordsTop10)} keywords posicionadas)`);
     } else {
       lines.push(`Domain rank:          No disponible`);
     }

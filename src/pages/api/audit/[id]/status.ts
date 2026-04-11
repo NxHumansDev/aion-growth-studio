@@ -133,18 +133,13 @@ export const GET: APIRoute = async ({ params, request }) => {
       extraProps.sector = (result as any).sector;
     }
 
-    // If QA produced corrected insights, also save them
-    if (moduleKey === 'qa' && (result as any).correctedInsights) {
-      await saveModuleResult(id, 'insights', (result as any).correctedInsights, 'qa', {});
-    }
-
     await saveModuleResult(id, moduleKey, result, nextStep, extraProps);
 
     const isCompleted = nextStep === 'done';
 
     // Log coverage on completion (no retry in this request to avoid timeout)
     if (isCompleted) {
-      const finalResults = { ...audit.results, [moduleKey]: result };
+      const finalResults = { ...audit.results, [moduleKey]: result } as Record<string, any>;
       const coverage = evaluateCoverage(finalResults);
       console.log(`[audit:coverage] ${coverage.coveragePct}% (${coverage.successfulPoints}/${coverage.totalPoints}) | critical missing: ${coverage.criticalMissing.join(',') || 'none'}`);
       // Log to Supabase (non-blocking)
@@ -153,16 +148,19 @@ export const GET: APIRoute = async ({ params, request }) => {
       if (audit.email) {
         updateLeadStatus(audit.email, audit.url, 'audit_completed', id).catch(() => {});
 
-        // Send post-audit email with score summary (non-blocking)
+        // Send post-audit email with score summary (non-blocking).
+        // topInsight now comes from growth_analysis.executiveSummary.headline
+        // (the unified Growth Agent output) instead of the old insights.summary.
         const scoreResult = finalResults.score || {};
-        const insightsResult = finalResults.insights || {};
+        const growthAgent = finalResults.growth_agent || {};
+        const headline = growthAgent?.executiveSummary?.headline || '';
         sendPostAuditEmail({
           to: audit.email,
           domain: new URL(audit.url).hostname.replace(/^www\./, ''),
           score: scoreResult.total ?? 0,
           auditId: id,
           scoreBreakdown: scoreResult.breakdown,
-          topInsight: insightsResult.summary?.slice(0, 200),
+          topInsight: headline.slice(0, 200),
         }).catch(() => {});
       }
     }
@@ -199,27 +197,27 @@ export const GET: APIRoute = async ({ params, request }) => {
   } catch (err: any) {
     console.error('Audit status error:', err);
 
-    // If QA step fails/timeouts, complete the audit without QA rather than marking as error
+    // If growth_agent step fails/timeouts, complete the audit without the unified
+    // analysis rather than marking as error. The dashboard + audit report will
+    // fall back to metric-only display. Legacy 'qa' step no longer exists.
     try {
       const audit = await getAuditPage(id);
-      if (audit.currentStep === 'qa') {
-        console.log(`[audit] QA timed out for ${id} — completing without QA`);
-        const qaBypass = { approved: true, issues: [], suppressedSections: [], qaBypassed: true, overallAssessment: 'QA skipped (timeout)' };
-        await saveModuleResult(id, 'qa', qaBypass, 'done', {});
+      if (audit.currentStep === 'growth_agent') {
+        console.log(`[audit] growth_agent timed out for ${id} — completing without unified analysis`);
+        await saveModuleResult(id, 'growth_agent', { skipped: true, reason: 'timeout' }, 'done', {});
 
-        // Still send email + update lead
+        // Still send email + update lead with score-only summary
         if (audit.email) {
           const { sendPostAuditEmail } = await import('../../../../lib/email/post-audit');
           const { updateLeadStatus } = await import('../../../../lib/db');
-          const finalResults = { ...audit.results, qa: qaBypass };
-          const scoreResult = finalResults.score || {};
+          const scoreResult = (audit.results.score || {}) as Record<string, any>;
           sendPostAuditEmail({
             to: audit.email,
             domain: new URL(audit.url).hostname.replace(/^www\./, ''),
             score: scoreResult.total ?? 0,
             auditId: id,
             scoreBreakdown: scoreResult.breakdown,
-            topInsight: finalResults.insights?.summary?.slice(0, 200),
+            topInsight: '',
           }).catch(() => {});
           updateLeadStatus(audit.email, audit.url, 'audit_completed', id).catch(() => {});
         }

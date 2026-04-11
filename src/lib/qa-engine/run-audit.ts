@@ -36,23 +36,14 @@ export async function runAuditForQA(domain: string): Promise<Record<string, any>
     audit.results[moduleKey] = result;
   }
 
-  console.log(`[QA] synthesis (score/insights/qa)`);
+  console.log(`[QA] synthesis (score/growth_agent)`);
   const scoreExec = await executeStep('score', audit);
   audit.results.score = scoreExec.result;
 
-  const insightsExec = await executeStep('insights', audit);
-  audit.results.insights = insightsExec.result;
-
-  const qaExec = await executeStep('qa', audit);
-  audit.results.qa = qaExec.result;
-
-  // Merge QA corrections into insights (mirrors executeStep behaviour)
-  if ((audit.results.qa as any)?.correctedInsights) {
-    audit.results.insights = {
-      ...audit.results.insights,
-      ...(audit.results.qa as any).correctedInsights,
-    };
-  }
+  // Growth Agent — unified analysis (replaces the old insights + qa steps).
+  // Internally: Sonnet draft → structural validate → Opus QA → corrections.
+  const growthExec = await executeStep('growth_agent', audit);
+  audit.results.growth_agent = growthExec.result;
 
   // Log to Supabase
   const { logAuditRun } = await import('../audit/audit-logger');
