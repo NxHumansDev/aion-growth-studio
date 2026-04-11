@@ -2,6 +2,7 @@
 import Sidebar from '../components/dashboard/Sidebar.astro';
 import TopBar from '../components/dashboard/TopBar.astro';
 import SuperuserBanner from '../components/dashboard/SuperuserBanner.astro';
+import ChatWidget from '../components/dashboard/ChatWidget.astro';
 import type { Tier } from '../lib/demo-data';
 import { getClientOnboarding, isOnboardingComplete } from '../lib/db';
 
@@ -78,16 +79,8 @@ const {
   </div>
   </div>
 
-  <!-- FAB: Advisor IA -->
-  <a
-    href="/advisor"
-    title="Habla con tu Advisor IA"
-    style="position:fixed;bottom:32px;right:32px;width:52px;height:52px;background:#000e41;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,0.3);text-decoration:none;z-index:100;transition:transform 0.2s,box-shadow 0.2s;"
-    onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 12px 32px rgba(0,0,0,0.4)';"
-    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)';"
-  >
-    <span class="material-symbols-outlined" style="font-size:22px;">auto_awesome</span>
-  </a>
+  <!-- Floating chat widget — same advisor accessible from any dashboard page -->
+  <ChatWidget />
 
   <script>
     // Mobile sidebar toggle

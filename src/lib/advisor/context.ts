@@ -114,6 +114,47 @@ export async function buildAdvisorContext(clientId: string, domain: string): Pro
         sections.push(`  ${c.name || c.domain}: ${c.keywordsTop10 ?? '?'} KW top10, tráfico ~${c.organicTraffic ?? '?'}, DR ${c.domainRank ?? '?'}`);
       }
     }
+
+    // ── Growth Agent analysis ─────────────────────────────────────
+    // CRITICAL for coherence: this is exactly what the client sees on
+    // their dashboard home, SEO page, GEO page and recommendations.
+    // The advisor MUST refer to this same analysis when chatting so
+    // there's never a contradiction between "dashboard says X" and
+    // "chat says Y". Everything the client reads comes from here.
+    const ga = r.growth_analysis as any;
+    if (ga) {
+      sections.push('\n## LO QUE YA LE HE DICHO AL CLIENTE EN EL DASHBOARD');
+      sections.push('Este análisis está publicado en su dashboard — debes ser coherente con él. No contradigas lo que ya leyó, y cuando referencies algo, usa el mismo léxico.');
+
+      const exec = ga.executiveSummary || {};
+      if (exec.headline) sections.push(`\n### Resumen ejecutivo — titular\n${exec.headline}`);
+      if (exec.situation) sections.push(`### Situación\n${exec.situation}`);
+      if (exec.strengths?.length) sections.push(`### Fortalezas\n${exec.strengths.map((s: string) => `- ${s}`).join('\n')}`);
+      if (exec.criticalGaps?.length) sections.push(`### Gaps críticos\n${exec.criticalGaps.map((g: string) => `- ${g}`).join('\n')}`);
+      if (exec.upsidePotential?.metric) {
+        const u = exec.upsidePotential;
+        sections.push(`### Potencial cuantificado\n${u.metric}: de ${u.current} a ${u.potential} en ${u.timeframe} (${u.dependency})`);
+      }
+
+      const pa = ga.pillarAnalysis || {};
+      const pillars: Array<[string, string]> = [['seo','SEO'],['geo','GEO / Visibilidad IA'],['web','Web & técnico'],['conversion','Conversión'],['content','Contenido'],['reputation','Reputación']];
+      const narratives: string[] = [];
+      for (const [key, label] of pillars) {
+        const p = pa[key];
+        if (p?.assessment) narratives.push(`**${label}**: ${p.assessment}${p.keyFinding ? ` → lo que más importa: ${p.keyFinding}` : ''}`);
+      }
+      if (narratives.length) {
+        sections.push(`\n### Análisis por pilar\n${narratives.join('\n\n')}`);
+      }
+
+      if (Array.isArray(ga.prioritizedActions) && ga.prioritizedActions.length) {
+        sections.push('\n### Plan de acción priorizado (lo que ya ve el cliente)');
+        for (const a of ga.prioritizedActions) {
+          sections.push(`${a.rank}. [${a.pillar}] ${a.title} — ${a.expectedOutcome || ''} (${a.effort || 'medium'} effort, ${a.timeframe || '?'})`);
+          if (a.rationale) sections.push(`   · ${a.rationale}`);
+        }
+      }
+    }
   }
 
   // ── 3. Evolution (if multiple snapshots) ───────────────────────

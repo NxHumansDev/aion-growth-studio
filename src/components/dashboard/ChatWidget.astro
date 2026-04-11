@@ -1,0 +1,211 @@
+---
+// Floating chat widget available from any dashboard page.
+//
+// Uses the existing /api/advisor/chat endpoint — which since commit 3/4
+// inherits the same persona from AION_SYSTEM_PROMPT and, via
+// buildAdvisorContext, now reads the same growth_analysis that the
+// dashboard pages show. So when the client chats, the advisor is the
+// same voice and sees exactly what the client has already read.
+---
+
+<button
+  id="chat-fab"
+  title="Habla con tu Advisor"
+  style="position:fixed;bottom:32px;right:32px;width:56px;height:56px;background:#000e41;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:none;cursor:pointer;z-index:100;transition:transform 0.2s,box-shadow 0.2s;"
+  onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 12px 32px rgba(0,0,0,0.4)';"
+  onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)';">
+  <span class="material-symbols-outlined" style="font-size:24px;">forum</span>
+</button>
+
+<aside id="chat-panel" style="position:fixed;top:0;right:-440px;width:420px;max-width:100vw;height:100vh;background:white;box-shadow:-8px 0 32px rgba(0,0,0,0.15);z-index:101;display:flex;flex-direction:column;transition:right 0.3s ease;">
+  <!-- Header -->
+  <header style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+      <div style="width:40px;height:40px;border-radius:12px;background:#000e41;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span class="material-symbols-outlined" style="font-size:22px;color:#69ff87;">auto_awesome</span>
+      </div>
+      <div style="min-width:0;">
+        <h3 style="font-size:15px;font-weight:800;color:#1a1a2e;margin:0;">Tu advisor</h3>
+        <p style="font-size:11px;color:#64748b;margin:0;">Conoce todo tu dashboard. Pregúntale lo que quieras.</p>
+      </div>
+    </div>
+    <button id="chat-close" style="background:#f0f0f0;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <span class="material-symbols-outlined" style="font-size:18px;color:#64748b;">close</span>
+    </button>
+  </header>
+
+  <!-- Messages -->
+  <div id="chat-messages" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+    <div class="chat-welcome" style="padding:16px;background:#f7f9ff;border-radius:12px;border-left:3px solid #000e41;">
+      <p style="font-size:13px;color:#434750;line-height:1.6;margin:0;">
+        Hola. Soy tu advisor de growth. Ya he leído tu análisis completo — puedes preguntarme por cualquier parte del dashboard: el score, las acciones del plan, por qué una recomendación está en el top, o qué pasaría si pruebas algo distinto.
+      </p>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+        <button class="chat-suggest" data-q="¿Por qué tengo ese score global?" style="font-size:11px;padding:5px 10px;background:white;border:1px solid #e2e8f0;border-radius:999px;cursor:pointer;color:#434750;">¿Por qué tengo ese score?</button>
+        <button class="chat-suggest" data-q="¿Cuál es la acción de mayor impacto?" style="font-size:11px;padding:5px 10px;background:white;border:1px solid #e2e8f0;border-radius:999px;cursor:pointer;color:#434750;">¿Cuál es la acción nº1?</button>
+        <button class="chat-suggest" data-q="¿Qué pasaría si ejecuto las 3 primeras acciones del plan?" style="font-size:11px;padding:5px 10px;background:white;border:1px solid #e2e8f0;border-radius:999px;cursor:pointer;color:#434750;">Si hago las 3 primeras...</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <form id="chat-form" style="padding:16px 24px 20px;border-top:1px solid #f0f0f0;flex-shrink:0;">
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="chat-input" rows="1" placeholder="Escribe tu pregunta…"
+        style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;resize:none;max-height:120px;line-height:1.5;"></textarea>
+      <button type="submit" id="chat-send"
+        style="background:#000e41;color:white;border:none;border-radius:10px;width:42px;height:42px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span class="material-symbols-outlined" style="font-size:20px;">send</span>
+      </button>
+    </div>
+    <p id="chat-status" style="font-size:10px;color:#94a3b8;margin:6px 2px 0;">Enter envía · Shift+Enter nueva línea</p>
+  </form>
+</aside>
+
+<script is:inline>
+  (function() {
+    const fab = document.getElementById('chat-fab');
+    const panel = document.getElementById('chat-panel');
+    const closeBtn = document.getElementById('chat-close');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+    const messagesEl = document.getElementById('chat-messages');
+    const statusEl = document.getElementById('chat-status');
+    if (!fab || !panel || !form || !input || !messagesEl) return;
+
+    let currentThreadId = null;
+    let isStreaming = false;
+
+    function openPanel() { panel.style.right = '0'; setTimeout(function() { input.focus(); }, 300); }
+    function closePanel() { panel.style.right = '-440px'; }
+    fab.addEventListener('click', openPanel);
+    closeBtn.addEventListener('click', closePanel);
+
+    // Suggest chips fill input and submit
+    document.querySelectorAll('.chat-suggest').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        input.value = btn.getAttribute('data-q') || '';
+        form.requestSubmit();
+      });
+    });
+
+    // Auto-grow textarea
+    input.addEventListener('input', function() {
+      input.style.height = 'auto';
+      input.style.height = Math.min(120, input.scrollHeight) + 'px';
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    function appendMessage(role, text) {
+      // Hide welcome on first real message
+      const welcome = messagesEl.querySelector('.chat-welcome');
+      if (welcome) welcome.remove();
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;' + (role === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;');
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-' + role;
+      bubble.style.cssText = role === 'user'
+        ? 'max-width:85%;background:#000e41;color:white;padding:10px 14px;border-radius:14px 14px 2px 14px;font-size:13px;line-height:1.5;white-space:pre-wrap;'
+        : 'max-width:85%;background:#f7f9ff;color:#1a1a2e;padding:12px 16px;border-radius:14px 14px 14px 2px;font-size:13px;line-height:1.6;white-space:pre-wrap;border:1px solid #e2e8f0;';
+      const textEl = document.createElement('span');
+      textEl.className = 'msg-text';
+      textEl.textContent = text;
+      bubble.appendChild(textEl);
+      wrap.appendChild(bubble);
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return bubble;
+    }
+
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const msg = input.value.trim();
+      if (!msg || isStreaming) return;
+
+      isStreaming = true;
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+      statusEl.textContent = 'Pensando…';
+
+      appendMessage('user', msg);
+      const advisorBubble = appendMessage('advisor', '');
+      const textEl = advisorBubble.querySelector('.msg-text');
+      textEl.innerHTML = '<span style="color:#94a3b8;">Pensando…</span>';
+
+      try {
+        const res = await fetch('/api/advisor/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, threadId: currentThreadId }),
+        });
+
+        if (res.status === 429) {
+          const data = await res.json();
+          textEl.innerHTML = '<span style="color:#BA7517;">' + (data.message || 'Has alcanzado el límite de mensajes por hoy.') + '</span>';
+          isStreaming = false;
+          sendBtn.disabled = false;
+          statusEl.textContent = 'Enter envía · Shift+Enter nueva línea';
+          return;
+        }
+
+        if (!res.ok) throw new Error('Chat failed: ' + res.status);
+
+        // Stream SSE — same protocol as /advisor
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+        textEl.textContent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.text) {
+                fullText += data.text;
+                textEl.textContent = fullText;
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+              if (data.done && data.threadId) {
+                currentThreadId = data.threadId;
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (err) {
+        textEl.innerHTML = '<span style="color:#E24B4A;">Error al comunicar con el advisor. Intenta de nuevo.</span>';
+      }
+
+      isStreaming = false;
+      sendBtn.disabled = false;
+      statusEl.textContent = 'Enter envía · Shift+Enter nueva línea';
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
+  })();
+</script>
+
+<style>
+  @media (max-width: 640px) {
+    #chat-panel {
+      width: 100vw !important;
+      right: -100vw !important;
+    }
+  }
+  #chat-messages::-webkit-scrollbar { width: 6px; }
+  #chat-messages::-webkit-scrollbar-track { background: transparent; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+</style>
