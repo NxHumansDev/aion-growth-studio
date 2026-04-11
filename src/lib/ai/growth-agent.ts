@@ -17,6 +17,7 @@
 
 import { AION_SYSTEM_PROMPT } from './system-prompt';
 import type { ClientOnboarding, PriorityKeyword, KeywordStrategy } from '../db';
+import { computeOnPageIssues } from '../audit/on-page-issues';
 
 const ANTHROPIC_API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-4-6';
@@ -84,6 +85,29 @@ export interface ReadyToUseFix {
   where: string;        // where to paste it ("<head> of homepage", "<title> tag", etc)
 }
 
+/**
+ * Contextual note for a specific on-page audit issue, graded against the
+ * client's priority keywords. Merged in the SEO dashboard render:
+ * - severityOverride can downgrade (e.g. title 69 chars but last 9 are brand → good)
+ *   or upgrade (e.g. title missing priority keyword → critical)
+ * - contextualNote replaces the static expanded template with something
+ *   that references the client's actual priority keywords by name
+ * - recommendedFix is a copy-paste ready rewrite targeting a specific keyword
+ *
+ * The issueKey must match one of the stable keys from computeOnPageIssues()
+ * in src/lib/audit/on-page-issues.ts (e.g. 'title_too_long', 'h1_missing').
+ * Only generated when the client has priority_keywords defined — otherwise
+ * the array is empty and the dashboard falls back to static templates.
+ */
+export interface OnPageAuditContextEntry {
+  issueKey: string;                     // matches OnPageIssue.key
+  severityOverride?: 'critical' | 'warning' | 'info' | 'good';
+  contextualLabel?: string;             // optional replacement for rule-based label
+  contextualNote: string;               // 2-3 sentences, references priority keywords by name
+  recommendedFix?: string;              // copy-paste ready rewrite (title, meta desc, H1, etc)
+  targetsKeyword?: string;              // which priority keyword this fix is targeting
+}
+
 export interface GrowthAnalysis {
   version: number;                           // schema version (bump on breaking changes)
   generatedAt: string;
@@ -93,11 +117,19 @@ export interface GrowthAnalysis {
   prioritizedActions: PrioritizedAction[];   // already ordered by rank
   auditSummaries?: AuditSummaries;           // only populated when audit report will use it
   readyToUseFixes?: ReadyToUseFix[];         // copy-paste content for detected on-page issues
+  onPageAuditContext?: OnPageAuditContextEntry[]; // contextual grading of rule-based on-page audit
   qaPassed?: boolean;                        // true when validated by Opus QA
   qaNotes?: string[];                        // list of corrections QA applied, for audit trail
 }
 
 // ─── Input types ────────────────────────────────────────────────────────
+
+export interface IntegrationSummary {
+  googleAnalytics: boolean;       // true if GA4 property selected
+  googleSearchConsole: boolean;   // true if Google OAuth with GSC scope is connected
+  ga4PropertyName?: string;
+  accountEmail?: string;
+}
 
 export interface GrowthAgentInput {
   clientName: string;
@@ -111,6 +143,7 @@ export interface GrowthAgentInput {
   priorSnapshot?: { date: string; pipeline_output: Record<string, any> } | null;
   priorityKeywords?: PriorityKeyword[];
   keywordStrategy?: KeywordStrategy;
+  integrations?: IntegrationSummary;         // what the client already has connected
 
   actionHistory?: {
     completed: Array<{ title: string; impact?: string; completedAt?: string }>;
@@ -168,12 +201,10 @@ Si un pilar no tiene datos (ej: no hay audit GEO), los pesos se redistribuyen en
 - Se calcula en el módulo conversion a partir de: formularios, CTAs, lead magnet, claridad del hero, prueba social, jerarquía visual. No tienes la fórmula exacta pero sabes los inputs.
 
 **Pilar Reputación (10%)** — composite de señales disponibles, pesos renormalizados según cuáles existen:
-- Domain rank (25%): \`min(100, seo.domainRank)\`
-- GBP rating (25%): \`((gbp.rating - 2) / 3) × 100\` + bonus por reviewCount. Rating 4.0 = 67 puntos. 4.5 = 83. 5.0 = 100.
-- Prensa / Google News (20%): \`newsCount × 8\` (capped 100). 3 menciones = 24 pts. 10 = 80.
-- Blog activo (15%): solo si hay blog. 2+ posts/mes = 100, 1/mes = 70, 1 cada 3 meses = 40.
-- LinkedIn followers (15%): solo si se scrapeó. Logarítmico ceiling 50K.
-- Tech stack maturity (10%): de techstack.maturityScore (analytics, tag manager, CRM instalados).
+- GBP rating (33%): \`((gbp.rating - 2) / 3) × 100\` + bonus por reviewCount. Rating 4.0 = 67 puntos. 4.5 = 83. 5.0 = 100.
+- Prensa / Google News (27%): \`newsCount × 8\` (capped 100). 3 menciones = 24 pts. 10 = 80.
+- Blog activo (20%): solo si hay blog. 2+ posts/mes = 100, 1/mes = 70, 1 cada 3 meses = 40.
+- LinkedIn followers (20%): solo si se scrapeó. Logarítmico ceiling 50K.
 - Si una señal no existe (ej: no encontramos GBP), ese componente simplemente no pesa — los demás se renormalizan.
 
 **Pilar Contenido (informacional, no cuenta en total)**:
@@ -373,12 +404,71 @@ Genera entre 5 y 8 acciones priorizadas. No menos de 5 (plan demasiado fino), no
 
 Las acciones deben empezar con verbo en imperativo: "Publicar", "Crear", "Optimizar", "Añadir", "Escribir", "Configurar".
 NUNCA uses títulos que sean objetivos: "Mejorar visibilidad", "Aumentar tráfico", "Optimizar SEO" son BAD.
-SIEMPRE usa títulos que sean acciones: "Publicar guía de 2.000 palabras respondiendo X", "Añadir schema FAQ con 5 preguntas en /servicios".`;
+SIEMPRE usa títulos que sean acciones: "Publicar guía de 2.000 palabras respondiendo X", "Añadir schema FAQ con 5 preguntas en /servicios".
+
+## Integraciones ya conectadas — NUNCA las sugieras
+
+Si en el contexto hay una sección \`## INTEGRACIONES CONECTADAS\`, significa que el cliente YA tiene configurada esa integración. Bajo ningún concepto:
+
+- Añadas una acción del tipo "Configurar Google Search Console" / "Conectar GA4" / "Instalar Analytics" si ya aparecen en esa sección
+- Menciones en \`criticalGaps\` que "faltan datos de GSC" cuando la integración está marcada como CONECTADA
+- Recomiendes en \`pillarAnalysis\` "empezar por conectar tus fuentes de datos" cuando ya están conectadas
+
+Si las integraciones están conectadas, asume que los datos son reales y avanza al siguiente nivel de recomendación (optimizar, no configurar).
+
+## onPageAuditContext — contextualización de la auditoría on-page con priority keywords
+
+En el contexto recibes una sección \`## AUDITORÍA ON-PAGE (issues rule-based ya detectados)\` con una lista de issues detectados por la auditoría automática. Tu trabajo es generar un array \`onPageAuditContext\` con un objeto por cada issue relevante donde el contexto real del cliente cambia cómo debe comunicarse.
+
+**Cuándo añadir un objeto al array:**
+
+- SIEMPRE para issues severity='critical' y 'warning' si el cliente tiene priority keywords definidas
+- Para issues 'good' solo si hay algo útil que decir referenciando priority keywords (ej: "tu H1 está bien y contiene tu keyword X")
+- NUNCA añadas objetos para issues si NO hay priority keywords — en ese caso devuelve \`onPageAuditContext: []\` y el sistema hará fallback al template estático
+
+**Shape de cada objeto:**
+\`\`\`json
+{
+  "issueKey": "title_too_long",                           // OBLIGATORIO — copiado literal del [key] en el contexto
+  "severityOverride": "good" | "info" | "warning" | "critical",  // opcional — solo si cambias la gravedad real
+  "contextualLabel": "Title largo pero no crítico",       // opcional — sustituye al label rule-based
+  "contextualNote": "Tu title actual '...' tiene 69 chars, pero los últimos 9 son '| Kikogamez' (tu marca). Los primeros 60 contienen 'asesor growth startups' — que es exactamente tu keyword prioritaria #2. No es crítico.",
+  "recommendedFix": "Asesor growth para startups — Kikogamez",  // opcional — texto listo para copy-paste
+  "targetsKeyword": "asesor growth startups"              // opcional — cuál priority keyword apunta el fix
+}
+\`\`\`
+
+**Reglas estrictas:**
+
+1. \`contextualNote\` DEBE referenciar al menos una priority keyword del cliente por nombre literal cuando sea relevante
+2. \`severityOverride\` SOLO si el contexto real cambia la gravedad:
+   - Downgrade a \`good\` o \`info\` si el "problema" no afecta a ninguna priority keyword (ej: 9 chars extras de marca)
+   - Upgrade a \`critical\` si el elemento no contiene ninguna priority keyword alta y el cliente depende de ellas
+3. \`recommendedFix\` debe ser un texto final, NO una plantilla con placeholders. Longitudes correctas: title 50-60 chars, meta description 120-155 chars
+4. \`targetsKeyword\` debe ser una priority keyword literal del contexto — NO inventes keywords que no estén en la lista
+
+**Ejemplo end-to-end** (cliente con priority keyword "asesor growth startups"):
+
+Issue recibido: \`[title_too_long] (warning) Title demasiado largo — 69 caracteres (recomendado: 50-60) · actual: "Kiko Gamez - Asesor de growth | consulting y formación para startups"\`
+
+Objeto que debes generar:
+\`\`\`json
+{
+  "issueKey": "title_too_long",
+  "severityOverride": "info",
+  "contextualLabel": "Title largo pero contiene tu keyword prioritaria",
+  "contextualNote": "Tu title actual tiene 69 chars. Los primeros 60 (lo que Google muestra) contienen 'Kiko Gamez - Asesor de growth' que incluye tu keyword prioritaria 'asesor growth'. Los 9 chars que Google corta son 'para startups' — sí contienen 'startups' que también es prioritaria, así que conviene optimizar.",
+  "recommendedFix": "Asesor growth para startups - consulting y formación | Kiko Gamez",
+  "targetsKeyword": "asesor growth startups"
+}
+\`\`\`
+
+Si el cliente no tiene priority keywords configuradas, devuelve \`onPageAuditContext: []\` y no añadas nada. El dashboard hará fallback al template rule-based estático sin contextualizar.`;
 
 // ─── Input context builder ──────────────────────────────────────────────
 
 function buildInputContext(input: GrowthAgentInput): string {
-  const { clientName, domain, sector, onboarding: ob, pipelineOutput: r, priorSnapshot, priorityKeywords, keywordStrategy, actionHistory } = input;
+  const { clientName, domain, sector, onboarding: ob, pipelineOutput: r, priorSnapshot, priorityKeywords, keywordStrategy, integrations, actionHistory } = input;
 
   const crawl = r.crawl || {};
   const seo = r.seo || {};
@@ -392,6 +482,7 @@ function buildInputContext(input: GrowthAgentInput): string {
   const tech = r.techstack || {};
   const comps = r.competitors?.competitors || [];
   const gap = r.keyword_gap?.items || [];
+  const ssl = r.ssl || {};
 
   const sections: string[] = [];
 
@@ -407,6 +498,22 @@ Arquitectura URLs: ${ob?.url_architecture || 'URL única'}${ob?.url_detail ? ` �
 Presupuesto marketing: ${formatBudget(ob?.monthly_budget)}
 Equipo: ${formatTeam(ob?.team_size)}
 Competidores declarados: ${(ob?.competitors || []).map(c => c.url).join(', ') || 'ninguno'}`);
+
+  // ─── Integrations already connected (NEVER re-suggest these) ─────────
+  if (integrations) {
+    const intParts: string[] = [];
+    if (integrations.googleSearchConsole) intParts.push('Google Search Console: CONECTADO');
+    if (integrations.googleAnalytics) {
+      intParts.push(`Google Analytics 4: CONECTADO${integrations.ga4PropertyName ? ` (property "${integrations.ga4PropertyName}")` : ''}`);
+    } else if (integrations.googleSearchConsole) {
+      intParts.push('Google Analytics 4: OAuth autorizado pero sin property_id seleccionada');
+    }
+    if (integrations.accountEmail) intParts.push(`Cuenta Google vinculada: ${integrations.accountEmail}`);
+    if (intParts.length > 0) {
+      sections.push(`## INTEGRACIONES CONECTADAS (el cliente YA las tiene — NUNCA recomiendes reconectar ni configurar)
+${intParts.map(p => `- ${p}`).join('\n')}`);
+    }
+  }
 
   // ─── KPI objectives (from primary_kpis) ─────────────────────────────
   if (ob?.primary_kpis && ob.primary_kpis.length > 0) {
@@ -428,6 +535,29 @@ Servicio a hacer crecer: ${keywordStrategy.growthService || 'no especificado'}`)
 ${priorityKeywords.map(k => `- "${k.keyword}"${k.volume != null ? ` (${k.volume} vol/mes` : ''}${k.currentPosition != null ? `, pos ${k.currentPosition}` : ''}${k.feasibility ? `, viabilidad ${k.feasibility}` : ''}${k.volume != null ? ')' : ''}`).join('\n')}`);
   }
 
+  // ─── Rule-based on-page audit issues (for contextual grading) ───────
+  // These are the same issues the dashboard SEO page renders as cards.
+  // The agent's job is to return onPageAuditContext[] with a contextual
+  // note per issue, referencing priority keywords by literal name when
+  // applicable and downgrading/upgrading severity based on real impact.
+  const onPageIssues = computeOnPageIssues(crawl, ssl, ps);
+  if (onPageIssues.length > 0) {
+    sections.push(`## AUDITORÍA ON-PAGE (issues rule-based ya detectados)
+Lista de issues que la auditoría automática ha detectado. Para cada uno debes generar un objeto en onPageAuditContext[] con contextualNote (referenciando priority keywords por nombre cuando aplique) y, cuando tenga sentido, un recommendedFix listo para copy-paste.
+
+${onPageIssues.map(i => {
+  const titleCtx = i.key === 'title_too_long' && crawl.title ? ` · actual: "${crawl.title}"` : '';
+  const descCtx = i.key.startsWith('meta_desc') && crawl.description ? ` · actual: "${crawl.description.slice(0, 100)}..."` : '';
+  const h1Ctx = i.key.startsWith('h1_') && crawl.h1s?.length ? ` · actual: "${(crawl.h1s[0] || '').slice(0, 80)}"` : '';
+  return `- [${i.key}] (${i.severity}) ${i.label} — ${i.detail}${titleCtx}${descCtx}${h1Ctx}`;
+}).join('\n')}
+
+**Contexto completo** (para que puedas generar recommendedFix con longitudes correctas):
+- Title actual: "${crawl.title || '(ausente)'}" (${(crawl.title || '').length} chars, ideal 50-60)
+- Meta description actual: "${crawl.description || '(ausente)'}" (${(crawl.description || '').length} chars, ideal 120-155)
+- H1 actual: "${crawl.h1s?.[0] || '(ausente)'}"`);
+  }
+
   // ─── Audit snapshot ─────────────────────────────────────────────────
   sections.push(`## DATOS DE LA AUDITORÍA (snapshot actual)
 
@@ -443,9 +573,6 @@ Desglose por pilar:
 ### SEO
 - Keywords top 10: ${seo.keywordsTop10 ?? '?'}
 - Tráfico orgánico estimado: ${seo.organicTrafficEstimate ?? '?'}/mes
-- Domain Rank: ${seo.domainRank ?? '?'}
-- Referring domains: ${seo.referringDomains ?? '?'}
-- Backlinks: ${seo.backlinksTotal ?? '?'}
 - Páginas indexadas: ${seo.indexedPages ?? '?'}
 - Top keywords actuales: ${(seo.topKeywords || []).slice(0, 8).map((k: any) => `"${k.keyword}" pos ${k.position} (vol ${k.volume}, diff ${k.difficulty})`).join(' | ') || 'ninguna'}
 - Keyword gap vs competencia: ${gap.slice(0, 5).map((k: any) => `"${k.keyword}" vol ${k.volume}`).join(' | ') || 'ninguna detectada'}
@@ -771,6 +898,23 @@ function validateAndNormalize(parsed: any, input: GrowthAgentInput): GrowthAnaly
     if (readyToUseFixes && readyToUseFixes.length === 0) readyToUseFixes = undefined;
   }
 
+  // onPageAuditContext — optional, contextual grading of rule-based on-page issues
+  const validSeverities = new Set(['critical', 'warning', 'info', 'good']);
+  let onPageAuditContext: OnPageAuditContextEntry[] | undefined;
+  if (Array.isArray(parsed.onPageAuditContext)) {
+    onPageAuditContext = parsed.onPageAuditContext
+      .filter((c: any) => c && typeof c.issueKey === 'string' && typeof c.contextualNote === 'string')
+      .map((c: any): OnPageAuditContextEntry => ({
+        issueKey: c.issueKey,
+        severityOverride: validSeverities.has(c.severityOverride) ? c.severityOverride : undefined,
+        contextualLabel: typeof c.contextualLabel === 'string' ? c.contextualLabel : undefined,
+        contextualNote: c.contextualNote,
+        recommendedFix: typeof c.recommendedFix === 'string' ? c.recommendedFix : undefined,
+        targetsKeyword: typeof c.targetsKeyword === 'string' ? c.targetsKeyword : undefined,
+      }));
+    if (onPageAuditContext.length === 0) onPageAuditContext = undefined;
+  }
+
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
@@ -780,6 +924,7 @@ function validateAndNormalize(parsed: any, input: GrowthAgentInput): GrowthAnaly
     prioritizedActions: actions,
     auditSummaries,
     readyToUseFixes,
+    onPageAuditContext,
   };
 }
 
@@ -845,7 +990,7 @@ function fallbackAnalysis(input: GrowthAgentInput): GrowthAnalysis {
   // SEO sentence
   if (!seo.skipped && (kwTop10 > 0 || traffic > 0)) {
     situationParts.push(
-      `En SEO orgánico tienes ${kwTop10} keywords en top 10 y unas ${traffic.toLocaleString('es-ES')} visitas orgánicas estimadas al mes${seo.domainRank != null ? `, con un Domain Rank de ${seo.domainRank}/100` : ''}.`
+      `En SEO orgánico tienes ${kwTop10} keywords en top 10 y unas ${traffic.toLocaleString('es-ES')} visitas orgánicas estimadas al mes.`
     );
   } else if (seo.skipped) {
     situationParts.push('En SEO orgánico no hay datos disponibles todavía — probablemente el dominio aún no está indexado en los rankings de Google.');
@@ -1016,7 +1161,7 @@ function fallbackAnalysis(input: GrowthAgentInput): GrowthAnalysis {
     pillarAnalysis: {
       seo: {
         assessment: !seo.skipped && kwTop10 > 0
-          ? `${kwTop10} keywords en top 10, tráfico orgánico estimado ~${traffic.toLocaleString('es-ES')} visitas/mes${seo.domainRank ? `, Domain Rank ${seo.domainRank}/100` : ''}.`
+          ? `${kwTop10} keywords en top 10, tráfico orgánico estimado ~${traffic.toLocaleString('es-ES')} visitas/mes.`
           : 'Sin datos SEO suficientes para generar análisis.',
         keyFinding: '',
       },
@@ -1052,6 +1197,7 @@ function fallbackAnalysis(input: GrowthAgentInput): GrowthAnalysis {
       },
     },
     prioritizedActions: fallbackActions.slice(0, 6),
+    onPageAuditContext: [],  // empty → dashboard falls back to rule-based templates
   };
 }
 

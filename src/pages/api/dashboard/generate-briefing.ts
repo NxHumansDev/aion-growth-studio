@@ -5,7 +5,8 @@ import {
   getClientOnboarding, getLatestSnapshot, IS_DEMO, getClientById,
   getActionPlan, getCompletedActions, getRejectedRecommendations,
 } from '../../../lib/db';
-import { runGrowthAgent } from '../../../lib/ai/growth-agent';
+import { runGrowthAgent, type IntegrationSummary } from '../../../lib/ai/growth-agent';
+import { getIntegration } from '../../../lib/integrations';
 
 /**
  * POST /api/dashboard/generate-briefing
@@ -40,13 +41,21 @@ export const POST: APIRoute = async ({ locals }) => {
       });
     }
 
-    const [onboarding, clientFull, inProgress, completed, rejected] = await Promise.all([
+    const [onboarding, clientFull, inProgress, completed, rejected, googleIntegration] = await Promise.all([
       getClientOnboarding(client.id),
       getClientById(client.id).catch(() => null),
       getActionPlan(client.id).catch(() => []),
       getCompletedActions(client.id).catch(() => []),
       getRejectedRecommendations(client.id).catch(() => []),
+      getIntegration(client.id, 'google_analytics').catch(() => null),
     ]);
+
+    const integrations: IntegrationSummary = {
+      googleSearchConsole: !!googleIntegration && googleIntegration.status === 'connected',
+      googleAnalytics: !!googleIntegration && googleIntegration.status === 'connected' && !!googleIntegration.property_id,
+      ga4PropertyName: googleIntegration?.property_name,
+      accountEmail: googleIntegration?.account_email,
+    };
 
     // Full Growth Agent pass: Sonnet draft → structural → Opus QA → corrections
     const growthAnalysis = await runGrowthAgent({
@@ -58,6 +67,7 @@ export const POST: APIRoute = async ({ locals }) => {
       pipelineOutput: snapshot.pipeline_output || {},
       priorityKeywords: onboarding?.priority_keywords,
       keywordStrategy: onboarding?.keyword_strategy,
+      integrations,
       actionHistory: {
         completed: completed.map((a: any) => ({ title: a.title, impact: a.impact, completedAt: a.completed_at })),
         inProgress: inProgress.filter((a: any) => a.status === 'in_progress').map((a: any) => ({ title: a.title, impact: a.impact })),
