@@ -60,6 +60,18 @@ export interface PrioritizedAction {
   linkedGap?: string;                        // which criticalGap or keyFinding this action addresses
 }
 
+/**
+ * Optional cross-section summaries used by the public audit report.
+ * The dashboard uses pillarAnalysis per-pillar; the audit report has
+ * coarser blocks (visibility, benchmark, experience) that need short
+ * cross-cutting narratives. Generated in the same Claude call so they
+ * share the same voice and coherence as the rest of the analysis.
+ */
+export interface AuditSummaries {
+  benchmark: string;    // 1-2 sentences on position vs competitors
+  experience: string;   // 1-2 sentences on web + conversion + measurement combined
+}
+
 export interface GrowthAnalysis {
   version: number;                           // schema version (bump on breaking changes)
   generatedAt: string;
@@ -67,6 +79,9 @@ export interface GrowthAnalysis {
   executiveSummary: ExecutiveSummary;
   pillarAnalysis: Record<Pillar, PillarNarrative>;
   prioritizedActions: PrioritizedAction[];   // already ordered by rank
+  auditSummaries?: AuditSummaries;           // only populated when audit report will use it
+  qaPassed?: boolean;                        // true when validated by Opus QA
+  qaNotes?: string[];                        // list of corrections QA applied, for audit trail
 }
 
 // ─── Input types ────────────────────────────────────────────────────────
@@ -221,9 +236,15 @@ Responde con JSON válido siguiendo EXACTAMENTE este schema (sin texto adicional
       "rationale": "Por qué esta acción es la #1 (referencia al criticalGap o keyFinding que resuelve)",
       "linkedGap": "texto exacto del criticalGap del executiveSummary que esta acción resuelve (si aplica)"
     }
-  ]
+  ],
+  "auditSummaries": {
+    "benchmark": "1-2 frases sobre la posición del cliente vs los competidores detectados (usar nombres reales y datos concretos)",
+    "experience": "1-2 frases resumiendo el estado combinado de Web + Conversión + medición (PageSpeed, funnelScore, techstack maturity)"
+  }
 }
 \`\`\`
+
+**Sobre \`auditSummaries\`**: son dos resúmenes cortos que alimentan el informe público del audit (los bloques "Benchmark" y "Experiencia"). Úsalos para condensar en 1-2 frases lo que ya dijiste de forma más larga en \`pillarAnalysis\`, con la misma voz y los mismos datos exactos. NO inventes nada nuevo aquí — si no hay datos de competidores, \`benchmark\` debe decirlo explícitamente en vez de generalidades.
 
 Genera entre 5 y 8 acciones priorizadas. No menos de 5 (plan demasiado fino), no más de 8 (dispersión).
 
@@ -435,19 +456,26 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.error(`[growth-agent] API error ${res.status}: ${errText.slice(0, 200)}`);
+      console.error(`[growth-agent] API error ${res.status}: ${errText.slice(0, 500)}`);
       return fallbackAnalysis(input);
     }
 
     const data = await res.json();
     const rawText = data?.content?.[0]?.text || '';
+    console.log(`[growth-agent] raw response length: ${rawText.length}, stop_reason: ${data?.stop_reason}`);
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[growth-agent] No JSON in response');
+      console.error(`[growth-agent] No JSON in response. Preview: ${rawText.slice(0, 300)}`);
       return fallbackAnalysis(input);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error(`[growth-agent] JSON parse failed: ${(parseErr as Error).message}. Preview: ${jsonMatch[0].slice(0, 300)}`);
+      return fallbackAnalysis(input);
+    }
     const validated = validateAndNormalize(parsed, input);
 
     // Log cache metrics if available (prompt caching savings)
@@ -458,7 +486,8 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
 
     return validated;
   } catch (err) {
-    console.error('[growth-agent] Error:', (err as Error).message);
+    const e = err as Error;
+    console.error(`[growth-agent] Error: ${e.name}: ${e.message}${e.stack ? '\n' + e.stack.split('\n').slice(0, 5).join('\n') : ''}`);
     return fallbackAnalysis(input);
   }
 }
@@ -518,6 +547,19 @@ function validateAndNormalize(parsed: any, input: GrowthAgentInput): GrowthAnaly
       : null,
   };
 
+  // auditSummaries — optional, only if the model provided them
+  let auditSummaries: AuditSummaries | undefined;
+  if (parsed.auditSummaries && typeof parsed.auditSummaries === 'object') {
+    const b = parsed.auditSummaries.benchmark;
+    const e = parsed.auditSummaries.experience;
+    if (typeof b === 'string' || typeof e === 'string') {
+      auditSummaries = {
+        benchmark: typeof b === 'string' ? b : '',
+        experience: typeof e === 'string' ? e : '',
+      };
+    }
+  }
+
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
@@ -525,6 +567,7 @@ function validateAndNormalize(parsed: any, input: GrowthAgentInput): GrowthAnaly
     executiveSummary,
     pillarAnalysis,
     prioritizedActions: actions,
+    auditSummaries,
   };
 }
 
