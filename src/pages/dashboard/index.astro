@@ -105,50 +105,35 @@ function scoreSource(posts90d: number, daysSinceLast: number, engagementRate?: n
 const contentWeights = getContentWeights(client.sector || r.sector?.sector || '');
 
 function extractPillar(snap: Record<string, any>, key: string): number {
-  switch (key) {
-    case 'seo': return Math.min(100, Math.round((snap.seo?.keywordsTop10 || 0) * 2));
-    case 'geo': return Math.round(((snap.geo?.mentions || 0) / Math.max(snap.geo?.totalQueries || 15, 1)) * 100);
-    case 'web': return snap.pagespeed?.mobile?.performance || 0;
-    case 'conversion': return snap.conversion?.funnelScore || 0;
-    case 'content': {
-      const cc = snap.content_cadence || {};
-      const ig = snap.instagram || {};
-      const li = snap.linkedin || {};
+  // Primary source of truth: official score breakdown from the `score` pipeline
+  // module (src/lib/audit/modules/score.ts). Pillar pages use the same source,
+  // so scores match across Resumen and pillar detail pages.
+  const breakdown = snap.score?.breakdown;
+  if (breakdown && breakdown[key] != null) return Math.round(breakdown[key]);
 
-      const blogScore = scoreSource(cc.postsLast90Days || 0, cc.daysSinceLastPost ?? 999);
-      const igScore = ig.found !== false && ig.posts ? scoreSource(ig.postsLast90Days || 0, ig.lastPostDate ? Math.round((Date.now() - new Date(ig.lastPostDate).getTime()) / 86400000) : 999, ig.engagementRate) : 0;
-      // LinkedIn: no post data yet, score based on presence + followers
-      const liScore = li.found !== false && li.followers ? Math.min(100, 30 + Math.min(40, (li.followers || 0) / 100) + (li.employees ? 20 : 0)) : 0;
+  // Content is computed separately (not in the main breakdown).
+  if (key === 'content') {
+    // Official source: score.content.score (from computeContentScore).
+    const contentScore = snap.score?.content?.score;
+    if (contentScore != null) return Math.round(contentScore);
 
-      const w = contentWeights;
-      // Redistribute weight if a source is missing
-      let totalWeight = 0;
-      let weighted = 0;
-      if (blogScore > 0 || cc.totalPosts !== undefined) { weighted += blogScore * w.blog; totalWeight += w.blog; }
-      if (igScore > 0 || ig.found) { weighted += igScore * w.ig; totalWeight += w.ig; }
-      if (liScore > 0 || li.found) { weighted += liScore * w.li; totalWeight += w.li; }
-
-      return totalWeight > 0 ? Math.round(weighted / totalWeight) : blogScore || 5;
-    }
-    case 'reputation': {
-      const rep = snap.reputation || {};
-      const rating = rep.combinedRating ?? rep.gbpRating ?? rep.trustpilotRating;
-      const reviews = rep.totalReviews || 0;
-      const newsCount = rep.newsCount || 0;
-      if (!rating && reviews === 0 && newsCount === 0) return 0;
-      // Only score sources that have data — don't average with zero
-      const components: Array<{ score: number; maxPts: number }> = [];
-      if (rating) components.push({ score: Math.round((rating / 5) * 100), maxPts: 50 });
-      if (reviews > 0) components.push({ score: Math.min(100, Math.round(reviews * 1.2)), maxPts: 30 });
-      if (newsCount > 0) components.push({ score: Math.min(100, newsCount * 25), maxPts: 20 });
-      if (components.length === 0) return 0;
-      // Redistribute max points across available sources
-      const totalMax = components.reduce((s, c) => s + c.maxPts, 0);
-      const weighted = components.reduce((s, c) => s + (c.score / 100) * (c.maxPts / totalMax) * 100, 0);
-      return Math.min(100, Math.round(weighted));
-    }
-    default: return 0;
+    // Fallback for legacy snapshots without score.content: local computation.
+    const cc = snap.content_cadence || {};
+    const ig = snap.instagram || {};
+    const li = snap.linkedin || {};
+    const blogScore = scoreSource(cc.postsLast90Days || 0, cc.daysSinceLastPost ?? 999);
+    const igScore = ig.found !== false && ig.posts ? scoreSource(ig.postsLast90Days || 0, ig.lastPostDate ? Math.round((Date.now() - new Date(ig.lastPostDate).getTime()) / 86400000) : 999, ig.engagementRate) : 0;
+    const liScore = li.found !== false && li.followers ? Math.min(100, 30 + Math.min(40, (li.followers || 0) / 100) + (li.employees ? 20 : 0)) : 0;
+    const w = contentWeights;
+    let totalWeight = 0;
+    let weighted = 0;
+    if (blogScore > 0 || cc.totalPosts !== undefined) { weighted += blogScore * w.blog; totalWeight += w.blog; }
+    if (igScore > 0 || ig.found) { weighted += igScore * w.ig; totalWeight += w.ig; }
+    if (liScore > 0 || li.found) { weighted += liScore * w.li; totalWeight += w.li; }
+    return totalWeight > 0 ? Math.round(weighted / totalWeight) : blogScore || 5;
   }
+
+  return 0;
 }
 
 const pillarDefs = [
@@ -219,8 +204,18 @@ if (prevSnap) {
   if (reviewsNow > reviewsPrev) improvements.push({ text: `GBP: ${reviewsNow - reviewsPrev} reseñas nuevas (total ${reviewsNow}, ${r.reputation?.gbpRating || '?'}★)`, pillar: 'reputation' });
 }
 
+// Growth Agent analysis (single unified source — replaces briefing).
+// Falls back to legacy briefing when not yet generated.
+const growthAnalysis = r.growth_analysis;
+const execHeadline = growthAnalysis?.executiveSummary?.headline;
+const execSituation = growthAnalysis?.executiveSummary?.situation;
+const execStrengths: string[] = growthAnalysis?.executiveSummary?.strengths || [];
+const execCriticalGaps: string[] = growthAnalysis?.executiveSummary?.criticalGaps || [];
+const upside = growthAnalysis?.executiveSummary?.upsidePotential;
+
 const briefing = r.briefing;
-const stableMessage = briefing?.summary || 'Tu web se mantiene estable esta semana — sin cambios significativos.';
+// Prefer Growth Agent situation, fall back to briefing summary, then to generic.
+const stableMessage = execSituation || briefing?.summary || 'Tu web se mantiene estable esta semana — sin cambios significativos.';
 
 // ─── Recommendations & Strategic Plan ─────────────────────────────────────
 const allRecs = hasData ? await getAllRecommendations(client.id) : [];
@@ -404,9 +399,9 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
     <!-- ══ BLOQUE 1: Score Global ══ -->
     <section style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;align-items:center;gap:32px;">
       <!-- Score big number -->
-      <div style="text-align:center;min-width:140px;">
-        <div style={`font-size:64px;font-weight:900;letter-spacing:-0.04em;color:${scoreColor};line-height:1;`}>{score}</div>
-        <div style="font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">de 100</div>
+      <div style="text-align:center;min-width:160px;">
+        <div style="font-size:10px;color:#1A4B8C;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;line-height:1.3;">Score AION<br/>de presencia digital</div>
+        <div style={`font-size:64px;font-weight:900;letter-spacing:-0.04em;color:${scoreColor};line-height:1;`}>{score}<span style="font-size:24px;color:#94a3b8;font-weight:700;">/100</span></div>
       </div>
       <div style="flex:1;">
         {isFirstWeek ? (
@@ -414,10 +409,10 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
           <Fragment>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
               <span style="font-size:20px;">🎯</span>
-              <span style="font-size:18px;font-weight:800;color:#1a1a2e;">Este es tu punto de partida</span>
+              <span style="font-size:18px;font-weight:800;color:#1a1a2e;">{execHeadline || 'Este es tu punto de partida'}</span>
             </div>
             <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">
-              {briefing?.summary || `Hemos analizado ${client.domain} por primera vez. La próxima semana compararemos cómo evoluciona cada pilar y te daremos recomendaciones basadas en datos reales.`}
+              {execSituation || briefing?.summary || `Hemos analizado ${client.domain} por primera vez. La próxima semana compararemos cómo evoluciona cada pilar y te daremos recomendaciones basadas en datos reales.`}
             </p>
           </Fragment>
         ) : (
@@ -429,7 +424,12 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
                 {scoreDelta >= 0 ? '+' : ''}{scoreDelta} puntos vs semana pasada
               </span>
             </div>
-            {briefing?.summary && (
+            {execHeadline && (
+              <p style="font-size:15px;font-weight:700;color:#1a1a2e;line-height:1.5;max-width:600px;margin-bottom:6px;">{execHeadline}</p>
+            )}
+            {execSituation ? (
+              <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">{execSituation}</p>
+            ) : briefing?.summary && (
               <p style="font-size:14px;color:#434750;line-height:1.6;max-width:600px;">{briefing.summary}</p>
             )}
           </Fragment>
@@ -448,6 +448,55 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         </div>
       )}
     </section>
+
+    <!-- ══ BLOQUE 1b: Growth Agent executive breakdown (strengths + gaps + upside) ══ -->
+    {growthAnalysis && (execStrengths.length > 0 || execCriticalGaps.length > 0 || upside) && (
+      <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        {execStrengths.length > 0 && (
+          <div style="background:white;border-radius:14px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:3px solid #1D9E75;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#1D9E75;">check_circle</span>
+              <h3 style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1D9E75;margin:0;">Fortalezas</h3>
+            </div>
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;">
+              {execStrengths.map((s) => (
+                <li style="font-size:13px;color:#1a1a2e;line-height:1.5;display:flex;gap:8px;">
+                  <span style="color:#1D9E75;flex-shrink:0;">▸</span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {execCriticalGaps.length > 0 && (
+          <div style="background:white;border-radius:14px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:3px solid #E24B4A;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#E24B4A;">priority_high</span>
+              <h3 style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#E24B4A;margin:0;">Gaps críticos</h3>
+            </div>
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;">
+              {execCriticalGaps.map((g) => (
+                <li style="font-size:13px;color:#1a1a2e;line-height:1.5;display:flex;gap:8px;">
+                  <span style="color:#E24B4A;flex-shrink:0;">▸</span>
+                  <span>{g}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {upside && upside.metric && upside.potential && (
+          <div style="grid-column:1 / -1;background:linear-gradient(135deg,#1A4B8C 0%,#2d5ca0 100%);border-radius:14px;padding:22px 28px;color:white;box-shadow:0 4px 20px rgba(26,75,140,0.2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:#fff;">trending_up</span>
+              <h3 style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.9);margin:0;">Potencial cuantificado</h3>
+            </div>
+            <p style="font-size:15px;line-height:1.6;color:white;">
+              Podrías pasar de <strong>{upside.current}</strong> a <strong>{upside.potential}</strong> en <strong>{upside.timeframe}</strong> — {upside.dependency}
+            </p>
+          </div>
+        )}
+      </section>
+    )}
 
     <!-- ══ BLOQUE 1b: Client KPIs ══ -->
     {kpiDisplay.length > 0 && (
