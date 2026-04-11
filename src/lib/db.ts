@@ -537,13 +537,18 @@ export interface Recommendation {
 export async function logRecommendation(rec: Omit<Recommendation, 'status'>): Promise<string | null> {
   if (IS_DEMO) return null;
   const sb = getSupabase();
+  // NOTE: expected_kpis lives inside the `data` jsonb column (passed by callers
+  // as `data: { expected_kpis: [...] }`) — NOT as a top-level column. The table
+  // has no `expected_kpis` column, and inserting one breaks the call with
+  // "Could not find the 'expected_kpis' column in the schema cache", which
+  // made every logRecommendation fail silently for both the Growth Agent
+  // and the Chat Advisor.
   const { data, error } = await sb
     .from('recommendations')
     .insert({
       ...rec,
       status: 'proposed',
       month_proposed: new Date().toISOString().slice(0, 7),
-      expected_kpis: rec.data?.expected_kpis || [],
     })
     .select('id')
     .single();
