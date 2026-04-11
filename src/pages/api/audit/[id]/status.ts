@@ -125,12 +125,18 @@ export const GET: APIRoute = async ({ params, request }) => {
     // ── Single step execution (crawl + score/insights/qa) ────────
     const { result, moduleKey, nextStep } = await executeStep(currentStep, audit);
 
-    const extraProps: { score?: number; sector?: string } = {};
+    const extraProps: { score?: number; sector?: string; url?: string } = {};
     if (moduleKey === 'score' && (result as any).total !== undefined) {
       extraProps.score = (result as any).total;
     }
     if (moduleKey === 'sector' && (result as any).sector) {
       extraProps.sector = (result as any).sector;
+    }
+    // Persist canonical URL when crawl detects a cross-domain redirect.
+    // Without this, every subsequent HTTP poll re-reads the original URL
+    // from Supabase and downstream modules query the wrong domain.
+    if (moduleKey === 'crawl' && (result as any)?.finalUrl && (result as any).finalUrl !== audit.url) {
+      extraProps.url = (result as any).finalUrl;
     }
 
     await saveModuleResult(id, moduleKey, result, nextStep, extraProps);

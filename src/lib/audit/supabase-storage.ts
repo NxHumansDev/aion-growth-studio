@@ -62,7 +62,7 @@ export async function saveModuleResult(
   moduleKey: string,
   moduleResult: ModuleResult,
   nextStep: AuditStepOrDone,
-  extraProps?: { score?: number; sector?: string },
+  extraProps?: { score?: number; sector?: string; url?: string },
 ): Promise<void> {
   const sb = getSupabase();
 
@@ -82,6 +82,7 @@ export async function saveModuleResult(
   }
   if (extraProps?.score !== undefined) update.score = extraProps.score;
   if (extraProps?.sector) update.sector = extraProps.sector;
+  if (extraProps?.url) update.url = extraProps.url;
 
   const { error } = await sb.from('audits').update(update).eq('id', auditId);
   if (error) console.error(`[supabase-storage] saveModuleResult failed:`, error.message);

@@ -155,7 +155,15 @@ export async function executeStepWithTimeout(
 
 /** Core step dispatcher — same logic as before, now called by timeout wrapper */
 async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleResult> {
-  const { url, results } = audit;
+  const { results } = audit;
+  // Prefer the post-redirect canonical URL when crawl detected a cross-domain
+  // redirect (e.g. hercesa.es → hercesa.com). Without this, downstream modules
+  // query DataForSEO against the original domain and come back empty because
+  // the real content lives under the canonical host. The crawl step itself
+  // must use the original URL — we only swap for later steps.
+  const url = step === 'crawl'
+    ? audit.url
+    : ((results.crawl as any)?.finalUrl || audit.url);
 
   switch (step) {
     case 'crawl':

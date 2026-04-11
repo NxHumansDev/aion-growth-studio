@@ -81,12 +81,15 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
       } else {
         // Single step execution
         const { result: stepResult, moduleKey, nextStep } = await executeStep(currentStep as AuditStep, audit);
-        const extraProps: { score?: number; sector?: string } = {};
+        const extraProps: { score?: number; sector?: string; url?: string } = {};
         if (moduleKey === 'score' && (stepResult as any).total !== undefined) {
           extraProps.score = (stepResult as any).total;
         }
         if (moduleKey === 'sector' && (stepResult as any).sector) {
           extraProps.sector = (stepResult as any).sector;
+        }
+        if (moduleKey === 'crawl' && (stepResult as any)?.finalUrl && (stepResult as any).finalUrl !== audit.url) {
+          extraProps.url = (stepResult as any).finalUrl;
         }
         await saveModuleResult(auditId, moduleKey, stepResult, nextStep, extraProps);
         currentStep = nextStep;
