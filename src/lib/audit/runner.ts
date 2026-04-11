@@ -69,10 +69,12 @@ const GENEROUS = 270_000; // 270s — leaves 30s headroom under the 300s Vercel 
 export const STEP_TIMEOUTS: Record<string, number> = {
   // Synthesis steps need less — they only run locally / on cached data
   score: 30_000,
-  // growth_agent: Sonnet (~30s) + structural + Opus QA (~40s) + corrections.
-  // Capped at 100s so a failure falls through to the deterministic fallback
-  // instead of eating the whole function budget (see commit 723ceae).
-  growth_agent: 100_000,
+  // growth_agent: Sonnet draft (~30-50s) + structural (~1s) + Opus QA (~45-90s)
+  // + corrections. Complex sites with lots of data push this past 100s.
+  // Retry is disabled for this step (see runner retry guard), so a long
+  // timeout can't cascade into a Vercel 300s kill — worst case we eat the
+  // whole budget on a single attempt and the deterministic fallback runs.
+  growth_agent: 240_000,
 };
 const DEFAULT_TIMEOUT = GENEROUS;
 

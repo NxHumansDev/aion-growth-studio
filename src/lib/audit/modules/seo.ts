@@ -353,7 +353,6 @@ export async function runSEO(url: string): Promise<SEOResult> {
         // Brand keywords: filter ranked_keywords by brand name
         fetch('https://api.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live', {
           method: 'POST',
-          signal: controller.signal,
           headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
           body: JSON.stringify([{
             target: domain,
@@ -366,7 +365,6 @@ export async function runSEO(url: string): Promise<SEOResult> {
         // Indexed pages: site: search via SERP
         fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
           method: 'POST',
-          signal: controller.signal,
           headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
           body: JSON.stringify([{
             keyword: `site:${domain}`,
@@ -478,7 +476,10 @@ export async function runSEO(url: string): Promise<SEOResult> {
           _logParts.push(`sitemap:${totalLocCount} ratio:${baseResult.indexationRatio ?? '?'}%`);
         }
       }
-    } catch { _logParts.push('brand/index:except'); }
+    } catch (err: any) {
+      console.error(`[seo] brand/index block threw:`, err?.message || err);
+      _logParts.push(`brand/index:except(${(err?.message || 'unknown').slice(0, 40)})`);
+    }
 
     baseResult._log = _logParts.join(' ');
 
