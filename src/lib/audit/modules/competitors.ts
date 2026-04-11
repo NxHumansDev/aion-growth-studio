@@ -44,7 +44,47 @@ async function filterValidDomains(
 }
 
 /** Reject company names that look like category descriptions rather than brand names */
-const GENERIC_NAME_RE = /^(mejores|principales|top\s|leading|empresas?\s+de|proveedor|distribuidor|importador|exportador|productores?\s+de|fabricante|mayorista|minorista|tienda\s+de|comercio\s+de|market|category|industry)/i;
+// Leading-token blocklist — anything starting with these is a category description,
+// not a company name. Case-insensitive, matches word prefix to avoid false positives
+// on legit brand names that happen to contain an industry term ("Compañía Cervecera").
+const GENERIC_NAME_RE = /^(mejores|principales|top\s|leading|empresas?\s+de|proveedor|distribuidor|importador|exportador|productores?\s+de|fabricante|mayorista|minorista|tienda\s+de|comercio\s+de|market|category|industry|promotora\b|promotor\b|compañ[íi]a\s+de|constructora\s+de|inmobiliaria\s+de|agencia\s+de|estudio\s+de|despacho\s+de|consultora\s+de|firma\s+de|bufete\s+de|clinica\s+de|cl[íi]nica\s+de|centro\s+de|grupo\s+de|servicio\s+de|solutions?\s+for|services?\s+for)/i;
+
+/**
+ * Heuristic: looks like a description rather than a brand name?
+ * Real brand names are usually 1-3 words, with meaningful capitalization.
+ * Descriptions tend to be 4+ words with articles/prepositions lowercase.
+ */
+function looksLikeDescription(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 2) return false;  // 1-2 words → definitely a brand
+  if (words.length >= 5) return true;   // 5+ words → definitely a description
+  // 3-4 words: check lowercase article/preposition count
+  const articles = /^(de|del|la|el|los|las|en|con|para|y|o|of|the|for|in|and|a|an)$/i;
+  const articleCount = words.filter((w) => articles.test(w)).length;
+  return articleCount >= 2;
+}
+
+/**
+ * Given a validated competitor URL, derive a sensible display name from the
+ * domain when the LLM returned a generic description instead of a real name.
+ * e.g. "aedashomes.com" → "Aedashomes", "via-celere.es" → "Via Celere"
+ */
+function domainToBrandName(url: string): string {
+  try {
+    const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
+    const base = host.replace(/\.[a-z]{2,6}(\.[a-z]{2,6})?$/i, '');
+    // Split on hyphens/dots → title-case each token → join with space
+    return base
+      .split(/[-_.]/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  } catch {
+    return url;
+  }
+}
 
 /** Fallback competitors by sector when all detection methods fail */
 const SECTOR_DEFAULT_COMPETITORS: Record<string, Array<{ name: string; url: string; snippet: string }>> = {
@@ -240,7 +280,12 @@ Reply ONLY with valid JSON (no markdown, no backticks, start with {):
 
 RULES:
 1. Only include companies whose EXACT website URL you know with 100% certainty.
-2. Must be a real brand name, NEVER a category description.
+2. **"name" must be the REAL BRAND NAME**, exactly as the company calls itself — NEVER a sector description.
+   WRONG: {"name": "Promotora inmobiliaria de obra nueva", "url": "https://aedashomes.com"}
+   RIGHT: {"name": "Aedas Homes", "url": "https://aedashomes.com"}
+   WRONG: {"name": "Consultora de growth marketing", "url": "https://growthtribe.io"}
+   RIGHT: {"name": "Growth Tribe", "url": "https://growthtribe.io"}
+   If you don't know the exact brand name for a URL, DO NOT include that competitor. Return fewer competitors rather than making up generic descriptions.
 3. Competitors MUST operate in the SAME business model and serve the SAME customer type.
 4. Competitors should have a real website with some online presence.
 5. Max 1 "aspirational" competitor. At least 2 must be "direct".
@@ -288,16 +333,27 @@ RULES:
     return { competitors: [], error: 'LLM failed to produce valid competitors' };
   }
 
-  // Filter and normalize — reject generic description names
+  // Filter and normalize — don't DROP entries with generic names (that would
+  // lose a valid competitor URL). Instead, replace the name with one derived
+  // from the domain. This recovers from cases like Sonnet returning
+  // name="Promotora inmobiliaria de obra nueva", url="https://aedashomes.com"
+  // → name becomes "Aedashomes".
   const rawList = validated.competitors
-    .filter((c) => !c.url.includes(domain))
-    .filter((c) => !GENERIC_NAME_RE.test(c.name.trim()))
+    .filter((c: any) => !c.url.includes(domain))
     .slice(0, 5)
-    .map((c) => ({
-      name: c.name.slice(0, 80),
-      url: c.url.slice(0, 120),
-      snippet: (c.snippet || '').slice(0, 150),
-    }));
+    .map((c: any) => {
+      const rawName = (c.name || '').trim();
+      const isGeneric = GENERIC_NAME_RE.test(rawName) || looksLikeDescription(rawName);
+      const name = isGeneric ? domainToBrandName(c.url) : rawName;
+      if (isGeneric) {
+        console.log(`[competitors] Rewrote generic name "${rawName}" → "${name}" (from ${c.url})`);
+      }
+      return {
+        name: name.slice(0, 80),
+        url: c.url.slice(0, 120),
+        snippet: (c.snippet || '').slice(0, 150),
+      };
+    });
 
   // Validate that domains actually exist (eliminates hallucinated domains)
   const validList = await filterValidDomains(rawList);
