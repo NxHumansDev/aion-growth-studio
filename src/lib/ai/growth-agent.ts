@@ -543,7 +543,10 @@ async function generateSonnetDraft(
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 85_000);
+    // 180s timeout: with max_tokens=16384 the full analysis generation can
+    // take 90-150s. 85s was too tight and aborted mid-generation. Vercel
+    // Function timeout on Pro is 300s so we stay well within budget.
+    const timer = setTimeout(() => controller.abort(), 180_000);
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -555,7 +558,11 @@ async function generateSonnetDraft(
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 4096,
+        // 16384 is enough for the full analysis JSON (executiveSummary +
+        // 6 pillar narratives + 5-8 prioritized actions with step-by-step
+        // detail). 4096 was truncating mid-array causing stop_reason:max_tokens
+        // and JSON parse failures that fell through to fallbackAnalysis.
+        max_tokens: 16384,
         temperature: 0.2,
         // Prompt caching: system + context are cache breakpoints.
         // The next call (chat follow-up, QA, retry) reuses the cached blocks at 10% cost.
