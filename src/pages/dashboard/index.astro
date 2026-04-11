@@ -593,125 +593,247 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
       })}
     </section>
 
-    {/* ══ Analytics KPIs or pending message ══ */}
-    {ga4Connected && !hasAnalytics && (
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:#E1F5EE;border:1px solid #b8e6d4;border-radius:10px;">
-        <span class="material-symbols-outlined" style="font-size:20px;color:#1D9E75;">analytics</span>
-        <span style="font-size:13px;color:#065f46;flex:1;">
-          <strong>Google Analytics conectado.</strong> En la próxima revisión semanal actualizaremos los datos de tu GA4 y Search Console.
-        </span>
-        <span class="material-symbols-outlined" style="font-size:18px;color:#1D9E75;">check_circle</span>
-      </div>
-    )}
-    {hasAnalytics && (() => {
-      // ─── Metric definitions ──────────────────────────────────────────
-      type Metric = {
-        label: string;
-        current: number | null;
-        prev: number | null;
-        format: (v: number) => string;
-        better: 'up' | 'down';
-        source: 'GA4' | 'GSC';
-      };
+    {/* ══ BLOQUE: Tu web esta semana — 8 KPIs with source cascade ══ */}
+    {(() => {
+      // ─── Source cascade helpers ──────────────────────────────────────
+      // Each KPI computes its value from the best available source,
+      // falling back to estimated DFS values when GSC/GA4 aren't connected.
       const fmtNum = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}K` : v.toLocaleString();
       const fmtPct = (v: number) => `${(Math.round(v * 10) / 10)}%`;
       const fmtPos = (v: number) => v.toFixed(1);
-      const orgSess = (data: any) => {
+
+      const orgSess = (data: any): number | null => {
         const sources = data?.analytics?.ga4?.trafficSources;
         if (!sources) return null;
         const total = sources.filter((t: any) => (t.medium || '').toLowerCase() === 'organic')
           .reduce((sum: number, t: any) => sum + (t.sessions || 0), 0);
         return total > 0 ? total : null;
       };
-      const metrics: Metric[] = [
-        { label: 'Visitas', current: ga4?.sessions ?? null, prev: prevGa4?.sessions ?? null, format: fmtNum, better: 'up', source: 'GA4' },
-        { label: 'Usuarios', current: ga4?.users ?? null, prev: prevGa4?.users ?? null, format: fmtNum, better: 'up', source: 'GA4' },
-        { label: 'Sesiones orgánicas', current: orgSess(r), prev: orgSess(pr), format: fmtNum, better: 'up', source: 'GA4' },
-        { label: 'Conversiones', current: ga4?.conversions ?? null, prev: prevGa4?.conversions ?? null, format: fmtNum, better: 'up', source: 'GA4' },
-        { label: 'Clicks Google', current: gsc?.totalClicks ?? null, prev: prevGsc?.totalClicks ?? null, format: fmtNum, better: 'up', source: 'GSC' },
-        { label: 'Impresiones', current: gsc?.totalImpressions ?? null, prev: prevGsc?.totalImpressions ?? null, format: fmtNum, better: 'up', source: 'GSC' },
-        { label: 'CTR medio', current: gsc?.avgCtr ?? null, prev: prevGsc?.avgCtr ?? null, format: fmtPct, better: 'up', source: 'GSC' },
-        { label: 'Posición media', current: gsc?.avgPosition ?? null, prev: prevGsc?.avgPosition ?? null, format: fmtPos, better: 'down', source: 'GSC' },
+
+      // Cascade: Tráfico orgánico — GSC clicks > GA4 org sessions > DFS etv
+      const getOrganicTraffic = (data: any): { value: number | null; source: 'GSC' | 'GA4' | 'DFS' } => {
+        const clicks = data?.analytics?.gsc?.totalClicks;
+        if (clicks != null && clicks > 0) return { value: clicks, source: 'GSC' };
+        const ga4Org = orgSess(data);
+        if (ga4Org != null && ga4Org > 0) return { value: ga4Org, source: 'GA4' };
+        const etv = data?.seo?.organicTrafficEstimate;
+        if (etv != null) return { value: etv, source: 'DFS' };
+        return { value: null, source: 'DFS' };
+      };
+
+      // Cascade: Impresiones — GSC totalImpressions > DFS Σ(volume of top keywords)
+      const getImpressions = (data: any): { value: number | null; source: 'GSC' | 'DFS' } => {
+        const gscImp = data?.analytics?.gsc?.totalImpressions;
+        if (gscImp != null && gscImp > 0) return { value: gscImp, source: 'GSC' };
+        const topKw = data?.seo?.topKeywords;
+        if (topKw && topKw.length > 0) {
+          const sumVol = topKw.reduce((s: number, k: any) => s + (k.volume || 0), 0);
+          if (sumVol > 0) return { value: sumVol, source: 'DFS' };
+        }
+        return { value: null, source: 'DFS' };
+      };
+
+      // Cascade: CTR medio — GSC avgCtr > DFS (Σetv / Σvolume × 100)
+      const getCtr = (data: any): { value: number | null; source: 'GSC' | 'DFS' } => {
+        const gscCtr = data?.analytics?.gsc?.avgCtr;
+        if (gscCtr != null && gscCtr > 0) return { value: gscCtr, source: 'GSC' };
+        const topKw = data?.seo?.topKeywords;
+        if (topKw && topKw.length > 0) {
+          const sumEtv = topKw.reduce((s: number, k: any) => s + (k.etv || 0), 0);
+          const sumVol = topKw.reduce((s: number, k: any) => s + (k.volume || 0), 0);
+          if (sumVol > 0) return { value: Math.round((sumEtv / sumVol) * 1000) / 10, source: 'DFS' };
+        }
+        return { value: null, source: 'DFS' };
+      };
+
+      // Cascade: Posición media — GSC avgPosition > DFS weighted_avg(position, etv)
+      const getAvgPosition = (data: any): { value: number | null; source: 'GSC' | 'DFS' } => {
+        const gscPos = data?.analytics?.gsc?.avgPosition;
+        if (gscPos != null && gscPos > 0) return { value: gscPos, source: 'GSC' };
+        const topKw = data?.seo?.topKeywords;
+        if (topKw && topKw.length > 0) {
+          const withPos = topKw.filter((k: any) => k.position > 0);
+          if (withPos.length > 0) {
+            const sumEtv = withPos.reduce((s: number, k: any) => s + (k.etv || 1), 0);
+            const weighted = withPos.reduce((s: number, k: any) => s + k.position * (k.etv || 1), 0);
+            return { value: Math.round((weighted / sumEtv) * 10) / 10, source: 'DFS' };
+          }
+        }
+        return { value: null, source: 'DFS' };
+      };
+
+      // Build the 8 KPI cards
+      type KpiCard = {
+        label: string;
+        value: number | null;
+        prev: number | null;
+        format: (v: number) => string;
+        better: 'up' | 'down';
+        source: 'GSC' | 'GA4' | 'DFS' | 'GEO' | 'PS';
+        sourceLabel?: string;
+      };
+
+      const traffic = getOrganicTraffic(r);
+      const prevTraffic = getOrganicTraffic(pr);
+      const impressions = getImpressions(r);
+      const prevImpressions = getImpressions(pr);
+      const ctrVal = getCtr(r);
+      const prevCtrVal = getCtr(pr);
+      const avgPos = getAvgPosition(r);
+      const prevAvgPos = getAvgPosition(pr);
+
+      const kpis: KpiCard[] = [
+        {
+          label: 'Tráfico orgánico', value: traffic.value, prev: prevTraffic.value,
+          format: fmtNum, better: 'up', source: traffic.source,
+          sourceLabel: traffic.source === 'DFS' ? 'DFS est.' : traffic.source,
+        },
+        {
+          label: 'Keywords Top 10', value: r.seo?.keywordsTop10 ?? null, prev: pr.seo?.keywordsTop10 ?? null,
+          format: fmtNum, better: 'up', source: 'DFS', sourceLabel: 'DFS',
+        },
+        {
+          label: 'Keywords Top 3', value: r.seo?.keywordsTop3 ?? null, prev: pr.seo?.keywordsTop3 ?? null,
+          format: fmtNum, better: 'up', source: 'DFS', sourceLabel: 'DFS',
+        },
+        {
+          label: 'Impresiones', value: impressions.value, prev: prevImpressions.value,
+          format: fmtNum, better: 'up', source: impressions.source,
+          sourceLabel: impressions.source === 'DFS' ? 'DFS est.' : impressions.source,
+        },
+        {
+          label: 'CTR medio', value: ctrVal.value, prev: prevCtrVal.value,
+          format: fmtPct, better: 'up', source: ctrVal.source,
+          sourceLabel: ctrVal.source === 'DFS' ? 'DFS est.' : ctrVal.source,
+        },
+        {
+          label: 'Posición media', value: avgPos.value, prev: prevAvgPos.value,
+          format: fmtPos, better: 'down', source: avgPos.source,
+          sourceLabel: avgPos.source === 'DFS' ? 'DFS est.' : avgPos.source,
+        },
+        {
+          label: 'Visibilidad en IA', value: r.geo?.mentionRate ?? null, prev: pr.geo?.mentionRate ?? null,
+          format: fmtPct, better: 'up', source: 'GEO', sourceLabel: 'GEO',
+        },
+        {
+          label: 'PageSpeed Mobile', value: r.pagespeed?.mobile?.performance ?? null, prev: pr.pagespeed?.mobile?.performance ?? null,
+          format: (v) => String(Math.round(v)), better: 'up', source: 'PS', sourceLabel: 'PageSpeed',
+        },
       ];
-      const sourceBadge = { GA4: { bg: '#fef3c7', fg: '#92400e' }, GSC: { bg: '#E1F5EE', fg: '#1D9E75' } };
+
+      const sourceBadge: any = {
+        GSC: { bg: '#E1F5EE', fg: '#1D9E75' },
+        GA4: { bg: '#fef3c7', fg: '#92400e' },
+        DFS: { bg: '#EEF2FF', fg: '#4338CA' },
+        GEO: { bg: '#F3E8FF', fg: '#7C3AED' },
+        PS:  { bg: '#FEE2E2', fg: '#B91C1C' },
+      };
+
+      // GA4-only "behaviour" metrics (second sub-block, only if GA4 connected)
+      const hasGa4Data = !!ga4;
+      const behaviourMetrics = hasGa4Data ? [
+        { label: 'Sesiones totales', value: ga4?.sessions ?? null, prev: prevGa4?.sessions ?? null, format: fmtNum, better: 'up' as const },
+        { label: 'Usuarios únicos', value: ga4?.users ?? null, prev: prevGa4?.users ?? null, format: fmtNum, better: 'up' as const },
+        { label: 'Conversiones', value: ga4?.conversions ?? null, prev: prevGa4?.conversions ?? null, format: fmtNum, better: 'up' as const },
+        { label: 'Tasa de rebote', value: ga4?.bounceRate != null ? ga4.bounceRate * 100 : null, prev: prevGa4?.bounceRate != null ? prevGa4.bounceRate * 100 : null, format: fmtPct, better: 'down' as const },
+      ] : [];
 
       return (
-      <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
-          <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">analytics</span>
-          <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Tu web esta semana</h3>
-          <span style="font-size:10px;background:#f0f4ff;color:#1A4B8C;padding:3px 10px;border-radius:999px;font-weight:700;">Datos reales · GA4 + GSC</span>
-        </div>
+        <Fragment>
+          <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">insights</span>
+              <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;margin:0;">Tu web esta semana</h3>
+              {!ga4Connected && (
+                <a href="/dashboard/settings" style="font-size:10px;padding:3px 10px;border-radius:999px;background:#f0f4ff;color:#1A4B8C;text-decoration:none;font-weight:700;border:1px solid #d6e3ff;">
+                  Conecta GA4 y GSC para datos reales →
+                </a>
+              )}
+            </div>
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
-          {metrics.map(m => {
-            const hasData = m.current != null;
-            const hasPrev = m.prev != null && m.prev !== 0;
-            let deltaPct: number | null = null;
-            let deltaAbs: number | null = null;
-            if (hasData && hasPrev && m.prev != null && m.current != null) {
-              deltaAbs = m.current - m.prev;
-              deltaPct = Math.round((deltaAbs / Math.abs(m.prev)) * 100);
-            }
-            const isPositive = deltaAbs != null && deltaAbs !== 0
-              ? (m.better === 'up' ? deltaAbs > 0 : deltaAbs < 0)
-              : null;
-            const deltaColor = isPositive == null ? '#94a3b8' : isPositive ? '#1D9E75' : '#E24B4A';
-            const arrow = deltaAbs == null ? '' : deltaAbs > 0 ? '↑' : deltaAbs < 0 ? '↓' : '';
-            const badge = sourceBadge[m.source];
-            return (
-              <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                  <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{m.label}</p>
-                  <span style={`font-size:8px;font-weight:800;padding:2px 6px;border-radius:999px;background:${badge.bg};color:${badge.fg};letter-spacing:0.04em;`}>{m.source}</span>
-                </div>
-                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
-                  <span style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1;">{hasData ? m.format(m.current!) : '—'}</span>
-                  {deltaPct != null && deltaPct !== 0 && (
-                    <span style={`font-size:13px;font-weight:800;color:${deltaColor};white-space:nowrap;`}>
-                      {arrow} {deltaPct > 0 ? '+' : ''}{deltaPct}%
-                    </span>
-                  )}
-                </div>
-                <p style="font-size:11px;color:#94a3b8;font-weight:500;">
-                  {!hasData ? 'Sin datos' : !hasPrev ? 'Primera semana' : deltaAbs === 0 ? 'Sin cambios · vs. semana anterior' : 'vs. semana anterior'}
-                </p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+              {kpis.map(m => {
+                const hasData = m.value != null;
+                const hasPrev = m.prev != null && m.prev !== 0;
+                let deltaPct: number | null = null;
+                let deltaAbs: number | null = null;
+                if (hasData && hasPrev && m.prev != null && m.value != null) {
+                  deltaAbs = m.value - m.prev;
+                  deltaPct = Math.round((deltaAbs / Math.abs(m.prev)) * 100);
+                }
+                const isPositive = deltaAbs != null && deltaAbs !== 0
+                  ? (m.better === 'up' ? deltaAbs > 0 : deltaAbs < 0)
+                  : null;
+                const deltaColor = isPositive == null ? '#94a3b8' : isPositive ? '#1D9E75' : '#E24B4A';
+                const arrow = deltaAbs == null ? '' : deltaAbs > 0 ? '↑' : deltaAbs < 0 ? '↓' : '';
+                const badge = sourceBadge[m.source];
+                return (
+                  <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:6px;">
+                      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">{m.label}</p>
+                      <span style={`font-size:8px;font-weight:800;padding:2px 6px;border-radius:999px;background:${badge.bg};color:${badge.fg};letter-spacing:0.04em;white-space:nowrap;`}>{m.sourceLabel || m.source}</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1;">{hasData ? m.format(m.value!) : '—'}</span>
+                      {deltaPct != null && deltaPct !== 0 && (
+                        <span style={`font-size:13px;font-weight:800;color:${deltaColor};white-space:nowrap;`}>
+                          {arrow} {deltaPct > 0 ? '+' : ''}{deltaPct}%
+                        </span>
+                      )}
+                    </div>
+                    <p style="font-size:11px;color:#94a3b8;font-weight:500;">
+                      {!hasData ? 'Sin datos' : !hasPrev ? 'Primera semana' : deltaAbs === 0 ? 'Sin cambios · vs. semana anterior' : 'vs. semana anterior'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* GA4-only behaviour block — only when GA4 is connected */}
+          {hasGa4Data && behaviourMetrics.length > 0 && (
+            <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+                <span class="material-symbols-outlined" style="font-size:20px;color:#92400e;">person_search</span>
+                <h3 style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;margin:0;">Comportamiento en tu web</h3>
+                <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:999px;font-weight:700;">GA4 Real</span>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Top keyword from GSC */}
-        {gsc?.topQueries?.length > 0 && (
-          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;">
-            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Top búsquedas en Google</p>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              {gsc.topQueries.slice(0, 5).map((q: any) => (
-                <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f0f4ff;border-radius:8px;font-size:12px;">
-                  <span style="font-weight:700;color:#1a1a2e;">{q.query}</span>
-                  <span style="color:#64748b;">pos {q.position}</span>
-                  <span style="color:#1D9E75;font-weight:600;">{q.clicks} clicks</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Top source from GA4 */}
-        {ga4?.trafficSources?.length > 0 && (
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0;">
-            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Fuentes de tráfico</p>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              {ga4.trafficSources.slice(0, 4).map((s: any) => (
-                <div style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:#f0f4ff;border-radius:8px;font-size:12px;">
-                  <span style="font-weight:700;color:#1a1a2e;">{s.source}/{s.medium}</span>
-                  <span style="color:#64748b;">{s.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+                {behaviourMetrics.map(m => {
+                  const hasData = m.value != null;
+                  const hasPrev = m.prev != null && m.prev !== 0;
+                  let deltaPct: number | null = null;
+                  let deltaAbs: number | null = null;
+                  if (hasData && hasPrev && m.prev != null && m.value != null) {
+                    deltaAbs = m.value - m.prev;
+                    deltaPct = Math.round((deltaAbs / Math.abs(m.prev)) * 100);
+                  }
+                  const isPositive = deltaAbs != null && deltaAbs !== 0
+                    ? (m.better === 'up' ? deltaAbs > 0 : deltaAbs < 0)
+                    : null;
+                  const deltaColor = isPositive == null ? '#94a3b8' : isPositive ? '#1D9E75' : '#E24B4A';
+                  const arrow = deltaAbs == null ? '' : deltaAbs > 0 ? '↑' : deltaAbs < 0 ? '↓' : '';
+                  return (
+                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 20px;">
+                      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#92400e;margin-bottom:10px;">{m.label}</p>
+                      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                        <span style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;line-height:1;">{hasData ? m.format(m.value!) : '—'}</span>
+                        {deltaPct != null && deltaPct !== 0 && (
+                          <span style={`font-size:13px;font-weight:800;color:${deltaColor};white-space:nowrap;`}>
+                            {arrow} {deltaPct > 0 ? '+' : ''}{deltaPct}%
+                          </span>
+                        )}
+                      </div>
+                      <p style="font-size:11px;color:#b45309;font-weight:500;">
+                        {!hasData ? 'Sin datos' : !hasPrev ? 'Primera semana' : 'vs. semana anterior'}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </Fragment>
       );
     })()}
 

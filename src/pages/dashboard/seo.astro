@@ -169,6 +169,58 @@ const compItems = (r.competitor_traffic?.items || []) as Array<{domain: string; 
 // ─── GSC data ─────────────────────────────────────────────────────────────
 const gscQueries = (gsc?.topQueries || []).slice(0, 10) as Array<{query: string; clicks: number; impressions: number; ctr: number; position: number}>;
 
+// ─── Top Queries cascade: GSC real > DFS estimated (from seo.topKeywords) ──
+type QueryRow = { query: string; clicks: number | null; impressions: number | null; ctr: number | null; position: number; isEstimated: boolean };
+let topQueriesRows: QueryRow[] = [];
+let topQueriesSource: 'GSC' | 'DFS' = 'DFS';
+if (gscQueries.length > 0) {
+  topQueriesSource = 'GSC';
+  topQueriesRows = gscQueries.map((q) => ({
+    query: q.query, clicks: q.clicks, impressions: q.impressions,
+    ctr: q.ctr, position: q.position, isEstimated: false,
+  }));
+} else if ((seo.topKeywords || []).length > 0) {
+  topQueriesSource = 'DFS';
+  topQueriesRows = (seo.topKeywords as any[]).slice(0, 10).map((kw: any) => {
+    const vol = kw.volume || 0;
+    const etv = kw.etv || 0;
+    const ctrEst = vol > 0 ? Math.round((etv / vol) * 1000) / 10 : null;
+    return {
+      query: kw.keyword, clicks: etv || null,
+      impressions: vol || null, ctr: ctrEst, position: kw.position || 0,
+      isEstimated: true,
+    };
+  });
+}
+
+// ─── Top Pages cascade: GSC > DFS seo_pages > GA4 topPages (organic) ──────
+type PageRow = { url: string; clicks: number | null; impressions: number | null; ctr: number | null; position: number | null; isEstimated: boolean };
+let topPagesRows: PageRow[] = [];
+let topPagesSource: 'GSC' | 'DFS' | 'GA4' = 'DFS';
+const gscTopPages = (gsc?.topPages || []) as Array<{page: string; clicks: number; impressions: number; ctr: number; position: number}>;
+const dfsPages = (r.seo_pages?.pages || []) as Array<{pageAddress: string; trafficEstimate?: number; keywords?: number; topPosition?: number}>;
+const ga4TopPages = (r.analytics?.ga4?.topPages || []) as Array<{path: string; pageviews: number}>;
+if (gscTopPages.length > 0) {
+  topPagesSource = 'GSC';
+  topPagesRows = gscTopPages.slice(0, 10).map((p) => ({
+    url: p.page, clicks: p.clicks, impressions: p.impressions,
+    ctr: p.ctr, position: p.position, isEstimated: false,
+  }));
+} else if (dfsPages.length > 0) {
+  topPagesSource = 'DFS';
+  topPagesRows = dfsPages.slice(0, 10).map((p) => ({
+    url: p.pageAddress, clicks: p.trafficEstimate ?? null,
+    impressions: null, ctr: null, position: p.topPosition ?? null,
+    isEstimated: true,
+  }));
+} else if (ga4TopPages.length > 0) {
+  topPagesSource = 'GA4';
+  topPagesRows = ga4TopPages.slice(0, 10).map((p) => ({
+    url: p.path, clicks: p.pageviews, impressions: null,
+    ctr: null, position: null, isEstimated: false,
+  }));
+}
+
 // ─── Evolution sparklines ─────────────────────────────────────────────────
 const kwHistory = allSnapshots.map(s => s.pipeline_output?.seo?.keywordsTop10 || 0);
 const trafficHistory = allSnapshots.map(s => s.pipeline_output?.seo?.organicTrafficEstimate || 0);
@@ -676,84 +728,40 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
     </section>
   )}
 
-  <!-- ══ Search Console Overview — 4 big numbers (if connected) ══ -->
-  {hasGsc && (
-    <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:24px 28px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-        <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Search Console — Datos reales</h2>
-        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:3px 10px;border-radius:999px;font-weight:700;">GSC · últimos 7 días</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
-        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
-          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Clicks</p>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style="font-size:26px;font-weight:900;color:#1A4B8C;">{fmtNum(gsc.totalClicks || 0)}</span>
-            {prevGsc?.totalClicks != null && Math.abs((gsc.totalClicks || 0) - prevGsc.totalClicks) > 0 && (
-              <span style={`font-size:11px;font-weight:700;color:${(gsc.totalClicks || 0) > prevGsc.totalClicks ? GREEN_HERO : RED_HERO};`}>
-                {(gsc.totalClicks || 0) > prevGsc.totalClicks ? '+' : ''}{fmtNum((gsc.totalClicks || 0) - prevGsc.totalClicks)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
-          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Impresiones</p>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style="font-size:26px;font-weight:900;color:#1a1a2e;">{fmtNum(gsc.totalImpressions || 0)}</span>
-            {prevGsc?.totalImpressions != null && Math.abs((gsc.totalImpressions || 0) - prevGsc.totalImpressions) > 0 && (
-              <span style={`font-size:11px;font-weight:700;color:${(gsc.totalImpressions || 0) > prevGsc.totalImpressions ? GREEN_HERO : RED_HERO};`}>
-                {(gsc.totalImpressions || 0) > prevGsc.totalImpressions ? '+' : ''}{fmtNum((gsc.totalImpressions || 0) - prevGsc.totalImpressions)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
-          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">CTR Medio</p>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style={`font-size:26px;font-weight:900;color:${(gsc.avgCtr || 0) > 5 ? GREEN_HERO : (gsc.avgCtr || 0) > 2 ? ORANGE_HERO : RED_HERO};`}>{(gsc.avgCtr || 0).toFixed(1)}<span style="font-size:14px;color:#64748b;font-weight:600;">%</span></span>
-          </div>
-        </div>
-        <div style="background:#f7f9ff;border-radius:10px;padding:16px 18px;">
-          <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Posición Media</p>
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style={`font-size:26px;font-weight:900;color:${(gsc.avgPosition || 99) <= 10 ? GREEN_HERO : (gsc.avgPosition || 99) <= 20 ? ORANGE_HERO : RED_HERO};`}>{(gsc.avgPosition || 0).toFixed(1)}</span>
-            {prevGsc?.avgPosition != null && Math.abs((gsc.avgPosition || 0) - prevGsc.avgPosition) >= 0.5 && (
-              <span style={`font-size:11px;font-weight:700;color:${(gsc.avgPosition || 0) < prevGsc.avgPosition ? GREEN_HERO : RED_HERO};`}>
-                {(gsc.avgPosition || 0) < prevGsc.avgPosition ? '↑' : '↓'}{Math.abs((gsc.avgPosition || 0) - prevGsc.avgPosition).toFixed(1)}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  )}
-
-  <!-- ══ GSC Top Queries (if available) ══ -->
-  {gscQueries.length > 0 && (
+  <!-- ══ Top Queries — cascade GSC real > DFS estimated ══ -->
+  {topQueriesRows.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
         <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Top Queries — qué buscan para encontrarte</h2>
-        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
+        {topQueriesSource === 'GSC' ? (
+          <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC Real</span>
+        ) : (
+          <span style="font-size:10px;background:#EEF2FF;color:#4338CA;padding:2px 8px;border-radius:4px;font-weight:700;">DFS Estimado</span>
+        )}
+        {topQueriesSource === 'DFS' && (
+          <a href="/dashboard/settings" style="font-size:10px;color:#1A4B8C;margin-left:auto;text-decoration:none;font-weight:600;">Conecta GSC para datos reales →</a>
+        )}
       </div>
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
             <tr style="background:#f7f9ff;">
               <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Query</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">{topQueriesSource === 'GSC' ? 'Clicks' : 'Clicks est.'}</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">{topQueriesSource === 'GSC' ? 'Impresiones' : 'Volumen'}</th>
               <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
               <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
             </tr>
           </thead>
           <tbody>
-            {gscQueries.map((q, i) => (
+            {topQueriesRows.map((q, i) => (
               <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
-                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{q.query}</td>
-                <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{q.clicks}</td>
-                <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions.toLocaleString()}</td>
-                <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{q.ctr}%</td>
+                <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;text-transform:capitalize;">{q.query}</td>
+                <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{q.clicks != null ? q.clicks.toLocaleString() : '—'}</td>
+                <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions != null ? q.impressions.toLocaleString() : '—'}</td>
+                <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr != null ? (q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A') : '#94a3b8'};`}>{q.ctr != null ? `${q.ctr}%` : '—'}</td>
                 <td style="text-align:center;padding:12px 16px;">
-                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position}</span>
+                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position || '—'}</span>
                 </td>
               </tr>
             ))}
@@ -763,37 +771,47 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
     </section>
   )}
 
-  <!-- ══ GSC Top Pages (if available) ══ -->
-  {(gsc?.topPages || []).length > 0 && (
+  <!-- ══ Top Pages — cascade GSC real > DFS seo_pages > GA4 ══ -->
+  {topPagesRows.length > 0 && (
     <section style="background:white;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;">
         <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Top Pages — páginas con más tráfico orgánico</h2>
-        <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC</span>
+        {topPagesSource === 'GSC' ? (
+          <span style="font-size:10px;background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:4px;font-weight:700;">GSC Real</span>
+        ) : topPagesSource === 'GA4' ? (
+          <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;">GA4</span>
+        ) : (
+          <span style="font-size:10px;background:#EEF2FF;color:#4338CA;padding:2px 8px;border-radius:4px;font-weight:700;">DFS Estimado</span>
+        )}
+        {topPagesSource !== 'GSC' && (
+          <a href="/dashboard/settings" style="font-size:10px;color:#1A4B8C;margin-left:auto;text-decoration:none;font-weight:600;">Conecta GSC para datos reales →</a>
+        )}
       </div>
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
             <tr style="background:#f7f9ff;">
               <th style="text-align:left;padding:10px 24px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">URL</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Clicks</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>
-              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>
+              <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">{topPagesSource === 'GSC' ? 'Clicks' : topPagesSource === 'GA4' ? 'Visitas' : 'Tráfico est.'}</th>
+              {topPagesSource === 'GSC' && <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Impresiones</th>}
+              {topPagesSource === 'GSC' && <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">CTR</th>}
               <th style="text-align:center;padding:10px 16px;font-weight:700;font-size:10px;text-transform:uppercase;color:#64748b;">Posición</th>
             </tr>
           </thead>
           <tbody>
-            {(gsc.topPages || []).slice(0, 10).map((p: any, i: number) => {
-              // Strip domain for cleaner URL display
-              let shortUrl = p.page || '';
-              try { shortUrl = new URL(p.page).pathname || '/'; } catch {}
+            {topPagesRows.map((p, i) => {
+              let shortUrl = p.url || '';
+              try { shortUrl = new URL(p.url).pathname || '/'; } catch {}
               return (
                 <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
-                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.page}>{shortUrl}</td>
-                  <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{p.clicks}</td>
-                  <td style="text-align:center;padding:12px 16px;color:#434750;">{(p.impressions || 0).toLocaleString()}</td>
-                  <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${p.ctr > 5 ? '#1D9E75' : p.ctr > 2 ? '#BA7517' : '#E24B4A'};`}>{p.ctr}%</td>
+                  <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.url}>{shortUrl}</td>
+                  <td style="text-align:center;padding:12px 16px;font-weight:700;color:#1A4B8C;">{p.clicks != null ? p.clicks.toLocaleString() : '—'}</td>
+                  {topPagesSource === 'GSC' && <td style="text-align:center;padding:12px 16px;color:#434750;">{p.impressions != null ? p.impressions.toLocaleString() : '—'}</td>}
+                  {topPagesSource === 'GSC' && <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${p.ctr != null ? (p.ctr > 5 ? '#1D9E75' : p.ctr > 2 ? '#BA7517' : '#E24B4A') : '#94a3b8'};`}>{p.ctr != null ? `${p.ctr}%` : '—'}</td>}
                   <td style="text-align:center;padding:12px 16px;">
-                    <span style={`font-weight:800;color:${p.position <= 10 ? '#1D9E75' : p.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{p.position}</span>
+                    {p.position != null ? (
+                      <span style={`font-weight:800;color:${p.position <= 10 ? '#1D9E75' : p.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{p.position}</span>
+                    ) : <span style="color:#94a3b8;">—</span>}
                   </td>
                 </tr>
               );
