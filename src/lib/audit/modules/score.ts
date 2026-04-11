@@ -1,5 +1,5 @@
 import type {
-  ScoreResult, ScoreBreakdown, ModuleResult,
+  ScoreResult, ScoreBreakdown, ScoreComputation, ModuleResult,
   CrawlResult, SSLResult, PageSpeedResult,
   GeoResult, GBPResult, TrafficResult,
   LinkedInResult, TechStackResult, ConversionResult, SEOResult,
@@ -31,6 +31,17 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
   const reputation = (results.reputation || {}) as any;
   const cc         = (results.content_cadence || {}) as any;
 
+  // Computation trace — captured alongside every pillar calc below so the
+  // Growth Agent can explain the number to the client with real values.
+  const computation: ScoreComputation = {
+    weights: {
+      base: { seo: 0.35, geo: 0.25, web: 0.15, conversion: 0.15, reputation: 0.10 },
+      effective: {},
+      inactivePillars: [],
+    },
+    totalFormula: '',
+  };
+
   // ── Pilar 1: SEO orgánico (35%) — escala logarítmica ────────────
   // Logarithmic scale removes the cliff-edge from competitor comparison.
   // A domain with 69 kw gets ~56 (reasonable) not ~1 (penalized by Sabadell's 7K).
@@ -47,11 +58,23 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
 
     // Top-3 bonus: strong positioning signals authority (up to +8 pts)
     const top3 = seo.keywordsTop3 ?? 0;
+    let top3Bonus = 0;
     if (top3 > 0 && kw > 0) {
-      s = Math.min(100, s + Math.round((top3 / kw) * 10));
+      top3Bonus = Math.round((top3 / kw) * 10);
+      s = Math.min(100, s + top3Bonus);
     }
 
     seoScore = s;
+    computation.seo = {
+      kwCount: kw,
+      kwScore,
+      traffic: etv,
+      trafficScore,
+      top3,
+      top3Bonus,
+      formula: `kwScore(${kw} kw → ${kwScore}) × 0.6 + trafficScore(${etv} visits → ${trafficScore}) × 0.4${top3Bonus > 0 ? ` + top3Bonus(${top3}/${kw} → +${top3Bonus})` : ''} = ${s}`,
+      final: s,
+    };
   }
 
   // ── Pilar 2: Visibilidad IA / GEO (25%) ─────────────────────────
@@ -59,47 +82,72 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
   let geoScore: number | null = null;
   if (!geo.skipped && geo.mentionRate != null) {
     geoScore = geo.mentionRate;
+    computation.geo = {
+      mentionRate: geo.mentionRate,
+      overallScore: geo.overallScore ?? null,
+      source: 'mentionRate',
+      final: geoScore,
+    };
   } else if (!geo.skipped && geo.overallScore != null) {
     geoScore = geo.overallScore;
+    computation.geo = {
+      mentionRate: null,
+      overallScore: geo.overallScore,
+      source: 'overallScore',
+      final: geoScore,
+    };
   }
 
   // ── Pilar 3: Web & técnico (15%) ─────────────────────────────────
   // PageSpeed is the dominant signal — users experience it directly.
   // Technical checks (SSL, schema, sitemap, canonical) add reliability bonus.
   const psScore = pagespeed.mobile?.performance ?? 0;
-  let techChecks = 0;
-  if (!ssl.skipped && ssl.valid)  techChecks += 25;
-  if (crawl.hasCanonical)         techChecks += 20;
-  if (crawl.hasSchemaMarkup)      techChecks += 30;
-  if (crawl.hasSitemap)           techChecks += 20;
-  if (crawl.hasRobots)            techChecks += 5;
+  const techCheckDefs = [
+    { label: 'SSL válido', points: 25, applied: !ssl.skipped && !!ssl.valid },
+    { label: 'Canonical tags', points: 20, applied: !!crawl.hasCanonical },
+    { label: 'Schema markup', points: 30, applied: !!crawl.hasSchemaMarkup },
+    { label: 'Sitemap.xml', points: 20, applied: !!crawl.hasSitemap },
+    { label: 'Robots.txt', points: 5, applied: !!crawl.hasRobots },
+  ];
+  const techChecks = techCheckDefs.reduce((s, c) => s + (c.applied ? c.points : 0), 0);
   // PageSpeed 70% + technical checks 30%
   const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
+  computation.web = {
+    pagespeedMobile: psScore,
+    techChecks: techCheckDefs,
+    techChecksTotal: techChecks,
+    formula: `pagespeed(${psScore}) × 0.7 + techChecks(${techChecks}/100) × 0.3 = ${webScore}`,
+    final: webScore,
+  };
 
   // ── Pilar 4: Conversión (15%) ────────────────────────────────────
   const conversionScore = Math.min(100, conversion.funnelScore ?? 20);
+  computation.conversion = {
+    funnelScore: conversion.funnelScore ?? 20,
+    final: conversionScore,
+  };
 
   // ── Pilar 5: Reputación (10%) ─────────────────────────────────────
   // Composite from available signals. LinkedIn is graceful — if Apify
   // fails the score still runs, just slightly less precise.
-  const repComponents: { value: number; weight: number }[] = [];
+  const repComponents: Array<{ label: string; value: number; weight: number }> = [];
 
   // Google Business Profile rating
   if (gbp.rating != null) {
     // 2.0 → 0, 3.0 → 33, 4.0 → 67, 4.5 → 83, 5.0 → 100
     const ratingScore = Math.min(100, Math.max(0, Math.round((gbp.rating - 2) / 3 * 100)));
     const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? 0, 500) * 0.15);
-    repComponents.push({ value: Math.min(100, ratingScore + reviewBonus), weight: 0.25 });
+    repComponents.push({ label: `GBP rating ${gbp.rating}★ (${gbp.reviewCount ?? 0} reseñas)`, value: Math.min(100, ratingScore + reviewBonus), weight: 0.25 });
   } else if (reputation.combinedRating != null) {
     const ratingScore = Math.min(100, Math.max(0, Math.round((reputation.combinedRating - 2) / 3 * 100)));
-    repComponents.push({ value: ratingScore, weight: 0.25 });
+    repComponents.push({ label: `Rating combinado ${reputation.combinedRating}★`, value: ratingScore, weight: 0.25 });
   }
 
   // Press / Google News
   const pressCount = reputation.newsCount ?? 0;
   if (pressCount > 0 || gbp.found || reputation.reputationLevel) {
     // 0→0, 3→40, 5→60, 10→80, 20+→100
-    repComponents.push({ value: Math.min(100, pressCount * 8), weight: 0.20 });
+    repComponents.push({ label: `Prensa (${pressCount} menciones)`, value: Math.min(100, pressCount * 8), weight: 0.20 });
   }
 
   // Blog activity — only include if blog detected (don't penalize for no blog)
@@ -108,19 +156,19 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     const postsLast90 = cc.postsLast90Days ?? 0;
     const postsPerMonth = postsLast90 / 3;
     const blogScore = postsPerMonth >= 2 ? 100 : postsPerMonth >= 1 ? 70 : postsPerMonth >= 0.33 ? 40 : 20;
-    repComponents.push({ value: blogScore, weight: 0.15 });
+    repComponents.push({ label: `Blog (${postsLast90} posts 90d)`, value: blogScore, weight: 0.15 });
   }
 
   // LinkedIn followers — ONLY if scraped successfully (never penalizes if Apify fails)
   if (!linkedin.skipped && linkedin.found && (linkedin.followers ?? 0) > 0) {
     // <500→20, 1K→40, 5K→60, 10K→80, 50K+→100
     const liScore = logScore(linkedin.followers!, 50000);
-    repComponents.push({ value: liScore, weight: 0.15 });
+    repComponents.push({ label: `LinkedIn (${linkedin.followers} seguidores)`, value: liScore, weight: 0.15 });
   }
 
   // Tech stack maturity feeds into reputation (measurement = trustworthiness signal)
   if (techstack.maturityScore != null && techstack.maturityScore > 0) {
-    repComponents.push({ value: techstack.maturityScore, weight: 0.10 });
+    repComponents.push({ label: `Techstack maturity`, value: techstack.maturityScore, weight: 0.10 });
   }
 
   let reputationScore: number | null = null;
@@ -129,6 +177,12 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     reputationScore = Math.min(100, Math.round(
       repComponents.reduce((s, c) => s + c.value * c.weight, 0) / totalW,
     ));
+    computation.reputation = {
+      components: repComponents,
+      totalWeight: Math.round(totalW * 100) / 100,
+      formula: repComponents.map(c => `${c.label}(${c.value}) × ${c.weight}`).join(' + ') + ` = ${reputationScore}`,
+      final: reputationScore,
+    };
   }
 
   // ── Weighted total with normalized weights ───────────────────────
@@ -144,10 +198,18 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
   ];
 
   const active = pillars.filter((p) => p.value !== null) as { key: keyof typeof BASE_WEIGHTS; value: number }[];
+  const inactive = pillars.filter((p) => p.value === null).map(p => p.key as string);
   const totalWeight = active.reduce((s, p) => s + BASE_WEIGHTS[p.key], 0);
   const total = totalWeight > 0
     ? Math.round(active.reduce((s, p) => s + p.value * BASE_WEIGHTS[p.key], 0) / totalWeight)
     : 0;
+
+  // Populate computation trace with weight normalization
+  computation.weights.inactivePillars = inactive;
+  for (const p of active) {
+    computation.weights.effective[p.key] = Math.round((BASE_WEIGHTS[p.key] / totalWeight) * 1000) / 1000;
+  }
+  computation.totalFormula = `(${active.map(p => `${p.key} ${p.value} × ${BASE_WEIGHTS[p.key]}`).join(' + ')}) ÷ ${totalWeight.toFixed(2)} = ${total}`;
 
   // Guardrail: if we get 0 with real data, something is wrong — use simple mean
   if (total === 0 && active.length >= 2) {
@@ -162,6 +224,7 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
         conversion: conversionScore,
         reputation: reputationScore ?? 0,
       },
+      computation,
     };
   }
 
@@ -183,5 +246,5 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     reputation: reputationScore ?? 0,
   };
 
-  return { total, breakdown, content: contentScore };
+  return { total, breakdown, content: contentScore, computation };
 }

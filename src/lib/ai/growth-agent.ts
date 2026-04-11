@@ -212,10 +212,12 @@ Si un pilar no tiene datos (ej: no hay audit GEO), los pesos se redistribuyen en
 - Se muestra en breakdown.content pero NO afecta al score global. Por qué: el contenido influye indirectamente (alimenta SEO, GEO y reputación) y contarlo dos veces sería doble-contabilización.
 
 **Cómo responder si el cliente pregunta "¿por qué tengo 36/100?"**:
-1. Referencia los valores reales de cada pilar que ves en el contexto (breakdown.seo, breakdown.geo, etc.)
-2. Explica qué ponderación tiene cada pilar y cuál está tirando más del score para abajo
-3. Di cuál es la palanca concreta que más moverá el número si se ejecuta (viene del plan de acciones priorizadas)
-4. Nunca inventes valores que no estén en el contexto. Si un pilar no tiene datos, dilo.
+En el contexto recibirás una sección **"Cómo se ha calculado cada score"** con las fórmulas EXACTAS que el motor aplicó a este cliente (ej: \`SEO: kwScore(246 kw → 72) × 0.6 + trafficScore(7389 → 55) × 0.4 + top3Bonus(66/246 → +3) = 78\`). Úsala literalmente:
+1. Cita los componentes reales de la fórmula, no los aproximes (el cliente verá "kwScore=72" exacto, no "alrededor de 70")
+2. Identifica el pilar que más está tirando del total para abajo (multiplica score × peso efectivo — el contexto te da los pesos efectivos ya renormalizados)
+3. Di cuál es la palanca concreta que más moverá el número (viene del plan de acciones priorizadas)
+4. Si el pilar tiene "Pilares sin datos (excluidos)" en el trace, menciona explícitamente que esos pilares no se han medido y cómo afectaría al total si se midieran
+5. Nunca inventes valores que no estén en el contexto.
 
 ## Reglas de redacción — NO NEGOCIABLES
 
@@ -559,6 +561,24 @@ ${onPageIssues.map(i => {
   }
 
   // ─── Audit snapshot ─────────────────────────────────────────────────
+  // Score + computation trace: how every pillar score was actually derived.
+  // This lets the agent answer "por qué tengo 64/100" with REAL component
+  // values instead of inventing approximations.
+  const comp = r.score?.computation as any;
+  const scoreTrace: string[] = [];
+  if (comp) {
+    if (comp.seo) scoreTrace.push(`  • SEO: ${comp.seo.formula}`);
+    if (comp.geo) scoreTrace.push(`  • GEO: ${comp.geo.source}=${comp.geo.final}`);
+    if (comp.web) {
+      const techApplied = comp.web.techChecks.filter((t: any) => t.applied).map((t: any) => `${t.label}+${t.points}`).join(', ') || 'ninguno';
+      scoreTrace.push(`  • Web: ${comp.web.formula} (checks aplicados: ${techApplied})`);
+    }
+    if (comp.conversion) scoreTrace.push(`  • Conversión: funnelScore=${comp.conversion.funnelScore} → ${comp.conversion.final}`);
+    if (comp.reputation) scoreTrace.push(`  • Reputación: ${comp.reputation.formula}`);
+    if (comp.weights?.inactivePillars?.length) scoreTrace.push(`  • Pilares sin datos (excluidos): ${comp.weights.inactivePillars.join(', ')}`);
+    if (comp.totalFormula) scoreTrace.push(`  • Total: ${comp.totalFormula}`);
+  }
+
   sections.push(`## DATOS DE LA AUDITORÍA (snapshot actual)
 
 Score global: ${r.score?.total ?? '?'}/100
@@ -569,6 +589,7 @@ Desglose por pilar:
 - Conversión: ${r.score?.breakdown?.conversion ?? '?'}/100
 - Contenido: ${r.score?.breakdown?.content ?? '?'}/100
 - Reputación: ${r.score?.breakdown?.reputation ?? '?'}/100
+${scoreTrace.length > 0 ? `\nCómo se ha calculado cada score (fórmula real con valores del audit):\n${scoreTrace.join('\n')}\n` : ''}
 
 ### SEO
 - Keywords top 10: ${seo.keywordsTop10 ?? '?'}

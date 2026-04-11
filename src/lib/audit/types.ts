@@ -343,9 +343,57 @@ export interface ScoreBreakdown {
   reputation: number;  // Pilar 5: Reputación — prensa + reviews + blog (10%)
 }
 
+/**
+ * Full computation trace of how each pillar score was calculated.
+ * Exposed so the Growth Agent can explain the score to the client with
+ * real component values instead of inventing formulas.
+ */
+export interface ScoreComputation {
+  seo?: {
+    kwCount: number;          // raw: seo.keywordsTop10
+    kwScore: number;          // logScore(kw, 2000)
+    traffic: number;          // raw: seo.organicTrafficEstimate
+    trafficScore: number;     // logScore(etv, 5_000_000)
+    top3: number;             // raw: seo.keywordsTop3
+    top3Bonus: number;        // bonus added from strong positions
+    formula: string;          // human-readable equation
+    final: number;
+  };
+  geo?: {
+    mentionRate: number | null;
+    overallScore: number | null;
+    source: 'mentionRate' | 'overallScore';
+    final: number;
+  };
+  web?: {
+    pagespeedMobile: number;  // raw: pagespeed.mobile.performance
+    techChecks: Array<{ label: string; points: number; applied: boolean }>;
+    techChecksTotal: number;
+    formula: string;          // e.g. "68 × 0.7 + 75 × 0.3"
+    final: number;
+  };
+  conversion?: {
+    funnelScore: number;
+    final: number;
+  };
+  reputation?: {
+    components: Array<{ label: string; value: number; weight: number }>;
+    totalWeight: number;
+    formula: string;
+    final: number;
+  };
+  weights: {
+    base: Record<string, number>;         // BASE_WEIGHTS
+    effective: Record<string, number>;    // normalized after dropping inactive pillars
+    inactivePillars: string[];            // pillars that had no data → dropped
+  };
+  totalFormula: string;                   // e.g. "(seo 72 × 0.35 + geo 45 × 0.25 + ...) / 1.00"
+}
+
 export interface ScoreResult extends ModuleResult {
   total?: number;
   breakdown?: ScoreBreakdown;
+  computation?: ScoreComputation;         // how the numbers above were derived
 }
 
 export interface TrafficChannel {

@@ -82,11 +82,28 @@ function bareDomain(url: string): string {
 
 function pickBest(places: any[], auditDomain: string): any | null {
   if (places.length === 0) return null;
-  const domainMatch = places.find(p => {
+
+  // Places that match the audit domain — prefer the ones WITH rating data.
+  // Hercesa-style brands have multiple GBP listings (one per office); the
+  // first matching entry may be a new office with 0 reviews while another
+  // office has hundreds. Always pick the rated one.
+  const domainMatches = places.filter(p => {
     const web = bareDomain(p.websiteUri || '');
     return web && auditDomain.includes(web);
   });
-  if (domainMatch) return domainMatch;
+  if (domainMatches.length > 0) {
+    const rated = domainMatches.filter(p => p.rating != null && (p.userRatingCount ?? 0) > 0);
+    if (rated.length > 0) {
+      // Among rated domain matches, pick the one with most reviews
+      return rated.reduce((best, p) =>
+        (p.userRatingCount ?? 0) > (best.userRatingCount ?? 0) ? p : best,
+      );
+    }
+    // All domain matches are unrated — return the first, caller will handle missing rating
+    return domainMatches[0];
+  }
+
+  // No domain match — score by rating × reviews and pick the best
   let best = places[0];
   for (const p of places.slice(1)) {
     const bs = (best.rating ?? 0) * 20 + Math.log10((best.userRatingCount ?? 0) + 1);
@@ -142,14 +159,25 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
 
   try {
     // ── Try Google Places API first ──────────────────────────────
-    const searchTerms = [companyName, domainName].filter(Boolean);
+    // Include sector-aware variants (e.g. "Hercesa promotora inmobiliaria")
+    // to catch brands whose plain-name search returns multiple offices or
+    // unrated listings as the first match.
+    const sectorHint = (crawl as any).sectorHint || '';
+    const searchTerms: string[] = [];
+    if (companyName) searchTerms.push(companyName);
+    if (companyName && sectorHint) searchTerms.push(`${companyName} ${sectorHint}`);
+    if (domainName && domainName !== companyName?.toLowerCase()) searchTerms.push(domainName);
+    if (companyName) searchTerms.push(`${companyName} España`);
+
+    // First pass: only accept rated results. This prevents returning an
+    // unrated office when another office for the same brand has reviews.
     for (const term of searchTerms) {
       const places = await searchPlaces(term);
       if (places.length > 0) {
         const place = pickBest(places, auditDomain);
-        if (place) {
+        if (place && place.rating != null) {
           const name = place.displayName?.text || '';
-          console.log(`[gbp] Google Places: "${name}" ${place.rating}★ (${place.userRatingCount} reviews)`);
+          console.log(`[gbp] Google Places "${term}" → "${name}" ${place.rating}★ (${place.userRatingCount} reviews)`);
           return {
             found: true,
             name: name.slice(0, 100),
@@ -158,12 +186,14 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
             address: (place.formattedAddress || '').slice(0, 150),
             categories: (place.types || []).slice(0, 3),
           };
+        } else if (place) {
+          console.log(`[gbp] Google Places "${term}" → "${place.displayName?.text}" but no rating, trying next term`);
         }
       }
     }
 
     // ── Fallback: DataForSEO Business Data ───────────────────────
-    console.log(`[gbp] Google Places found nothing, trying DataForSEO...`);
+    console.log(`[gbp] Google Places found nothing rated, trying DataForSEO...`);
     for (const term of searchTerms) {
       const dfs = await searchDFS(term);
       if (dfs) {
@@ -174,6 +204,25 @@ export async function runGBP(url: string, crawl: CrawlResult): Promise<GBPResult
           reviewCount: dfs.reviews,
           address: dfs.address.slice(0, 150),
           categories: [dfs.category].filter(Boolean),
+        };
+      }
+    }
+
+    // ── Last resort: accept an unrated Places match just so we know the
+    // business exists on GBP even if we can't pull reviews.
+    for (const term of searchTerms) {
+      const places = await searchPlaces(term);
+      const place = pickBest(places, auditDomain);
+      if (place) {
+        const name = place.displayName?.text || '';
+        console.log(`[gbp] Accepting unrated match "${name}" for "${term}"`);
+        return {
+          found: true,
+          name: name.slice(0, 100),
+          rating: place.rating,
+          reviewCount: place.userRatingCount ?? 0,
+          address: (place.formattedAddress || '').slice(0, 150),
+          categories: (place.types || []).slice(0, 3),
         };
       }
     }
