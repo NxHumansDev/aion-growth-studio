@@ -37,8 +37,113 @@ export async function getClient(userId: string): Promise<Client> {
   return { id: c.id, name: c.name, domain: c.domain, sector: c.sector, tier: c.tier };
 }
 
+// ─── Demo score hydration ────────────────────────────────────────────────
+// The demo snapshots don't ship with a precomputed score.breakdown inside
+// pipeline_output. Dashboard pages read r.score?.breakdown?.* as the single
+// source of truth, so we compute it on-the-fly using a simplified mirror of
+// src/lib/audit/modules/score.ts logic. Keeps all pages consistent in demo
+// mode without having to hardcode breakdowns into each snapshot.
+function logScore(value: number, ceiling: number): number {
+  if (value <= 0) return 0;
+  return Math.min(100, Math.round((Math.log10(value + 1) / Math.log10(ceiling + 1)) * 100));
+}
+
+function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdown: Record<string, number> } {
+  const seo = po.seo || {};
+  const geo = po.geo || {};
+  const ps = po.pagespeed || {};
+  const crawl = po.crawl || {};
+  const ssl = po.ssl || {};
+  const conv = po.conversion || {};
+  const rep = po.reputation || {};
+  const gbp = po.gbp || {};
+  const cc = po.content_cadence || {};
+  const li = po.linkedin || {};
+
+  // SEO — logScore(kw, 2000)*0.6 + logScore(traffic, 5M)*0.4
+  const kwScore = logScore(seo.keywordsTop10 ?? 0, 2000);
+  const trafficScore = logScore(seo.organicTrafficEstimate ?? 0, 5_000_000);
+  const seoScore = Math.round(kwScore * 0.6 + trafficScore * 0.4);
+
+  // GEO — direct mentionRate
+  const geoScore = geo.mentionRate ?? geo.overallScore ?? 0;
+
+  // Web — ps mobile * 0.7 + techChecks * 0.3
+  const psScore = ps.mobile?.performance ?? 0;
+  let techChecks = 0;
+  if (ssl.valid !== false) techChecks += 25;
+  if (crawl.hasCanonical) techChecks += 20;
+  if (crawl.hasSchemaMarkup) techChecks += 30;
+  if (crawl.hasSitemap) techChecks += 20;
+  if (crawl.hasRobots) techChecks += 5;
+  const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
+
+  // Conversion — funnelScore direct
+  const conversionScore = Math.min(100, conv.funnelScore ?? 20);
+
+  // Reputation — composite
+  const repComponents: Array<{ value: number; weight: number }> = [];
+  if (seo.domainRank != null && seo.domainRank > 0) {
+    repComponents.push({ value: Math.min(100, seo.domainRank > 1000 ? 100 - Math.min(50, Math.round(seo.domainRank / 500)) : seo.domainRank), weight: 0.25 });
+  }
+  const rating = gbp.rating ?? rep.gbpRating;
+  if (rating != null) {
+    const ratingScore = Math.min(100, Math.max(0, Math.round(((rating - 2) / 3) * 100)));
+    const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? rep.totalReviews ?? 0, 500) * 0.15);
+    repComponents.push({ value: Math.min(100, ratingScore + reviewBonus), weight: 0.25 });
+  }
+  const news = rep.newsCount ?? 0;
+  if (news > 0 || gbp.found) repComponents.push({ value: Math.min(100, news * 8), weight: 0.20 });
+  const postsPerMonth = (cc.postsLast90Days ?? 0) / 3;
+  if (cc.totalPosts) {
+    const blogScore = postsPerMonth >= 2 ? 100 : postsPerMonth >= 1 ? 70 : postsPerMonth >= 0.33 ? 40 : 20;
+    repComponents.push({ value: blogScore, weight: 0.15 });
+  }
+  if (li.followers) repComponents.push({ value: logScore(li.followers, 50000), weight: 0.15 });
+  let reputationScore = 0;
+  if (repComponents.length > 0) {
+    const totalW = repComponents.reduce((s, c) => s + c.weight, 0);
+    reputationScore = Math.min(100, Math.round(repComponents.reduce((s, c) => s + c.value * c.weight, 0) / totalW));
+  }
+
+  // Weighted total — same base weights as score.ts
+  const BW = { seo: 0.35, geo: 0.25, web: 0.15, conversion: 0.15, reputation: 0.10 };
+  const active = [
+    { k: 'seo', v: seoScore },
+    { k: 'geo', v: geoScore },
+    { k: 'web', v: webScore },
+    { k: 'conversion', v: conversionScore },
+    { k: 'reputation', v: reputationScore },
+  ].filter(p => p.v > 0);
+  const totalW = active.reduce((s, p) => s + (BW as any)[p.k], 0);
+  const total = totalW > 0
+    ? Math.round(active.reduce((s, p) => s + p.v * (BW as any)[p.k], 0) / totalW)
+    : 0;
+
+  return {
+    total,
+    breakdown: {
+      seo: seoScore,
+      geo: geoScore,
+      web: webScore,
+      conversion: conversionScore,
+      reputation: reputationScore,
+    },
+  };
+}
+
+function hydrateDemoSnapshot(s: Snapshot): Snapshot {
+  const po = s.pipeline_output || {};
+  if (po.score?.breakdown) return s; // already has breakdown — untouched
+  const computed = computeDemoBreakdown(po);
+  return {
+    ...s,
+    pipeline_output: { ...po, score: computed },
+  };
+}
+
 export async function getLatestSnapshot(clientId: string): Promise<Snapshot> {
-  if (IS_DEMO) return DEMO_SNAPSHOTS[DEMO_SNAPSHOTS.length - 1];
+  if (IS_DEMO) return hydrateDemoSnapshot(DEMO_SNAPSHOTS[DEMO_SNAPSHOTS.length - 1]);
   const sb = getSupabase();
   const { data, error } = await sb
     .from('snapshots')
@@ -62,7 +167,7 @@ export async function getLatestSnapshot(clientId: string): Promise<Snapshot> {
 }
 
 export async function getAllSnapshots(clientId: string): Promise<Snapshot[]> {
-  if (IS_DEMO) return DEMO_SNAPSHOTS;
+  if (IS_DEMO) return DEMO_SNAPSHOTS.map(hydrateDemoSnapshot);
   const sb = getSupabase();
   const { data, error } = await sb
     .from('snapshots')

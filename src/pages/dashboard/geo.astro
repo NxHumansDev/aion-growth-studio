@@ -31,7 +31,12 @@ const GRAY = '#94a3b8';
 const GRAY_BG = '#f1f5f9';
 
 // ─── Core metrics ────────────────────────────────────────────────────────
-const overallScore = geo.overallScore ?? Math.round(((geo.mentions || 0) / Math.max(geo.totalQueries || 15, 1)) * 100);
+// Single source of truth: score.breakdown.geo (computed in score.ts).
+// Fall back to the GEO module's overallScore, then to raw mention ratio
+// (backward compat for old snapshots predating the unified score).
+const overallScore = r.score?.breakdown?.geo
+  ?? geo.overallScore
+  ?? Math.round(((geo.mentions || 0) / Math.max(geo.totalQueries || 15, 1)) * 100);
 const mentionRate = geo.mentionRate || 0;
 const mentions = geo.mentions || 0;
 const totalQueries = geo.totalQueries || 15;

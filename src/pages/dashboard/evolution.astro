@@ -22,8 +22,13 @@ const chartData = snapshots.map(s => ({
   score: s.score,
 }));
 
-// ─── 6 Pillar extraction (same logic as index.astro) ──────────────────────
+// ─── 6 Pillar extraction — single source of truth is score.breakdown ────
+// Reads from score.ts output. Falls back to inline heuristics only for
+// legacy snapshots that predate unified scoring.
 function extractPillar(snap: Record<string, any>, key: string): number {
+  const breakdown = snap.score?.breakdown;
+  if (breakdown && breakdown[key] != null) return breakdown[key];
+  // Legacy fallback — only reached for pre-score.ts snapshots.
   switch (key) {
     case 'seo': return Math.min(100, Math.round((snap.seo?.keywordsTop10 || 0) * 2));
     case 'geo': return Math.round(((snap.geo?.mentions || 0) / Math.max(snap.geo?.totalQueries || 15, 1)) * 100);
