@@ -232,68 +232,47 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       }
     }
 
-    // 5. Regenerate Growth Agent analysis with enriched client context.
-    // The audit pipeline already produced one analysis (in audit.results.growth_agent)
-    // with minimal context. Here we re-run it with the full client picture:
-    // onboarding, priority keywords, action history, prior snapshot trend, etc.
-    // Then seed new recommendations from prioritizedActions (only ones not already tracked).
+    // 5. Copy or enrich Growth Agent analysis.
+    // The pipeline step `growth_agent` already produced an analysis (saved in
+    // pipeline_output.growth_agent). The dashboard reads from `growth_analysis`
+    // (different key) which ideally has enriched client context.
+    //
+    // Strategy: if the pipeline step produced a REAL analysis (model !== 'fallback'),
+    // copy it as growth_analysis immediately (fast, no LLM call). The enriched
+    // version with full client context (onboarding, keywords, action history) can
+    // be generated later via "Regenerar con IA" button or next cron run.
+    // This avoids the Phase C timeout caused by running the Growth Agent TWICE
+    // (once in the pipeline loop, once here).
     const ctx = await buildClientContext(client.id, client.name, client.domain);
     const onboarding = ctx.onboarding;
-    if (onboarding) {
-      const latestSnapshot = snapshots[snapshots.length - 1];
 
+    // Check if the pipeline step already has a real analysis
+    const pipelineGrowthAgent = (await getAuditPage(result.auditId!)).results?.growth_agent;
+    const hasPipelineAnalysis = pipelineGrowthAgent && pipelineGrowthAgent.model !== 'fallback';
+
+    if (hasPipelineAnalysis) {
+      // Fast path: copy pipeline analysis as growth_analysis (0 LLM cost, <1s)
       try {
-        const [clientRow, inProgress, completed, rejected, googleIntegration] = await Promise.all([
-          getClientById(client.id).catch(() => null),
-          getActionPlan(client.id).catch(() => []),
-          getCompletedActions(client.id).catch(() => []),
-          getRejectedRecommendations(client.id).catch(() => []),
-          getIntegration(client.id, 'google_analytics').catch(() => null),
-        ]);
-        const priorSnapshot = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
-        const integrations: IntegrationSummary = {
-          googleSearchConsole: !!googleIntegration && googleIntegration.status === 'connected',
-          googleAnalytics: !!googleIntegration && googleIntegration.status === 'connected' && !!googleIntegration.property_id,
-          ga4PropertyName: googleIntegration?.property_name,
-          accountEmail: googleIntegration?.account_email,
-        };
-        const growthAnalysis = await runGrowthAgent({
-          clientName: client.name,
-          domain: client.domain,
-          sector: clientRow?.sector,
-          tier: clientRow?.tier,
-          onboarding,
-          pipelineOutput: latestSnapshot.pipeline_output,
-          priorSnapshot: priorSnapshot
-            ? { date: priorSnapshot.date, pipeline_output: priorSnapshot.pipeline_output || {} }
-            : null,
-          priorityKeywords: onboarding?.priority_keywords,
-          keywordStrategy: onboarding?.keyword_strategy,
-          integrations,
-          actionHistory: {
-            completed: completed.map((a: any) => ({ title: a.title, impact: a.impact, completedAt: a.completed_at })),
-            inProgress: inProgress.filter((a: any) => a.status === 'in_progress').map((a: any) => ({ title: a.title, impact: a.impact })),
-            rejected: rejected.map((r: any) => ({ title: r.title, reason: r.rejected_reason })),
-          },
-        });
-        console.log(`[radar] Growth Agent: ${growthAnalysis.prioritizedActions.length} actions for ${client.domain}`);
-
-        // Persist growth_analysis into the snapshot's pipeline_output
         const sb = getSupabase();
-        const { data: snapData } = await sb
-          .from('snapshots')
-          .select('pipeline_output')
-          .eq('id', snapshotId)
-          .single();
+        const { data: snapData } = await sb.from('snapshots').select('pipeline_output').eq('id', snapshotId).single();
         if (snapData) {
-          const updated = { ...snapData.pipeline_output, growth_analysis: growthAnalysis };
+          const updated = { ...snapData.pipeline_output, growth_analysis: pipelineGrowthAgent };
           await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
+          const { materializeSnapshotColumns } = await import('../data/kpi-extract');
+          materializeSnapshotColumns(snapshotId, updated).catch(() => {});
         }
+        console.log(`[radar] Growth Agent: copied pipeline analysis (${pipelineGrowthAgent.prioritizedActions?.length || 0} actions) for ${client.domain}`);
+      } catch (err) {
+        console.error(`[radar] Failed to copy growth_agent → growth_analysis:`, (err as Error).message);
+      }
+    }
 
-        // Seed new recommendations from prioritizedActions (dedupe by title)
+    // Seed recommendations from whichever analysis we have (pipeline or enriched)
+    if (growthAnalysis?.prioritizedActions?.length && onboarding) {
+      try {
         const existingTitles = new Set(allRecs.map(r => r.title.toLowerCase()));
         let newCount = 0;
-        for (const action of growthAnalysis.prioritizedActions || []) {
+        for (const action of growthAnalysis.prioritizedActions) {
           if (!existingTitles.has(action.title.toLowerCase())) {
             await logRecommendation({
               client_id: client.id,
@@ -316,8 +295,9 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
           }
         }
         result.newRecommendations = newCount;
+        console.log(`[radar] Seeded ${newCount} new recommendations for ${client.domain}`);
       } catch (err) {
-        console.error(`[radar] Growth Agent failed (non-blocking) for ${client.domain}:`, (err as Error).message);
+        console.error(`[radar] Recommendation seeding failed for ${client.domain}:`, (err as Error).message);
       }
     }
 
