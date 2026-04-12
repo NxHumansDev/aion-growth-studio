@@ -34,13 +34,26 @@ interface RadarRunResult {
 }
 
 /**
- * Run the full Radar workflow for a single client:
- * 1. Create audit → run full pipeline
- * 2. Create snapshot from audit
- * 3. Analyze evolution (diff + correlations)
- * 4. Generate new recommendations based on context
+ * Run the Radar workflow for a single client, optionally stopping at a
+ * specific step for phased execution.
+ *
+ * Phased mode (stopBefore set): runs the pipeline until it reaches stopBefore,
+ * then breaks. The audit's current_step is left at stopBefore so the next
+ * phase can resume from there. Post-pipeline work (snapshot, analytics, etc.)
+ * only runs when the pipeline reaches 'done'.
+ *
+ * Full mode (no stopBefore): runs the entire pipeline + post-pipeline work
+ * in one invocation. This may timeout on Vercel (300s) for data-rich clients.
+ *
+ * @param options.existingAuditId - resume an existing audit instead of creating a new one
+ * @param options.stopBefore - stop the pipeline BEFORE this step (e.g. 'competitor_traffic')
  */
-export async function runRadarForClient(client: RadarClient): Promise<RadarRunResult> {
+export interface RadarRunOptions {
+  existingAuditId?: string;
+  stopBefore?: AuditStepOrDone;
+}
+
+export async function runRadarForClient(client: RadarClient, options?: RadarRunOptions): Promise<RadarRunResult> {
   const t0 = Date.now();
   const result: RadarRunResult = {
     clientId: client.id,
@@ -52,25 +65,40 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
   };
 
   try {
-    console.log(`[radar] Starting for ${client.domain}...`);
+    const isResume = !!options?.existingAuditId;
+    console.log(`[radar] ${isResume ? 'Resuming' : 'Starting'} for ${client.domain}${options?.stopBefore ? ` (stop before ${options.stopBefore})` : ''}...`);
 
     // 0. Load onboarding data (competitors, social handles, sector)
     const clientOnboarding = await getClientOnboarding(client.id);
     const compUrls = (clientOnboarding?.competitors || []).map(c => c.url).filter(Boolean);
 
-    // 1. Create audit with client's configured data
-    const url = `https://${client.domain}`;
-    const email = client.email || 'radar@aiongrowth.com';
-    const auditId = await createAuditPage(url, email, {
-      competitors: compUrls.length ? compUrls : undefined,
-      instagram: clientOnboarding?.instagram_handle || undefined,
-      linkedin: clientOnboarding?.linkedin_url || undefined,
-    });
+    // 1. Create audit (or reuse existing for phased execution)
+    let auditId: string;
+    if (options?.existingAuditId) {
+      auditId = options.existingAuditId;
+    } else {
+      const url = `https://${client.domain}`;
+      const email = client.email || 'radar@aiongrowth.com';
+      auditId = await createAuditPage(url, email, {
+        competitors: compUrls.length ? compUrls : undefined,
+        instagram: clientOnboarding?.instagram_handle || undefined,
+        linkedin: clientOnboarding?.linkedin_url || undefined,
+      });
+    }
     result.auditId = auditId;
 
-    // 2. Run full pipeline (synchronous, step by step)
-    let currentStep: AuditStepOrDone = 'crawl';
+    // 2. Run pipeline step by step (with optional stop point)
+    // Read the audit to find the current step (handles resume from phase B/C)
+    const auditState = await getAuditPage(auditId);
+    let currentStep: AuditStepOrDone = isResume ? (auditState.currentStep || 'crawl') : 'crawl';
+
     while (currentStep !== 'done') {
+      // Phased execution: stop before the designated step
+      if (options?.stopBefore && currentStep === options.stopBefore) {
+        console.log(`[radar] Phase stop: reached ${currentStep} (stopBefore=${options.stopBefore}) in ${Date.now() - t0}ms`);
+        break;
+      }
+
       const audit = await getAuditPage(auditId);
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {
@@ -94,6 +122,14 @@ export async function runRadarForClient(client: RadarClient): Promise<RadarRunRe
         await saveModuleResult(auditId, moduleKey, stepResult, nextStep, extraProps);
         currentStep = nextStep;
       }
+    }
+
+    // If we stopped early (phased), return without post-pipeline work
+    if (currentStep !== 'done') {
+      result.success = true;
+      result.durationMs = Date.now() - t0;
+      console.log(`[radar] Phase complete for ${client.domain} in ${result.durationMs}ms (stopped at ${currentStep})`);
+      return result;
     }
 
     console.log(`[radar] Pipeline complete for ${client.domain} in ${Date.now() - t0}ms`);
