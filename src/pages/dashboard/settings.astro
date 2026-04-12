@@ -615,4 +615,118 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       }
     });
   </script>
+
+  <!-- ══ Mis datos (GDPR) ══ -->
+  <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">shield</span>
+      <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Tus datos</h2>
+    </div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:20px;">AION cumple con el RGPD. Puedes ver qué datos tenemos, exportarlos o eliminar tu cuenta permanentemente.</p>
+
+    <div id="gdpr-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px;">
+      <div style="background:#f7f9ff;padding:12px;border-radius:8px;text-align:center;">
+        <p style="font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Snapshots</p>
+        <span id="gdpr-snapshots" style="font-size:20px;font-weight:900;color:#1a1a2e;">—</span>
+      </div>
+      <div style="background:#f7f9ff;padding:12px;border-radius:8px;text-align:center;">
+        <p style="font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">KPIs registrados</p>
+        <span id="gdpr-kpis" style="font-size:20px;font-weight:900;color:#1a1a2e;">—</span>
+      </div>
+      <div style="background:#f7f9ff;padding:12px;border-radius:8px;text-align:center;">
+        <p style="font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Recomendaciones</p>
+        <span id="gdpr-recs" style="font-size:20px;font-weight:900;color:#1a1a2e;">—</span>
+      </div>
+      <div style="background:#f7f9ff;padding:12px;border-radius:8px;text-align:center;">
+        <p style="font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Conversaciones</p>
+        <span id="gdpr-threads" style="font-size:20px;font-weight:900;color:#1a1a2e;">—</span>
+      </div>
+      <div style="background:#f7f9ff;padding:12px;border-radius:8px;text-align:center;">
+        <p style="font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Llamadas IA</p>
+        <span id="gdpr-ai" style="font-size:20px;font-weight:900;color:#1a1a2e;">—</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="/api/gdpr/export-my-data" download
+        style="display:flex;align-items:center;gap:6px;padding:10px 20px;background:#f0f4ff;color:#1A4B8C;border:1px solid #cbd8ee;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;">
+        <span class="material-symbols-outlined" style="font-size:16px;">download</span>
+        Exportar mis datos (JSON)
+      </a>
+      <button id="gdpr-delete-btn"
+        style="display:flex;align-items:center;gap:6px;padding:10px 20px;background:white;color:#E24B4A;border:1px solid #fca5a5;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+        <span class="material-symbols-outlined" style="font-size:16px;">delete_forever</span>
+        Eliminar mi cuenta y todos mis datos
+      </button>
+    </div>
+    <p id="gdpr-status" style="display:none;font-size:12px;margin-top:10px;"></p>
+  </div>
+
+  <script is:inline>
+    // Load GDPR data summary
+    fetch('/api/gdpr/data-summary').then(r => r.json()).then(d => {
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = String(val ?? 0); };
+      set('gdpr-snapshots', d.snapshots);
+      set('gdpr-kpis', d.kpis);
+      set('gdpr-recs', d.recommendations);
+      set('gdpr-threads', d.threads);
+      set('gdpr-ai', d.aiCalls);
+    }).catch(() => {});
+
+    // Delete account with double confirmation
+    document.getElementById('gdpr-delete-btn')?.addEventListener('click', async function() {
+      const domain = prompt(
+        'ATENCIÓN: Esta acción es IRREVERSIBLE.\n\n' +
+        'Se eliminarán permanentemente:\n' +
+        '• Tu cuenta y perfil\n' +
+        '• Todos los análisis y snapshots\n' +
+        '• Historial de KPIs y recomendaciones\n' +
+        '• Conversaciones con el advisor\n' +
+        '• Datos de GA4 y Search Console\n\n' +
+        'Para confirmar, escribe tu dominio:'
+      );
+      if (!domain) return;
+
+      const confirm2 = prompt(
+        '¿Estás SEGURO? Escribe "ELIMINAR" para confirmar definitivamente:'
+      );
+      if (confirm2 !== 'ELIMINAR') {
+        alert('Cancelado. Tus datos siguen intactos.');
+        return;
+      }
+
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Eliminando...';
+      const status = document.getElementById('gdpr-status');
+
+      try {
+        const res = await fetch('/api/gdpr/delete-my-data', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmDomain: domain }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+          status.style.display = 'block';
+          status.style.color = '#1D9E75';
+          status.textContent = 'Todos tus datos han sido eliminados. Redirigiendo...';
+          setTimeout(() => { window.location.href = '/'; }, 3000);
+        } else {
+          status.style.display = 'block';
+          status.style.color = '#E24B4A';
+          status.textContent = data.message || data.error || 'Error al eliminar';
+          btn.disabled = false;
+          btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">delete_forever</span> Eliminar mi cuenta y todos mis datos';
+        }
+      } catch (err) {
+        status.style.display = 'block';
+        status.style.color = '#E24B4A';
+        status.textContent = 'Error de conexión. Inténtalo de nuevo.';
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">delete_forever</span> Eliminar mi cuenta y todos mis datos';
+      }
+    });
+  </script>
 </DashboardLayout>
