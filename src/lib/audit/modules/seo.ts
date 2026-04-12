@@ -61,7 +61,12 @@ export async function runSEO(url: string): Promise<SEOResult> {
 
     if (!overviewRes.ok) {
       const errBody = await overviewRes.json().catch(() => ({}));
-      const msg = (errBody as any)?.status_message || `HTTP ${overviewRes.status}`;
+      // Root-level status_message is always "Ok." even on 402/403 — read the
+      // task-level message for the real cause, fall back to HTTP status code.
+      const taskMsg = errBody?.tasks?.[0]?.status_message;
+      const msg = taskMsg && taskMsg !== 'Ok.'
+        ? `HTTP ${overviewRes.status} — ${taskMsg}`
+        : `HTTP ${overviewRes.status}`;
       return { skipped: true, reason: `DataForSEO: ${msg}`.slice(0, 120) };
     }
 
