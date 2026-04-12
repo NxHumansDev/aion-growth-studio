@@ -198,12 +198,21 @@ Si un pilar no tiene datos (ej: no hay audit GEO), los pesos se redistribuyen en
 
 **Pilar Conversión (15%)**:
 - \`conversionScore = conversion.funnelScore\` (default 20 si no hay datos).
-- Se calcula desde señales de captación de leads (formularios, CTAs, lead magnet, chat) Y señales de comercio electrónico (carrito, checkout, fichas de producto, filtros, wishlist, newsletter). No todas las señales son relevantes para todos los modelos — el contexto incluye \`detectedModel\` que te dice qué tipo de conversión domina:
-  - **ecommerce**: lo que importa es el flujo de compra (fichas de producto → carrito → checkout) y la captación de email (newsletter). Un formulario de contacto existe pero no es el punto fuerte.
-  - **lead_gen**: lo que importa es la captación de leads (formularios, CTAs, lead magnet). Un carrito de compra no es relevante.
-  - **hybrid**: ambos importan — tienda + servicio/consultoría (ej: agencia que vende cursos online + consultoría).
-  - **informational**: ni vende ni captura leads bien — la web es una tarjeta de visita. El diagnóstico debería señalarlo como carencia.
-- En el contexto también recibirás datos de **Google Shopping**: si el cliente o sus competidores aparecen en resultados de Shopping. Si la competencia invierte en Shopping y el cliente no, eso puede ser una oportunidad. Si ni el cliente ni la competencia usan Shopping, no lo recomiendes — el mercado no lo demanda.
+- Se calcula desde señales de captación de leads (formularios, CTAs, lead magnet, chat) Y señales de comercio electrónico (carrito, checkout, fichas de producto, filtros, wishlist, newsletter).
+
+**REGLA CRÍTICA — Cross-check sector vs detectedModel**:
+El \`detectedModel\` viene del crawler (solo analiza la homepage). Puede fallar cuando la homepage es un hero con imagen y categorías sin fichas de producto visibles. El \`sector\` viene del análisis de IA y suele ser más fiable.
+
+**SIEMPRE** cruza ambos datos:
+- Si sector dice "E-commerce" / "Retail" / "Moda" / "Tienda online" PERO detectedModel dice "informational" → **el crawler no encontró señales de ecommerce en la homepage**, probablemente porque las fichas de producto están en páginas internas. En este caso:
+  - NO recomiendes "añadir formulario de contacto" como si fuera un negocio de leads
+  - SÍ recomienda mejorar el flujo de compra: fichas de producto accesibles desde la home, carrito visible, checkout optimizado, newsletter para captación de email, ficha de producto con precio + CTA "Añadir al carrito" visible
+  - SÍ menciona Google Shopping si la competencia lo usa
+  - SÍ señala que el funnelScore es bajo PORQUE faltan las señales de compra, no porque falte un formulario de contacto
+- Si sector dice "Consultoría" / "Servicios profesionales" / "B2B" PERO detectedModel dice "ecommerce" → raro pero posible (empresa B2B que vende formación online). Usa tu criterio con ambos datos.
+- Si sector y detectedModel coinciden → genial, confía en ambos.
+
+**Google Shopping**: si el cliente o sus competidores aparecen en resultados de Shopping, eso es dato real. Si la competencia invierte en Shopping y el cliente no, eso puede ser una oportunidad. Si ni el cliente ni la competencia usan Shopping, no lo recomiendes — el mercado no lo demanda.
 
 **Pilar Reputación (10%)** — composite de señales disponibles, pesos renormalizados según cuáles existen:
 - GBP rating (33%): \`((gbp.rating - 2) / 3) × 100\` + bonus por reviewCount. Rating 4.0 = 67 puntos. 4.5 = 83. 5.0 = 100.
@@ -629,7 +638,9 @@ ${scoreTrace.length > 0 ? `\nCómo se ha calculado cada score (fórmula real con
 - Enlaces internos: ${crawl.internalLinks ?? '?'}
 
 ### Conversión
-- Modelo detectado: ${conv.detectedModel ?? 'desconocido'} (ecommerce / lead_gen / hybrid / informational)
+- Sector detectado: ${(r.sector as any)?.sector ?? '?'} ← FIABLE (análisis IA del contenido completo)
+- Modelo detectado por crawler: ${conv.detectedModel ?? 'desconocido'} ← SOLO analiza homepage, puede fallar en ecommerce con hero visual
+- ⚠️ Si sector = ecommerce/retail/moda PERO modelo = informational → el crawler no vio señales de tienda en la home. Adapta tu diagnóstico al sector real, no al modelo del crawler.
 - Funnel score: ${conv.funnelScore ?? conv.score ?? '?'}/100
 - Señales de captación de leads: formularios(${conv.formCount ?? 0}), CTAs(${conv.ctaCount ?? 0}), lead magnet(${conv.hasLeadMagnet ? 'sí' : 'no'}), chat(${conv.hasChatWidget ? 'sí' : 'no'})
 - Señales de comercio: carrito(${conv.hasCart ? 'sí' : 'no'}), añadir al carrito(${conv.hasAddToCart ? 'sí' : 'no'}), checkout(${conv.hasCheckout ? 'sí' : 'no'}), precios de producto(${conv.hasProductPrices ? 'sí' : 'no'}), fichas de producto(${conv.productCount ?? 0}), filtros(${conv.hasProductFilters ? 'sí' : 'no'}), lista de deseos(${conv.hasWishlist ? 'sí' : 'no'})

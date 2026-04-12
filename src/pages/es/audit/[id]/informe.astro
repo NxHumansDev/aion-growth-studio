@@ -22,14 +22,6 @@ console.log(`[informe:coverage] ${coverage.coveragePct}% (${coverage.successfulP
 const domain = new URL(audit.url).hostname.replace(/^www\./, '');
 const auditDate = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 const health = computeHealthScore(r);
-// The donut and hero MUST show the pipeline score (r.score.total) — that's
-// the single source of truth shared with the Growth Agent, dashboard and chat.
-// health-score.ts computes a visual breakdown (visibilidad/competitividad/
-// experiencia/conversion) used for the bento grid, but its `total` uses
-// different weights and produced contradictory numbers (e.g. 32 vs 59).
-if (r.score?.total != null) {
-  health.total = r.score.total;
-}
 
 // Data shortcuts
 const crawl = r.crawl || {};

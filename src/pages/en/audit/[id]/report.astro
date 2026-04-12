@@ -16,11 +16,6 @@ const r = audit.results;
 const domain = new URL(audit.url).hostname.replace(/^www\./, '');
 const auditDate = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 const health = computeHealthScore(r);
-// Override health.total with the pipeline score — single source of truth
-// shared with Growth Agent, dashboard and chat (see informe.astro comment).
-if (r.score?.total != null) {
-  health.total = r.score.total;
-}
 
 // Data shortcuts
 const crawl = r.crawl || {};
