@@ -134,124 +134,20 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
 
     console.log(`[radar] Pipeline complete for ${client.domain} in ${Date.now() - t0}ms`);
 
-    // 3. Create snapshot from completed audit
+    // ═══════════════════════════════════════════════════════════════
+    // POST-PIPELINE WORK — ordered by criticality (most important first)
+    // so that even if Phase C times out, the dashboard has usable data.
+    // ═══════════════════════════════════════════════════════════════
+
+    // 3. Create snapshot (CRITICAL — dashboard needs this)
     const snapshotId = await createSnapshotFromAudit(auditId, client.id);
     result.snapshotId = snapshotId;
 
-    // 3b. Ingest GA4 + GSC data (if client has Google connected)
-    try {
-      const analyticsData = await ingestAnalytics(client.id, client.domain);
-      if (analyticsData) {
-        // Append analytics to the snapshot's pipeline_output
-        const { getSupabase } = await import('../db');
-        const sb = getSupabase();
-        const { data: snapData } = await sb.from('snapshots').select('pipeline_output, date').eq('id', snapshotId).single();
-        if (snapData) {
-          const updated = { ...snapData.pipeline_output, analytics: analyticsData };
-          await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
-          console.log(`[radar] Analytics ingested for ${client.domain}: GA4=${!!analyticsData.ga4} GSC=${!!analyticsData.gsc} quality=${analyticsData.dataQualityScore}`);
-
-          // Re-extract KPIs now that analytics are included (adds GSC/GA4 series)
-          const { writeKpiSeries, materializeSnapshotColumns } = await import('../data/kpi-extract');
-          writeKpiSeries(client.id, snapshotId, snapData.date, updated).catch(() => {});
-          materializeSnapshotColumns(snapshotId, updated).catch(() => {});
-
-          // Update integration quality score
-          if (analyticsData.dataQualityScore != null) {
-            const { updateDataQualityScore } = await import('../integrations');
-            await updateDataQualityScore(client.id, 'google_analytics', analyticsData.dataQualityScore);
-          }
-        }
-      }
-    } catch (err) {
-      console.error(`[radar] Analytics ingestion failed for ${client.domain}:`, (err as Error).message);
-      // Non-fatal — Radar continues without analytics
-    }
-
-    // 4. Analyze evolution + correlations
-    const snapshots = await getAllSnapshots(client.id);
-    const allRecs = await getAllRecommendations(client.id);
-    const diff = analyzeEvolution(snapshots, allRecs);
-    result.correlationsFound = diff.correlations.length;
-
-    // 4b. Save meaningful correlations as learnings (closes the feedback loop)
-    const meaningfulCorrelations = diff.correlations.filter(
-      c => c.correlationType === 'probable_cause' || c.correlationType === 'possible_cause',
-    );
-    if (meaningfulCorrelations.length > 0) {
-      const { saveLearnings } = await import('../advisor/db');
-      await saveLearnings(
-        client.id,
-        meaningfulCorrelations.map(c => ({
-          type: 'action_result' as const,
-          content: c.explanation,
-          metadata: {
-            recommendation_title: c.actionTitle,
-            action_date: c.actionDate,
-            kpi_key: c.kpiKey,
-            kpi_label: c.kpiLabel,
-            delta_before: c.deltaBefore,
-            delta_after: c.deltaAfter,
-            delta_pct: c.deltaAfter && c.deltaBefore
-              ? Math.round(((c.deltaAfter - c.deltaBefore) / Math.max(c.deltaBefore, 1)) * 100)
-              : 0,
-            correlation_type: c.correlationType,
-          },
-        })),
-        'radar',
-      ).catch(err => console.error('[radar] Failed to save correlation learnings:', err.message));
-      console.log(`[radar] Saved ${meaningfulCorrelations.length} action→KPI correlations as learnings`);
-
-      // 4c. Write structured action_outcomes for cross-client analytics
-      try {
-        const sb = getSupabase();
-        const onboarding = await getClientOnboarding(client.id);
-        const outcomeRows = meaningfulCorrelations.map(c => ({
-          client_id: client.id,
-          action_title: c.actionTitle || 'Unknown action',
-          action_completed_at: c.actionDate || null,
-          pillar: c.pillar || null,
-          kpi_key: c.kpiKey,
-          kpi_before: c.deltaBefore ?? null,
-          kpi_after: c.deltaAfter ?? null,
-          delta_abs: c.deltaAfter != null && c.deltaBefore != null ? c.deltaAfter - c.deltaBefore : null,
-          delta_pct: c.deltaAfter != null && c.deltaBefore != null && c.deltaBefore !== 0
-            ? Math.round(((c.deltaAfter - c.deltaBefore) / Math.abs(c.deltaBefore)) * 100)
-            : null,
-          correlation_type: c.correlationType,
-          confidence: c.correlationType === 'probable_cause' ? 0.8 : 0.5,
-          days_measured: 7,  // weekly radar cadence
-          sector: onboarding?.sector || null,
-        }));
-        if (outcomeRows.length > 0) {
-          await sb.from('action_outcomes').insert(outcomeRows);
-          console.log(`[radar] Wrote ${outcomeRows.length} action_outcomes for ${client.domain}`);
-        }
-      } catch (err) {
-        console.error('[radar] action_outcomes write failed:', (err as Error).message);
-      }
-    }
-
-    // 5. Copy or enrich Growth Agent analysis.
-    // The pipeline step `growth_agent` already produced an analysis (saved in
-    // pipeline_output.growth_agent). The dashboard reads from `growth_analysis`
-    // (different key) which ideally has enriched client context.
-    //
-    // Strategy: if the pipeline step produced a REAL analysis (model !== 'fallback'),
-    // copy it as growth_analysis immediately (fast, no LLM call). The enriched
-    // version with full client context (onboarding, keywords, action history) can
-    // be generated later via "Regenerar con IA" button or next cron run.
-    // This avoids the Phase C timeout caused by running the Growth Agent TWICE
-    // (once in the pipeline loop, once here).
-    const ctx = await buildClientContext(client.id, client.name, client.domain);
-    const onboarding = ctx.onboarding;
-
-    // Check if the pipeline step already has a real analysis
-    const pipelineGrowthAgent = (await getAuditPage(result.auditId!)).results?.growth_agent;
-    const hasPipelineAnalysis = pipelineGrowthAgent && pipelineGrowthAgent.model !== 'fallback';
-
-    if (hasPipelineAnalysis) {
-      // Fast path: copy pipeline analysis as growth_analysis (0 LLM cost, <1s)
+    // 4. Copy growth_agent → growth_analysis IMMEDIATELY (CRITICAL — hero text)
+    // The pipeline step saved analysis as `growth_agent` key. The dashboard
+    // reads from `growth_analysis`. Copy now before anything else can timeout.
+    const pipelineGrowthAgent = (await getAuditPage(auditId)).results?.growth_agent;
+    if (pipelineGrowthAgent && pipelineGrowthAgent.model !== 'fallback') {
       try {
         const sb = getSupabase();
         const { data: snapData } = await sb.from('snapshots').select('pipeline_output').eq('id', snapshotId).single();
@@ -261,18 +157,19 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
           const { materializeSnapshotColumns } = await import('../data/kpi-extract');
           materializeSnapshotColumns(snapshotId, updated).catch(() => {});
         }
-        console.log(`[radar] Growth Agent: copied pipeline analysis (${pipelineGrowthAgent.prioritizedActions?.length || 0} actions) for ${client.domain}`);
+        console.log(`[radar] Copied growth_agent → growth_analysis (${pipelineGrowthAgent.prioritizedActions?.length || 0} actions)`);
       } catch (err) {
-        console.error(`[radar] Failed to copy growth_agent → growth_analysis:`, (err as Error).message);
+        console.error(`[radar] growth_analysis copy failed:`, (err as Error).message);
       }
     }
 
-    // Seed recommendations from whichever analysis we have (pipeline or enriched)
-    if (growthAnalysis?.prioritizedActions?.length && onboarding) {
+    // 5. Seed recommendations (IMPORTANT — plan de acción needs these)
+    const allRecs = await getAllRecommendations(client.id);
+    if (pipelineGrowthAgent?.prioritizedActions?.length) {
       try {
         const existingTitles = new Set(allRecs.map(r => r.title.toLowerCase()));
         let newCount = 0;
-        for (const action of growthAnalysis.prioritizedActions) {
+        for (const action of pipelineGrowthAgent.prioritizedActions) {
           if (!existingTitles.has(action.title.toLowerCase())) {
             await logRecommendation({
               client_id: client.id,
@@ -297,8 +194,78 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
         result.newRecommendations = newCount;
         console.log(`[radar] Seeded ${newCount} new recommendations for ${client.domain}`);
       } catch (err) {
-        console.error(`[radar] Recommendation seeding failed for ${client.domain}:`, (err as Error).message);
+        console.error(`[radar] Recommendation seeding failed:`, (err as Error).message);
       }
+    }
+
+    // 6. Analytics ingestion (NICE-TO-HAVE — enriches but not critical for first view)
+    try {
+      const analyticsData = await ingestAnalytics(client.id, client.domain);
+      if (analyticsData) {
+        const sb = getSupabase();
+        const { data: snapData } = await sb.from('snapshots').select('pipeline_output, date').eq('id', snapshotId).single();
+        if (snapData) {
+          const updated = { ...snapData.pipeline_output, analytics: analyticsData };
+          await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
+          console.log(`[radar] Analytics ingested: GA4=${!!analyticsData.ga4} GSC=${!!analyticsData.gsc}`);
+
+          const { writeKpiSeries, materializeSnapshotColumns } = await import('../data/kpi-extract');
+          writeKpiSeries(client.id, snapshotId, snapData.date, updated).catch(() => {});
+          materializeSnapshotColumns(snapshotId, updated).catch(() => {});
+
+          if (analyticsData.dataQualityScore != null) {
+            const { updateDataQualityScore } = await import('../integrations');
+            await updateDataQualityScore(client.id, 'google_analytics', analyticsData.dataQualityScore);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[radar] Analytics failed (non-fatal):`, (err as Error).message);
+    }
+
+    // 7. Diff engine + correlations (NICE-TO-HAVE — "cambios esta semana")
+    try {
+      const snapshots = await getAllSnapshots(client.id);
+      const diff = analyzeEvolution(snapshots, allRecs);
+      result.correlationsFound = diff.correlations.length;
+
+      const meaningfulCorrelations = diff.correlations.filter(
+        c => c.correlationType === 'probable_cause' || c.correlationType === 'possible_cause',
+      );
+      if (meaningfulCorrelations.length > 0) {
+        const { saveLearnings } = await import('../advisor/db');
+        await saveLearnings(client.id, meaningfulCorrelations.map(c => ({
+          type: 'action_result' as const,
+          content: c.explanation,
+          metadata: {
+            recommendation_title: c.actionTitle, action_date: c.actionDate,
+            kpi_key: c.kpiKey, kpi_label: c.kpiLabel,
+            delta_before: c.deltaBefore, delta_after: c.deltaAfter,
+            delta_pct: c.deltaAfter && c.deltaBefore ? Math.round(((c.deltaAfter - c.deltaBefore) / Math.max(c.deltaBefore, 1)) * 100) : 0,
+            correlation_type: c.correlationType,
+          },
+        })), 'radar').catch(() => {});
+
+        // Write structured action_outcomes
+        const sb = getSupabase();
+        const onboarding = await getClientOnboarding(client.id);
+        const outcomeRows = meaningfulCorrelations.map(c => ({
+          client_id: client.id, action_title: c.actionTitle || 'Unknown',
+          action_completed_at: c.actionDate || null, pillar: c.pillar || null,
+          kpi_key: c.kpiKey, kpi_before: c.deltaBefore ?? null, kpi_after: c.deltaAfter ?? null,
+          delta_abs: c.deltaAfter != null && c.deltaBefore != null ? c.deltaAfter - c.deltaBefore : null,
+          delta_pct: c.deltaAfter != null && c.deltaBefore != null && c.deltaBefore !== 0
+            ? Math.round(((c.deltaAfter - c.deltaBefore) / Math.abs(c.deltaBefore)) * 100) : null,
+          correlation_type: c.correlationType, confidence: c.correlationType === 'probable_cause' ? 0.8 : 0.5,
+          days_measured: 7, sector: onboarding?.sector || null,
+        }));
+        if (outcomeRows.length > 0) {
+          await sb.from('action_outcomes').insert(outcomeRows).catch(() => {});
+        }
+        console.log(`[radar] ${meaningfulCorrelations.length} correlations + ${outcomeRows.length} outcomes`);
+      }
+    } catch (err) {
+      console.error(`[radar] Diff engine failed (non-fatal):`, (err as Error).message);
     }
 
     // 6. Log interaction

@@ -38,14 +38,49 @@ export const POST: APIRoute = async ({ request }) => {
 
   try {
     const body = await request.json();
-    const { clientId, auditId: existingAuditId } = body;
-    const phase: string = body.phase || 'A';
+    const { clientId } = body;
+    let { auditId: existingAuditId } = body;
+    let phase: string = body.phase || 'A';
 
     if (!clientId) {
       return new Response(JSON.stringify({ error: 'clientId required' }), { status: 400 });
     }
 
     const client = await getClientById(clientId);
+
+    // ── Resume detection: if there's a stuck audit for this client,
+    // resume from where it left off instead of starting over.
+    // This handles the case where a self-chain from Phase A→B or B→C
+    // failed (Vercel killed the function before the fetch fired).
+    if (phase === 'A' && !existingAuditId) {
+      try {
+        const { getSupabase } = await import('../../../lib/db');
+        const sb = getSupabase();
+        const { data: stuckAudits } = await sb
+          .from('audits')
+          .select('id, current_step, updated_at')
+          .ilike('url', `%${client.domain}%`)
+          .eq('status', 'processing')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (stuckAudits?.length) {
+          const stuck = stuckAudits[0];
+          const ageMinutes = (Date.now() - new Date(stuck.updated_at).getTime()) / 60000;
+          if (ageMinutes > 3) {
+            // Audit is stuck — resume from its current step
+            existingAuditId = stuck.id;
+            const step = stuck.current_step;
+            // Determine which phase to resume
+            if (step === 'growth_agent' || step === 'done') phase = 'C';
+            else if (step === 'competitor_traffic' || step === 'score') phase = 'B';
+            // else: phase stays 'A' (restart from wherever it was)
+            console.log(`[radar:single] Detected stuck audit ${stuck.id} at step=${step} (${Math.round(ageMinutes)}min old) — resuming as Phase ${phase}`);
+          }
+        }
+      } catch { /* non-fatal — proceed with fresh audit */ }
+    }
+
     console.log(`[radar:single] Phase ${phase} for ${client.name} (${client.domain})...`);
 
     // Phase boundaries (pipeline step names from types.ts)
