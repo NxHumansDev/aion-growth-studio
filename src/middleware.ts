@@ -52,7 +52,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const email = authUser.email ?? '';
-  const isSuperuser = email.endsWith('@aiongrowth.studio');
+  const SUPERUSER_EMAILS = (import.meta.env?.SUPERUSER_EMAILS || process.env.SUPERUSER_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+  const isSuperuser = email.endsWith('@aiongrowth.studio') || SUPERUSER_EMAILS.includes(email.toLowerCase());
 
   // ── Admin routes ────────────────────────────────────────────────────────────
   if (isAdminRoute) {
