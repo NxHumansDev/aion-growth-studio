@@ -9,7 +9,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
   const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/advisor') || pathname.startsWith('/api/advisor') || pathname.startsWith('/api/dashboard') || pathname.startsWith('/api/integrations');
-  const isAdminRoute = pathname.startsWith('/admin');
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
 
   if (!isDashboardRoute && !isAdminRoute) return next();
 
