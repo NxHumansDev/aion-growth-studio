@@ -132,7 +132,6 @@ const bottleneck = auditToRegister === 0 && completedAudits > 0
         <div class="value">{payingClients}</div>
         <span style="font-size:12px;color:#505f76;">activos</span>
       </div>
-      <div style="margin-top:16px;height:32px;border-top:1px dashed #eceef0;"></div>
     </div>
 
     <!-- Churn -->
@@ -143,11 +142,10 @@ const bottleneck = auditToRegister === 0 && completedAudits > 0
         </div>
       </div>
       <div class="label">Churn</div>
-      <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px;">
         <div class="value" style="color:#ba1a1a;">{churnRate}%</div>
         <span style="font-size:12px;color:#505f76;">tasa {churnRate === 0 ? 'baja' : churnRate < 10 ? 'controlada' : 'alta'}</span>
       </div>
-      <div style="margin-top:16px;height:32px;border-top:1px dashed rgba(186,26,26,0.1);"></div>
     </div>
   </div>
 
