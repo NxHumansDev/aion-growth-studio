@@ -2443,9 +2443,18 @@ const donutSVG = buildDonutSVG();
                         <span style={`width:8px;height:8px;border-radius:50%;background:${idx===0?'#D85A30':idx===1?'#888780':'#6B8E9B'};flex-shrink:0;`}></span>
                         <span style="font-size:0.82rem;font-weight:700;color:#e2e0fc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ct.name || ct.domain}</span>
                       </div>
+                      {(() => {
+                        // When a well-known competitor shows 0 traffic, it's almost certainly
+                        // a data source limitation (site blocks DataForSEO) — not real.
+                        const kwVal = ct.keywordsTop10;
+                        const trafVal = ct.organicTrafficEstimate;
+                        const hasZeroData = (kwVal === 0 || kwVal == null) && (trafVal === 0 || trafVal == null);
+                        const zeroLabel = 'No disponible';
+                        return null; // just defining vars for the block below
+                      })()}
                       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 12px;">
-                        <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">KW Top 10</span><div style="font-size:1rem;font-weight:800;color:#e2e0fc;">{ct.keywordsTop10 != null ? fmt(ct.keywordsTop10) : '—'}</div></div>
-                        <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">Trafico org.</span><div style="font-size:1rem;font-weight:800;color:#e2e0fc;">{ct.organicTrafficEstimate != null ? fmt(ct.organicTrafficEstimate) : '—'}</div></div>
+                        <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">KW Top 10</span><div style="font-size:1rem;font-weight:800;color:#e2e0fc;">{ct.keywordsTop10 != null && ct.keywordsTop10 > 0 ? fmt(ct.keywordsTop10) : (ct.keywordsTop10 === 0 && ct.organicTrafficEstimate === 0 ? <span style="font-size:0.7rem;color:#8d909b;font-weight:500;">No disponible</span> : '—')}</div></div>
+                        <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">Trafico org.</span><div style="font-size:1rem;font-weight:800;color:#e2e0fc;">{ct.organicTrafficEstimate != null && ct.organicTrafficEstimate > 0 ? fmt(ct.organicTrafficEstimate) : (ct.organicTrafficEstimate === 0 && ct.keywordsTop10 === 0 ? <span style="font-size:0.7rem;color:#8d909b;font-weight:500;">No disponible</span> : '—')}</div></div>
                         <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">Visib. IA</span><div style={`font-size:1rem;font-weight:800;color:${(compGeo?.mentionRate ?? 0) >= 50 ? '#69FF87' : (compGeo?.mentionRate ?? 0) >= 25 ? '#ffb4ab' : '#8d909b'};`}>{compGeo ? `${compGeo.mentionRate}%` : '—'}</div></div>
                         {cpItem?.trustpilotRating ? (
                           <div><span style="font-size:0.62rem;color:#8d909b;text-transform:uppercase;">Trustpilot</span><div style="font-size:0.92rem;font-weight:800;color:#e2e0fc;">{cpItem.trustpilotRating}★ <span style="font-size:0.6rem;color:#8d909b;">({fmt(cpItem.trustpilotReviews)})</span></div></div>

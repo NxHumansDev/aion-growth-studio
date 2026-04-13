@@ -366,8 +366,16 @@ export async function runGEO(
   // Strip corporate prefixes (e.g. "GROUP Andbank" → "Andbank") for cleaner query generation
   const brandName      = rawBrandName.replace(/^(group|grupo)\s+/i, '').trim();
   const locationHint   = crawl.locationHint;
-  const valueProposition = crawl.description?.slice(0, 120) || '';
-  const keywords       = crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector;
+
+  // When crawler was blocked (WAF, 403, etc.), the title/description are from
+  // the error page (e.g. "Azure WAF JS Challenge"), NOT the real site content.
+  // Use only sector + brandName for query generation — never infrastructure text.
+  const isCrawlerBlocked = !!(crawl as any).crawlerBlocked;
+  const valueProposition = isCrawlerBlocked ? sector : (crawl.description?.slice(0, 120) || '');
+  const keywords = isCrawlerBlocked ? sector : (crawl.h1s?.[0] || valueProposition.split(/[,.:]/)[0] || sector);
+  if (isCrawlerBlocked) {
+    console.log(`[geo] Crawler blocked — using sector "${sector}" instead of crawl data for query generation`);
+  }
 
   // Configure engines
   // Perplexity uses sonar (large, web search) — best for real-world brand recall
@@ -417,9 +425,20 @@ export async function runGEO(
 
   // Generate queries
   const t0 = Date.now();
-  const rawQuerySpecs = await generateQueries(
+  const rawQuerySpecs = (await generateQueries(
     sector, valueProposition, keywords, brandName, domain, locationHint, OPENAI_KEY,
-  );
+  ))
+  // Filter out queries about infrastructure/technology — these are never about
+  // the client's business. Happens when crawler hits a WAF page and the query
+  // generator picks up terms like "Azure WAF", "Cloudflare", "CDN", etc.
+  .filter(spec => {
+    const INFRA_RE = /\b(waf|cdn|ssl|tls|cloudflare|akamai|azure|aws|nginx|apache|captcha|firewall|dns|http|servidor|server|hosting|cpanel|plesk|varnish|load.balancer)\b/i;
+    if (INFRA_RE.test(spec.query)) {
+      console.log(`[geo] Filtered infra query: "${spec.query.slice(0, 60)}"`);
+      return false;
+    }
+    return true;
+  });
   const querySpecs = deduplicateQuerySpecs(rawQuerySpecs);
   const effectiveSamples = Math.max(1, Math.min(5, samples));
   console.log(`[geo] queries generated: ${querySpecs.length} (${Date.now() - t0}ms) | engines: ${engines.map(e => e.name).join(',')} | samples: ${effectiveSamples}`);

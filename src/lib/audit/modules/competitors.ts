@@ -273,6 +273,14 @@ EXAMPLES OF WRONG vs RIGHT:
 - Boutique law firm → WRONG: Garrigues (Big4) → RIGHT: other boutique firms of similar size
 - Local restaurant → WRONG: McDonald's → RIGHT: other restaurants in same neighborhood/cuisine
 
+EXCLUDED CATEGORIES (NEVER return these as competitors):
+- Government websites (.gob.es, .gov.*, agenciatributaria, seg-social, hacienda)
+- Legal databases (iberley, noticias.juridicas, aranzadi, vlex, tirantonline)
+- Educational institutions (.edu, .edu.es, universities)
+- News/media sites (newspapers, TV channels)
+- Wikipedia, YouTube, social networks
+- Generic aggregators (infojobs, indeed, idealista)
+
 Reply ONLY with valid JSON (no markdown, no backticks, start with {):
 {"competitors": [{"name": "Company Name", "url": "https://exactdomain.com", "snippet": "One sentence why they compete directly", "type": "direct"}]}
 

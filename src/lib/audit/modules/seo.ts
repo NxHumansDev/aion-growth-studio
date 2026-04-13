@@ -139,8 +139,13 @@ export async function runSEO(url: string): Promise<SEOResult> {
       '20minutos.es', 'marca.com', 'as.com', 'huffingtonpost.es',
       // Review sites
       'trustpilot.com', 'tripadvisor.com', 'glassdoor.com', 'yelp.com',
-      // Government
-      'gov.es', 'boe.es', 'aeat.es', 'administracion.gob.es',
+      // Government (exact domains + .gob.es pattern handled below)
+      'gov.es', 'boe.es', 'aeat.es', 'administracion.gob.es', 'seg-social.gob.es',
+      'agenciatributaria.gob.es', 'hacienda.gob.es', 'mites.gob.es',
+      // Legal databases / information portals (not competitors for any business)
+      'iberley.es', 'noticias.juridicas.com', 'legaltoday.com', 'aranzadi.es',
+      'tirantonline.com', 'elderecho.com', 'poderjudicial.es', 'wolterskluwer.es',
+      'vlex.es', 'laleydigital.es',
       // Supermarkets / generalist retailers (off-sector for most verticals)
       'carrefour.es', 'mercadona.es', 'lidl.es', 'alcampo.es', 'dia.es', 'aldi.es',
       'hipercor.es', 'eroski.es', 'consum.es',
@@ -157,12 +162,26 @@ export async function runSEO(url: string): Promise<SEOResult> {
       'thefork.es', 'eltenedor.es', 'guiarepsol.com',
     ]);
 
+    // Pattern-based blocklist: any domain matching these patterns is excluded
+    // regardless of keyword overlap. Catches all .gob.es subdomains, .edu.es, etc.
+    const BLOCKED_DOMAIN_PATTERNS = [
+      /\.gob\.es$/,         // all Spanish government domains
+      /\.gov\.[a-z]{2}$/,   // all government domains worldwide
+      /\.edu\.es$/,          // Spanish educational institutions
+      /\.edu$/,              // educational institutions
+      /\.mil\.es$/,          // military
+    ];
+    function isBlockedDomain(d: string): boolean {
+      if (GENERIC_DOMAINS.has(d)) return true;
+      return BLOCKED_DOMAIN_PATTERNS.some(re => re.test(d));
+    }
+
     try {
       const compTask = compData?.tasks?.[0];
       if (compTask?.status_code === 20000 && compTask.result_count > 0) {
         const compItems: any[] = compTask.result[0]?.items || [];
         const organicCompetitors = compItems
-          .filter((it: any) => it.domain && it.domain !== domain && !GENERIC_DOMAINS.has(it.domain))
+          .filter((it: any) => it.domain && it.domain !== domain && !isBlockedDomain(it.domain))
           .slice(0, 5)
           .map((it: any) => ({
             domain: it.domain as string,
