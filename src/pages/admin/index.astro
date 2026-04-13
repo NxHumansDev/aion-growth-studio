@@ -211,9 +211,8 @@ const bottleneck = auditToRegister === 0 && completedAudits > 0
       <div style="display:flex;flex-direction:column;gap:28px;">
         {funnelSteps.map((step, idx) => {
           const pct = maxFunnel > 0 ? Math.max(2, (step.count / maxFunnel) * 100) : 2;
-          const opacity = step.count === 0 ? '0.35' : '1';
           return (
-            <div style={`opacity:${opacity};`}>
+            <div>
               <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;">
                 <span style="font-weight:600;color:#505f76;">{step.label}</span>
                 <span class="font-headline" style="font-weight:900;color:#00288e;">{step.count}</span>
@@ -238,8 +237,8 @@ const bottleneck = auditToRegister === 0 && completedAudits > 0
             { label: 'Reg →', sub: 'Pago', value: registerToPay },
           ].map((rate, idx) => (
             <div style={`display:flex;align-items:center;gap:16px;${idx > 0 ? 'padding-top:20px;border-top:1px solid rgba(255,255,255,0.1);' : ''}`}>
-              <div class="font-headline" style={`font-size:36px;font-weight:900;${rate.value === 0 ? 'opacity:0.3;' : ''}`}>{rate.value}%</div>
-              <div style={`font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.4;${rate.value === 0 ? 'opacity:0.3;' : 'opacity:0.8;'}`}>{rate.label}<br/>{rate.sub}</div>
+              <div class="font-headline" style="font-size:36px;font-weight:900;">{rate.value}%</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.4;opacity:0.8;">{rate.label}<br/>{rate.sub}</div>
             </div>
           ))}
         </div>
