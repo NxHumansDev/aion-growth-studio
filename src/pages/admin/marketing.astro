@@ -1,125 +1,351 @@
 ---
 export const prerender = false;
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import { IS_DEMO, getSupabase } from '../../lib/db';
 
 const user = (Astro.locals as any).user;
 if (!user || user.role !== 'superuser') return Astro.redirect('/dashboard');
 
-// Nurturing sequences definition
-const sequences = [
-  {
-    id: 'post_audit',
-    name: 'Post-Auditoria',
-    trigger: 'Audit completado',
-    status: 'active',
-    emails: [
-      { delay: '0h', subject: 'Tu diagnostico de {domain} esta listo', type: 'transactional', openRate: null },
-      { delay: '24h', subject: 'Un dato sobre tu web que puede sorprenderte', type: 'nurturing', openRate: null },
-      { delay: '3d', subject: 'Lo que hacen tus competidores esta semana', type: 'nurturing', openRate: null },
-      { delay: '7d', subject: '{domain}: oportunidades que se estan escapando', type: 'cta', openRate: null },
-    ],
-  },
-  {
-    id: 'onboarding_radar',
-    name: 'Onboarding Radar',
-    trigger: 'Suscripcion Radar',
-    status: 'draft',
-    emails: [
-      { delay: '0h', subject: 'Bienvenido a Radar — tu primer informe esta listo', type: 'transactional', openRate: null },
-      { delay: '2d', subject: 'Tu advisor IA ya te conoce — preguntale lo que quieras', type: 'education', openRate: null },
-      { delay: '7d', subject: 'Tu primer informe semanal de {domain}', type: 'delivery', openRate: null },
-    ],
-  },
-  {
-    id: 'churn_prevention',
-    name: 'Prevencion de churn',
-    trigger: 'Sin login en 14 dias',
-    status: 'draft',
-    emails: [
-      { delay: '14d', subject: 'Han cambiado cosas en tu sector esta semana', type: 'reengagement', openRate: null },
-      { delay: '21d', subject: 'Tu competencia ha mejorado — mira los datos', type: 'urgency', openRate: null },
-      { delay: '28d', subject: 'Nos echamos de menos? Tu score ha bajado', type: 'win-back', openRate: null },
-    ],
-  },
-  {
-    id: 'newsletter',
-    name: 'Newsletter mensual',
-    trigger: 'Primer lunes del mes',
-    status: 'draft',
-    emails: [
-      { delay: '—', subject: 'Tendencias de visibilidad digital — {month} 2026', type: 'content', openRate: null },
-    ],
-  },
-];
+// Load workflows from DB (or use defaults if table doesn't exist yet)
+let workflows: any[] = [];
+if (!IS_DEMO) {
+  try {
+    const sb = getSupabase();
+    const { data } = await sb.from('marketing_workflows').select('*').order('created_at');
+    workflows = data || [];
+  } catch { /* table may not exist */ }
+}
 
-const typeColors: any = {
-  transactional: '#3b82f6', nurturing: '#8b5cf6', cta: '#f59e0b',
-  education: '#06b6d4', delivery: '#10b981', reengagement: '#f97316',
-  urgency: '#ef4444', 'win-back': '#ec4899', content: '#6366f1',
+// Fallback if no DB data
+if (workflows.length === 0) {
+  workflows = [
+    { id: 'post_audit', name: 'Post-Auditoria', trigger_type: 'audit_completed', status: 'draft', enrolled: 0, steps: [
+      { type: 'email', delay: '0h', subject: 'Tu diagnostico de {domain} esta listo' },
+      { type: 'wait', delay: '24h' },
+      { type: 'email', delay: '24h', subject: 'Un dato sobre tu web que puede sorprenderte' },
+      { type: 'wait', delay: '3d' },
+      { type: 'email', delay: '3d', subject: 'Lo que hacen tus competidores esta semana' },
+      { type: 'wait', delay: '7d' },
+      { type: 'email', delay: '7d', subject: '{domain}: oportunidades que se estan escapando' },
+    ], stats: {} },
+    { id: 'onboarding', name: 'Onboarding Radar', trigger_type: 'subscription', status: 'draft', enrolled: 0, steps: [
+      { type: 'email', delay: '0h', subject: 'Bienvenido a Radar — tu primer informe' },
+      { type: 'wait', delay: '2d' },
+      { type: 'email', delay: '2d', subject: 'Tu advisor IA ya te conoce' },
+    ], stats: {} },
+    { id: 'churn', name: 'Prevencion de churn', trigger_type: 'inactivity_14d', status: 'draft', enrolled: 0, steps: [
+      { type: 'wait', delay: '14d' },
+      { type: 'email', delay: '14d', subject: 'Han cambiado cosas en tu sector' },
+      { type: 'wait', delay: '7d' },
+      { type: 'email', delay: '21d', subject: 'Tu competencia ha mejorado' },
+    ], stats: {} },
+  ];
+}
+
+const activeCount = workflows.filter((w: any) => w.status === 'active').length;
+const totalEmails = workflows.reduce((s: number, w: any) => s + (w.steps || []).filter((st: any) => st.type === 'email').length, 0);
+const totalEnrolled = workflows.reduce((s: number, w: any) => s + (w.enrolled || 0), 0);
+
+const triggerLabels: any = {
+  audit_completed: 'Audit completado',
+  subscription: 'Suscripcion Radar',
+  inactivity_14d: 'Sin login 14 dias',
+  cron: 'Programado',
+  manual: 'Manual',
 };
+
+// Resend domain status
+const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEND_API_KEY);
 ---
 
 <AdminLayout title="Marketing Automation" currentPath="/admin/marketing">
-  <p style="font-size:14px;color:#64748b;margin-bottom:24px;">Define las secuencias de email para cada momento del ciclo de vida del cliente. Cada secuencia se activa por un evento y envia emails automaticos en los intervalos definidos.</p>
 
-  <div style="display:flex;flex-direction:column;gap:20px;">
-    {sequences.map((seq) => (
-      <div class="stat-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span class="material-symbols-outlined" style={`font-size:24px;color:${seq.status === 'active' ? '#10b981' : '#94a3b8'};`}>
-              {seq.status === 'active' ? 'play_circle' : 'edit_note'}
-            </span>
-            <div>
-              <div style="font-size:15px;font-weight:800;color:#1a1a2e;">{seq.name}</div>
-              <div style="font-size:12px;color:#64748b;">Trigger: {seq.trigger}</div>
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:40px;">
+    <div>
+      <h2 class="font-headline" style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#191c1e;">Marketing Automation</h2>
+      <p style="color:#505f76;margin-top:4px;font-size:14px;">Secuencias de email para cada momento del ciclo de vida del cliente.</p>
+    </div>
+    <button class="btn btn-primary" style="padding:12px 24px;" onclick="createWorkflow()">
+      <span class="material-symbols-outlined" style="font-size:18px;">add</span>
+      <span>Nuevo workflow</span>
+    </button>
+  </div>
+
+  <!-- KPI row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:40px;">
+    <div class="stat-card" style="position:relative;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div class="label">Workflows activos</div>
+        {activeCount > 0 && <span style="font-size:10px;font-weight:700;color:#003d27;background:rgba(111,251,190,0.2);padding:3px 8px;border-radius:20px;">LIVE</span>}
+      </div>
+      <div class="value">{activeCount} <span style="font-size:14px;font-weight:500;color:#505f76;">de {workflows.length}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Emails configurados</div>
+      <div class="value">{totalEmails}</div>
+      <div class="delta">En {workflows.length} secuencias</div>
+    </div>
+    <div class="stat-card" style={`${!resendConfigured ? 'border-left:4px solid #ba1a1a;' : ''}`}>
+      <div class="label">Estado Resend</div>
+      <div class="value" style={`font-size:16px;color:${resendConfigured ? '#003d27' : '#ba1a1a'};`}>
+        {resendConfigured ? 'Configurado' : 'Dominio pendiente'}
+      </div>
+      {!resendConfigured && <div class="delta down">Verificar en resend.com/domains</div>}
+    </div>
+  </div>
+
+  <!-- Main: Workflows list + Flow editor -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:32px;">
+
+    <!-- Workflows list -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 class="font-headline" style="font-size:18px;font-weight:700;color:#191c1e;">Workflows</h3>
+      </div>
+      <div id="workflow-list" style="display:flex;flex-direction:column;gap:12px;">
+        {workflows.map((wf: any, idx: number) => (
+          <div
+            class="wf-card"
+            data-id={wf.id}
+            data-steps={JSON.stringify(wf.steps || [])}
+            data-name={wf.name}
+            data-trigger={wf.trigger_type}
+            data-status={wf.status}
+            data-description={wf.description || ''}
+            style={`background:#f2f4f6;padding:20px;border-radius:12px;cursor:pointer;transition:all 0.15s;${idx === 0 ? 'background:white;box-shadow:0 1px 4px rgba(0,0,0,0.06);' : ''}`}
+            onclick="selectWorkflow(this)"
+          >
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+              <h4 class="font-headline" style="font-weight:700;color:#191c1e;font-size:14px;">{wf.name}</h4>
+              <span style={`font-size:9px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;${wf.status === 'active' ? 'background:#00563a;color:#3fd298;' : wf.status === 'paused' ? 'background:#ffdad6;color:#ba1a1a;' : 'background:#eceef0;color:#444653;'}`}>
+                {wf.status === 'active' ? 'Activo' : wf.status === 'paused' ? 'Pausado' : 'Borrador'}
+              </span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;">Trigger</div>
+                <div style="font-size:13px;font-weight:600;color:#191c1e;">{triggerLabels[wf.trigger_type] || wf.trigger_type}</div>
+              </div>
+              <div>
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;">Pasos</div>
+                <div style="font-size:13px;font-weight:600;color:#00288e;">{(wf.steps || []).length}</div>
+              </div>
             </div>
           </div>
-          <span class={`badge ${seq.status === 'active' ? 'paying' : 'inactive'}`}>
-            {seq.status === 'active' ? 'Activa' : 'Borrador'}
-          </span>
-        </div>
+        ))}
+      </div>
+    </div>
 
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          {seq.emails.map((email, idx) => (
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid ${typeColors[email.type] || '#94a3b8'};">
-              <div style="min-width:50px;text-align:center;">
-                <span style="font-size:12px;font-weight:700;color:#64748b;">{email.delay}</span>
-              </div>
-              <div style="flex:1;">
-                <div style="font-size:13px;font-weight:600;color:#1a1a2e;">{email.subject}</div>
-              </div>
-              <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:${typeColors[email.type]}15;color:${typeColors[email.type]};text-transform:uppercase;`}>
-                {email.type}
-              </span>
-              {email.openRate != null && (
-                <span style="font-size:12px;color:#64748b;">{email.openRate}% open</span>
-              )}
-            </div>
-          ))}
+    <!-- Flow editor -->
+    <div class="stat-card" style="padding:32px;min-height:500px;display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <div>
+          <h3 class="font-headline" style="font-size:18px;font-weight:700;">
+            Flow Editor: <span id="editor-name" style="color:#00288e;">{workflows[0]?.name || 'Selecciona un workflow'}</span>
+          </h3>
+          <p id="editor-desc" style="font-size:13px;color:#505f76;margin-top:4px;">{workflows[0]?.description || ''}</p>
         </div>
-
-        <div style="margin-top:12px;display:flex;gap:8px;">
-          <button class="btn btn-ghost" style="font-size:12px;" disabled>
-            <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
-            Editar secuencia
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="saveWorkflow()">Guardar borrador</button>
+          <button class="btn btn-primary" style="font-size:12px;" onclick="toggleLive()" id="live-btn">
+            {workflows[0]?.status === 'active' ? 'Pausar' : 'Activar'}
           </button>
-          {seq.status === 'draft' && (
-            <button class="btn btn-primary" style="font-size:12px;" disabled>
-              <span class="material-symbols-outlined" style="font-size:14px;">play_arrow</span>
-              Activar
-            </button>
-          )}
         </div>
       </div>
-    ))}
+
+      <!-- Flow canvas -->
+      <div id="flow-canvas" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0;overflow-y:auto;padding:16px 0;">
+        <!-- Steps rendered by JS -->
+      </div>
+
+      <!-- Add step button -->
+      <div style="display:flex;justify-content:center;margin-top:16px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="addStep('email')" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:12px;border:2px dashed #c4c5d5;background:white;color:#505f76;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseenter="this.style.borderColor='#00288e';this.style.color='#00288e'" onmouseleave="this.style.borderColor='#c4c5d5';this.style.color='#505f76'">
+            <span class="material-symbols-outlined" style="font-size:16px;">mail</span>
+            Anadir email
+          </button>
+          <button onclick="addStep('wait')" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:12px;border:2px dashed #c4c5d5;background:white;color:#505f76;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseenter="this.style.borderColor='#00288e';this.style.color='#00288e'" onmouseleave="this.style.borderColor='#c4c5d5';this.style.color='#505f76'">
+            <span class="material-symbols-outlined" style="font-size:16px;">timer</span>
+            Anadir espera
+          </button>
+        </div>
+      </div>
+
+      <!-- Editor footer -->
+      <div style="margin-top:16px;display:flex;justify-content:center;">
+        <div style="background:#f2f4f6;border-radius:99px;padding:8px 24px;display:flex;align-items:center;gap:20px;">
+          <span style="font-size:11px;font-weight:600;color:#505f76;" id="step-count">{(workflows[0]?.steps || []).length} pasos</span>
+          <span style="width:1px;height:16px;background:#c4c5d5;"></span>
+          <span style="font-size:11px;font-weight:600;color:#505f76;" id="email-count">{(workflows[0]?.steps || []).filter((s: any) => s.type === 'email').length} emails</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div style="margin-top:24px;padding:20px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span class="material-symbols-outlined" style="font-size:18px;color:#f59e0b;">info</span>
-      <span style="font-size:13px;font-weight:700;color:#92400e;">Dominio pendiente de verificar</span>
-    </div>
-    <p style="font-size:13px;color:#78350f;line-height:1.5;">Para activar el envio de emails, verifica el dominio <strong>aiongrowth.studio</strong> en <a href="https://resend.com/domains" target="_blank" style="color:#6366f1;">Resend</a>. Sin verificacion, los emails no se enviaran.</p>
-  </div>
+  <!-- Save status -->
+  <div id="save-status" style="display:none;position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.1);"></div>
+
+  <script is:inline>
+    let currentWorkflowId = null;
+    let currentSteps = [];
+    let currentStatus = 'draft';
+
+    // Initialize with first workflow
+    document.addEventListener('DOMContentLoaded', function() {
+      var first = document.querySelector('.wf-card');
+      if (first) selectWorkflow(first);
+    });
+
+    function selectWorkflow(el) {
+      // Deselect all
+      document.querySelectorAll('.wf-card').forEach(function(c) {
+        c.style.background = '#f2f4f6';
+        c.style.boxShadow = 'none';
+      });
+      // Select this one
+      el.style.background = 'white';
+      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+
+      currentWorkflowId = el.dataset.id;
+      currentSteps = JSON.parse(el.dataset.steps || '[]');
+      currentStatus = el.dataset.status;
+
+      document.getElementById('editor-name').textContent = el.dataset.name;
+      document.getElementById('editor-desc').textContent = el.dataset.description || '';
+      document.getElementById('live-btn').textContent = currentStatus === 'active' ? 'Pausar' : 'Activar';
+      renderFlow();
+    }
+
+    function renderFlow() {
+      var canvas = document.getElementById('flow-canvas');
+      canvas.innerHTML = '';
+
+      // Trigger node
+      var trigger = document.createElement('div');
+      trigger.style.cssText = 'background:#00563a;color:#3fd298;padding:14px 24px;border-radius:12px;text-align:center;margin-bottom:0;position:relative;min-width:200px;';
+      trigger.innerHTML = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.8;margin-bottom:4px;">Trigger</div><div style="font-weight:700;font-size:14px;color:white;">' + (document.querySelector('.wf-card[data-id="'+currentWorkflowId+'"]')?.dataset.trigger || 'manual') + '</div>';
+      canvas.appendChild(trigger);
+
+      currentSteps.forEach(function(step, idx) {
+        // Connector line
+        var line = document.createElement('div');
+        line.style.cssText = 'width:2px;height:28px;background:#c4c5d5;';
+        canvas.appendChild(line);
+
+        if (step.type === 'wait') {
+          var wait = document.createElement('div');
+          wait.style.cssText = 'background:#f2f4f6;padding:10px 20px;border-radius:99px;display:flex;align-items:center;gap:8px;position:relative;';
+          wait.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;color:#505f76;">timer</span><span style="font-size:12px;font-weight:700;color:#505f76;">Esperar ' + (step.delay || '?') + '</span>' +
+            '<button onclick="removeStep(' + idx + ')" style="position:absolute;right:-8px;top:-8px;width:20px;height:20px;border-radius:50%;background:#ba1a1a;color:white;border:none;cursor:pointer;font-size:12px;display:none;align-items:center;justify-content:center;" class="del-btn"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>';
+          wait.onmouseenter = function() { wait.querySelector('.del-btn').style.display = 'flex'; };
+          wait.onmouseleave = function() { wait.querySelector('.del-btn').style.display = 'none'; };
+          canvas.appendChild(wait);
+        } else {
+          var email = document.createElement('div');
+          email.style.cssText = 'background:white;border:2px solid rgba(0,40,142,0.1);padding:16px 20px;border-radius:16px;width:280px;position:relative;box-shadow:0 1px 4px rgba(0,0,0,0.04);';
+          email.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+            '<span class="material-symbols-outlined" style="font-size:18px;color:#00288e;background:rgba(0,40,142,0.08);padding:6px;border-radius:8px;">mail</span>' +
+            '<span style="font-weight:700;font-size:13px;color:#191c1e;">Email ' + (idx + 1) + '</span></div>' +
+            '<input type="text" value="' + (step.subject || '').replace(/"/g, '&quot;') + '" onchange="updateSubject(' + idx + ', this.value)" style="width:100%;border:none;background:#f2f4f6;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;color:#444653;outline:none;" placeholder="Asunto del email..." />' +
+            '<button onclick="removeStep(' + idx + ')" style="position:absolute;right:-8px;top:-8px;width:20px;height:20px;border-radius:50%;background:#ba1a1a;color:white;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;" class="del-btn"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>';
+          email.onmouseenter = function() { email.querySelector('.del-btn').style.display = 'flex'; };
+          email.onmouseleave = function() { email.querySelector('.del-btn').style.display = 'none'; };
+          canvas.appendChild(email);
+        }
+      });
+
+      updateCounts();
+    }
+
+    function addStep(type) {
+      if (type === 'email') {
+        currentSteps.push({ type: 'email', subject: '', delay: '' });
+      } else {
+        var delay = prompt('Tiempo de espera (ej: 24h, 2d, 7d):');
+        if (!delay) return;
+        currentSteps.push({ type: 'wait', delay: delay });
+      }
+      renderFlow();
+    }
+
+    function removeStep(idx) {
+      currentSteps.splice(idx, 1);
+      renderFlow();
+    }
+
+    function updateSubject(idx, value) {
+      currentSteps[idx].subject = value;
+    }
+
+    function updateCounts() {
+      var emailCount = currentSteps.filter(function(s) { return s.type === 'email'; }).length;
+      document.getElementById('step-count').textContent = currentSteps.length + ' pasos';
+      document.getElementById('email-count').textContent = emailCount + ' emails';
+    }
+
+    function showStatus(msg, isError) {
+      var el = document.getElementById('save-status');
+      el.style.display = 'block';
+      el.style.background = isError ? '#ffdad6' : '#d1fae5';
+      el.style.color = isError ? '#ba1a1a' : '#003d27';
+      el.textContent = msg;
+      setTimeout(function() { el.style.display = 'none'; }, 3000);
+    }
+
+    function saveWorkflow() {
+      if (!currentWorkflowId) return;
+      var card = document.querySelector('.wf-card[data-id="'+currentWorkflowId+'"]');
+      fetch('/api/admin/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save',
+          id: currentWorkflowId,
+          name: card?.dataset.name,
+          description: card?.dataset.description,
+          trigger_type: card?.dataset.trigger,
+          status: currentStatus,
+          steps: currentSteps,
+        }),
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          showStatus('Workflow guardado', false);
+          if (card) card.dataset.steps = JSON.stringify(currentSteps);
+        } else {
+          showStatus('Error: ' + (d.error || 'desconocido'), true);
+        }
+      }).catch(function() { showStatus('Error de conexion', true); });
+    }
+
+    function toggleLive() {
+      if (!currentWorkflowId) return;
+      fetch('/api/admin/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle-status', id: currentWorkflowId }),
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          currentStatus = d.status;
+          document.getElementById('live-btn').textContent = d.status === 'active' ? 'Pausar' : 'Activar';
+          showStatus(d.status === 'active' ? 'Workflow activado' : 'Workflow pausado', false);
+          setTimeout(function() { location.reload(); }, 1000);
+        }
+      });
+    }
+
+    function createWorkflow() {
+      var name = prompt('Nombre del workflow:');
+      if (!name) return;
+      fetch('/api/admin/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', name: name, trigger_type: 'manual', steps: [] }),
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) { location.reload(); }
+        else { showStatus('Error: ' + (d.error || ''), true); }
+      });
+    }
+  </script>
 </AdminLayout>
