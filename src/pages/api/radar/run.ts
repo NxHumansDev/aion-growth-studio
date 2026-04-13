@@ -13,7 +13,11 @@ const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
  * fires one /api/radar/run-client call per client in parallel.
  * Each runs in its own Vercel Function with its own 300s timeout.
  */
-export const POST: APIRoute = async ({ request }) => {
+// Vercel Cron sends GET requests — accept both GET and POST.
+export const GET: APIRoute = async (ctx) => handler(ctx);
+export const POST: APIRoute = async (ctx) => handler(ctx);
+
+const handler: APIRoute = async ({ request }) => {
   if (IS_DEMO) {
     return new Response(JSON.stringify({ error: 'Radar not available in demo mode' }), {
       status: 400,
