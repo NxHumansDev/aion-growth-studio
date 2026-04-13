@@ -74,24 +74,25 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
 
   <!-- KPI row -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:40px;">
-    <div class="stat-card" style="position:relative;overflow:hidden;">
+    <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);position:relative;overflow:hidden;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div class="label">Workflows activos</div>
-        {activeCount > 0 && <span style="font-size:10px;font-weight:700;color:#003d27;background:rgba(111,251,190,0.2);padding:3px 8px;border-radius:20px;">LIVE</span>}
+        {activeCount > 0 && <span style="font-size:10px;font-weight:700;color:#003d27;background:rgba(111,251,190,0.2);padding:3px 10px;border-radius:20px;">LIVE</span>}
       </div>
       <div class="value">{activeCount} <span style="font-size:14px;font-weight:500;color:#505f76;">de {workflows.length}</span></div>
     </div>
-    <div class="stat-card">
+    <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);">
       <div class="label">Emails configurados</div>
       <div class="value">{totalEmails}</div>
       <div class="delta">En {workflows.length} secuencias</div>
     </div>
-    <div class="stat-card" style={`${!resendConfigured ? 'border-left:4px solid #ba1a1a;' : ''}`}>
-      <div class="label">Estado Resend</div>
-      <div class="value" style={`font-size:16px;color:${resendConfigured ? '#003d27' : '#ba1a1a'};`}>
+    <div style={`background:${!resendConfigured ? 'linear-gradient(135deg,#1e40af,#00288e)' : 'white'};border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);color:${!resendConfigured ? 'white' : '#191c1e'};`}>
+      <div style={`font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;${!resendConfigured ? 'opacity:0.7;' : 'color:#505f76;'}margin-bottom:6px;`}>Estado Resend</div>
+      <div class="font-headline" style={`font-size:20px;font-weight:800;${resendConfigured ? 'color:#003d27;' : ''}`}>
         {resendConfigured ? 'Configurado' : 'Dominio pendiente'}
       </div>
-      {!resendConfigured && <div class="delta down">Verificar en resend.com/domains</div>}
+      {!resendConfigured && <div style="margin-top:8px;font-size:12px;opacity:0.7;">Verificar en resend.com/domains</div>}
+      {resendConfigured && <div style="margin-top:8px;display:flex;align-items:center;gap:4px;font-size:12px;color:#003d27;"><span class="material-symbols-outlined" style="font-size:16px;">check_circle</span> Listo para enviar</div>}
     </div>
   </div>
 
@@ -113,7 +114,7 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
             data-trigger={wf.trigger_type}
             data-status={wf.status}
             data-description={wf.description || ''}
-            style={`background:#f2f4f6;padding:20px;border-radius:12px;cursor:pointer;transition:all 0.15s;${idx === 0 ? 'background:white;box-shadow:0 1px 4px rgba(0,0,0,0.06);' : ''}`}
+            style={`padding:20px;border-radius:12px;cursor:pointer;transition:all 0.15s;${idx === 0 ? 'background:white;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);' : 'background:#e8eaed;'}`}
             onclick="selectWorkflow(this)"
           >
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
@@ -138,7 +139,7 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
     </div>
 
     <!-- Flow editor -->
-    <div class="stat-card" style="padding:32px;min-height:500px;display:flex;flex-direction:column;">
+    <div style="background:white;border-radius:14px;padding:32px;min-height:500px;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
         <div>
           <h3 class="font-headline" style="font-size:18px;font-weight:700;">
@@ -201,12 +202,12 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
     function selectWorkflow(el) {
       // Deselect all
       document.querySelectorAll('.wf-card').forEach(function(c) {
-        c.style.background = '#f2f4f6';
+        c.style.background = '#e8eaed';
         c.style.boxShadow = 'none';
       });
       // Select this one
       el.style.background = 'white';
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)';
 
       currentWorkflowId = el.dataset.id;
       currentSteps = JSON.parse(el.dataset.steps || '[]');
