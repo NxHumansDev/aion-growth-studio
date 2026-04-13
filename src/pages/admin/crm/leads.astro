@@ -6,25 +6,25 @@ import { IS_DEMO, getSupabase } from '../../../lib/db';
 const user = (Astro.locals as any).user;
 if (!user || user.role !== 'superuser') return Astro.redirect('/dashboard');
 
-// Query params for filters
 const status = Astro.url.searchParams.get('status') || '';
 const search = Astro.url.searchParams.get('q') || '';
 const source = Astro.url.searchParams.get('source') || '';
 const page = parseInt(Astro.url.searchParams.get('page') || '1');
-const perPage = 50;
+const perPage = 10;
 
 let leads: any[] = [];
 let totalCount = 0;
 let sources: string[] = [];
+let conversionRate = 0;
+let pendingAudits = 0;
+let topSource = '';
+let topSourcePct = 0;
 
 if (!IS_DEMO) {
   const sb = getSupabase();
-
-  // Get unique sources for filter dropdown
   const { data: srcData } = await sb.from('leads').select('utm_source').not('utm_source', 'is', null);
   sources = [...new Set((srcData || []).map((r: any) => r.utm_source).filter(Boolean))].sort();
 
-  // Build filtered query
   let query = sb.from('leads').select('*', { count: 'exact' });
   if (status) query = query.eq('status', status);
   if (source) query = query.eq('utm_source', source);
@@ -34,82 +34,134 @@ if (!IS_DEMO) {
   const { data, count } = await query;
   leads = data || [];
   totalCount = count || 0;
+
+  // Summary stats
+  const { count: totalLeads } = await sb.from('leads').select('id', { count: 'exact', head: true });
+  const { count: completedLeads } = await sb.from('leads').select('id', { count: 'exact', head: true }).in('status', ['audit_completed', 'registered', 'paying']);
+  const { count: pendingCount } = await sb.from('leads').select('id', { count: 'exact', head: true }).eq('status', 'audit_started');
+  conversionRate = (totalLeads || 0) > 0 ? Math.round(((completedLeads || 0) / (totalLeads || 1)) * 1000) / 10 : 0;
+  pendingAudits = pendingCount || 0;
+
+  // Top source
+  const sourceCounts = new Map<string, number>();
+  for (const s of (srcData || [])) { sourceCounts.set(s.utm_source, (sourceCounts.get(s.utm_source) || 0) + 1); }
+  const sorted = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1]);
+  if (sorted.length > 0 && (totalLeads || 0) > 0) {
+    topSource = sorted[0][0];
+    topSourcePct = Math.round((sorted[0][1] / (totalLeads || 1)) * 100);
+  }
 }
 
 const totalPages = Math.ceil(totalCount / perPage);
 const statuses = ['', 'new', 'audit_started', 'audit_completed', 'registered', 'paying', 'churned'];
-const statusLabels: any = { '': 'Todos', new: 'Nuevo', audit_started: 'Audit empezado', audit_completed: 'Audit completo', registered: 'Registrado', paying: 'Pagando', churned: 'Churn' };
+const statusLabels: any = { '': 'Estado: Todos', new: 'Nuevo', audit_started: 'Audit empezado', audit_completed: 'Audit completo', registered: 'Registrado', paying: 'Pagando', churned: 'Churn' };
+
+// Status badge styles (Stitch design)
+function badgeStyle(s: string): string {
+  switch (s) {
+    case 'audit_completed': return 'background:#00563a;color:#3fd298;';
+    case 'paying': return 'background:#00563a;color:#3fd298;';
+    case 'registered': return 'background:#1e40af;color:#a8b8ff;';
+    case 'audit_started': return 'background:#d0e1fb;color:#54647a;';
+    case 'churned': return 'background:#ffdad6;color:#ba1a1a;';
+    case 'new': return 'background:#eceef0;color:#444653;';
+    default: return 'background:#eceef0;color:#444653;';
+  }
+}
+function dotColor(s: string): string {
+  switch (s) {
+    case 'audit_completed': case 'paying': return '#003d27';
+    case 'registered': return '#00288e';
+    case 'audit_started': return '#00288e';
+    case 'churned': return '#ba1a1a';
+    default: return '#757684';
+  }
+}
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+const startItem = (page - 1) * perPage + 1;
+const endItem = Math.min(page * perPage, totalCount);
 ---
 
 <AdminLayout title="CRM — Leads" currentPath="/admin/crm/leads">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:40px;">
+    <div>
+      <h2 class="font-headline" style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#191c1e;">CRM — Leads</h2>
+      <p style="color:#505f76;margin-top:4px;font-size:14px;font-weight:500;">{totalCount} leads encontrados</p>
+    </div>
+    <a href="/admin/clients/new" class="btn btn-primary" style="padding:12px 24px;">
+      <span class="material-symbols-outlined" style="font-size:18px;">person_add</span>
+      <span>Nuevo cliente</span>
+    </a>
+  </div>
+
   <!-- Filters -->
-  <div class="filter-bar">
-    <form method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;width:100%;">
-      <input type="text" name="q" placeholder="Buscar email o URL..." value={search} style="flex:1;min-width:200px;" />
-      <select name="status">
+  <form method="get" style="background:white;padding:24px;border-radius:12px;margin-bottom:32px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;">
+    <div style="flex:1;min-width:280px;position:relative;">
+      <span class="material-symbols-outlined" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#757684;font-size:20px;">search</span>
+      <input type="text" name="q" placeholder="Buscar email o URL..." value={search} style="width:100%;background:#f2f4f6;border:none;border-radius:12px;padding:12px 16px 12px 48px;font-size:14px;font-family:inherit;color:#191c1e;outline:none;" />
+    </div>
+    <div style="position:relative;">
+      <select name="status" style="appearance:none;background:#f2f4f6;border:none;border-radius:12px;padding:12px 40px 12px 16px;font-size:14px;font-family:inherit;font-weight:500;color:#444653;outline:none;cursor:pointer;">
         {statuses.map((s) => (
           <option value={s} selected={s === status}>{statusLabels[s]}</option>
         ))}
       </select>
-      {sources.length > 0 && (
-        <select name="source">
-          <option value="">Todas las fuentes</option>
-          {sources.map((s) => (
-            <option value={s} selected={s === source}>{s}</option>
-          ))}
-        </select>
-      )}
-      <button type="submit" class="btn btn-primary">
-        <span class="material-symbols-outlined" style="font-size:16px;">filter_list</span>
-        Filtrar
-      </button>
-      {(status || search || source) && (
-        <a href="/admin/crm/leads" class="btn btn-ghost">Limpiar</a>
-      )}
-    </form>
-  </div>
-
-  <!-- Stats row -->
-  <div style="display:flex;gap:12px;margin-bottom:20px;font-size:12px;color:#64748b;">
-    <span>{totalCount} leads encontrados</span>
-    {totalPages > 1 && <span>Pagina {page} de {totalPages}</span>}
-  </div>
+      <span class="material-symbols-outlined" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#757684;pointer-events:none;font-size:20px;">expand_more</span>
+    </div>
+    <button type="submit" style="display:flex;align-items:center;gap:8px;background:#e6e8ea;color:#191c1e;padding:12px 24px;border-radius:12px;border:none;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.15s;">
+      <span class="material-symbols-outlined" style="font-size:18px;">filter_list</span>
+      Filtrar
+    </button>
+    {(status || search || source) && (
+      <a href="/admin/crm/leads" style="color:#00288e;font-size:13px;font-weight:600;text-decoration:none;">Limpiar</a>
+    )}
+  </form>
 
   <!-- Table -->
-  <div class="stat-card" style="padding:0;overflow-x:auto;">
-    <table class="admin-table">
+  <div style="background:white;border-radius:12px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;text-align:left;">
       <thead>
-        <tr>
-          <th>Email</th>
-          <th>URL auditada</th>
-          <th>Estado</th>
-          <th>Fuente</th>
-          <th>Campana</th>
-          <th>Fecha</th>
-          <th></th>
+        <tr style="background:#f2f4f6;">
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Email</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">URL auditada</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Estado</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Fuente</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Fecha</th>
+          <th style="padding:16px 10px;width:40px;"></th>
         </tr>
       </thead>
       <tbody>
         {leads.length === 0 ? (
-          <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">No se han encontrado leads</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:48px;color:#505f76;font-size:14px;">No se han encontrado leads</td></tr>
         ) : leads.map((lead: any) => (
-          <tr>
-            <td style="font-weight:600;">{lead.email || <span style="color:#94a3b8;">sin email</span>}</td>
-            <td>
-              <a href={lead.url} target="_blank" style="color:#6366f1;text-decoration:none;font-size:12px;">
-                {(lead.url || '').replace(/^https?:\/\//,'').slice(0,35)}
-              </a>
+          <tr style="border-top:1px solid #f2f4f6;transition:background 0.15s;" onmouseenter="this.style.background='#f7f9fb'" onmouseleave="this.style.background=''">
+            <td style="padding:16px 24px;">
+              <div style="font-size:14px;font-weight:600;color:#191c1e;">{lead.email || 'sin email'}</div>
             </td>
-            <td><span class={`badge ${lead.status}`}>{lead.status}</span></td>
-            <td style="font-size:12px;color:#64748b;">{lead.utm_source || lead.source || '—'}</td>
-            <td style="font-size:12px;color:#64748b;">{lead.utm_campaign || '—'}</td>
-            <td style="font-size:12px;color:#64748b;white-space:nowrap;">
-              {lead.created_at ? new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+            <td style="padding:16px 24px;">
+              {lead.url ? (
+                <a href={lead.url} target="_blank" style="font-size:13px;font-weight:500;color:#00288e;text-decoration:none;display:flex;align-items:center;gap:4px;">
+                  {(lead.url || '').replace(/^https?:\/\//,'').slice(0,32)}
+                  <span class="material-symbols-outlined" style="font-size:12px;">open_in_new</span>
+                </a>
+              ) : <span style="color:#757684;">—</span>}
             </td>
-            <td>
+            <td style="padding:16px 24px;">
+              <span style={`display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;${badgeStyle(lead.status)}`}>
+                <span style={`width:6px;height:6px;border-radius:50%;background:${dotColor(lead.status)};${lead.status === 'audit_started' ? 'animation:pulse 2s infinite;' : ''}`}></span>
+                {(lead.status || 'new').toUpperCase().replace('_', ' ')}
+              </span>
+            </td>
+            <td style="padding:16px 24px;font-size:13px;font-weight:500;color:#444653;">{lead.utm_source || lead.source || '—'}</td>
+            <td style="padding:16px 24px;font-size:13px;font-weight:500;color:#444653;">{lead.created_at ? fmtDate(lead.created_at) : '—'}</td>
+            <td style="padding:16px 10px;text-align:right;">
               {lead.audit_id && (
-                <a href={`/admin/audit/${lead.audit_id}`} class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">
-                  <span class="material-symbols-outlined" style="font-size:14px;">bug_report</span>
+                <a href={`/admin/audit/${lead.audit_id}`} style="padding:8px;display:inline-flex;border-radius:99px;color:#757684;transition:background 0.15s;" onmouseenter="this.style.background='#e6e8ea'" onmouseleave="this.style.background=''">
+                  <span class="material-symbols-outlined" style="font-size:18px;">bug_report</span>
                 </a>
               )}
             </td>
@@ -117,17 +169,70 @@ const statusLabels: any = { '': 'Todos', new: 'Nuevo', audit_started: 'Audit emp
         ))}
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    {totalCount > 0 && (
+      <div style="padding:20px 24px;background:#f2f4f6;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#444653;">
+          Mostrando {startItem}-{endItem} de {totalCount} leads
+        </span>
+        {totalPages > 1 && (
+          <div style="display:flex;gap:6px;">
+            {page > 1 && (
+              <a href={`/admin/crm/leads?page=${page - 1}${status ? '&status=' + status : ''}${search ? '&q=' + search : ''}`} style="padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;color:#444653;text-decoration:none;border:1px solid #c4c5d5;transition:all 0.15s;">Anterior</a>
+            )}
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+              <a href={`/admin/crm/leads?page=${p}${status ? '&status=' + status : ''}${search ? '&q=' + search : ''}`} style={`padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;${p === page ? 'background:#00288e;color:white;' : 'color:#191c1e;'}`}>{p}</a>
+            ))}
+            {page < totalPages && (
+              <a href={`/admin/crm/leads?page=${page + 1}${status ? '&status=' + status : ''}${search ? '&q=' + search : ''}`} style="padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;color:#444653;text-decoration:none;border:1px solid #c4c5d5;transition:all 0.15s;">Siguiente</a>
+            )}
+          </div>
+        )}
+      </div>
+    )}
   </div>
 
-  <!-- Pagination -->
-  {totalPages > 1 && (
-    <div style="display:flex;justify-content:center;gap:8px;margin-top:20px;">
-      {page > 1 && (
-        <a href={`/admin/crm/leads?page=${page - 1}${status ? '&status=' + status : ''}${search ? '&q=' + search : ''}${source ? '&source=' + source : ''}`} class="btn btn-ghost">Anterior</a>
-      )}
-      {page < totalPages && (
-        <a href={`/admin/crm/leads?page=${page + 1}${status ? '&status=' + status : ''}${search ? '&q=' + search : ''}${source ? '&source=' + source : ''}`} class="btn btn-ghost">Siguiente</a>
+  <!-- Summary Bento -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:48px;">
+    <!-- Conversion rate (blue) -->
+    <div style="background:#00288e;color:white;padding:32px;border-radius:12px;position:relative;overflow:hidden;">
+      <div style="position:relative;z-index:1;">
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.8;margin-bottom:8px;">Total conversion rate</p>
+        <div class="font-headline" style="font-size:40px;font-weight:800;">{conversionRate}%</div>
+        <div style="margin-top:16px;font-size:12px;font-weight:600;color:#6ffbbe;display:flex;align-items:center;gap:4px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">trending_up</span>
+          Lead → Audit completado
+        </div>
+      </div>
+      <span class="material-symbols-outlined" style="position:absolute;right:-8px;bottom:-8px;font-size:96px;opacity:0.08;transform:rotate(12deg);">insights</span>
+    </div>
+
+    <!-- Pending audits -->
+    <div style="background:white;padding:32px;border-radius:12px;border-left:4px solid #00288e;">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;margin-bottom:8px;">Pending audits</p>
+      <div class="font-headline" style="font-size:40px;font-weight:800;color:#191c1e;">{String(pendingAudits).padStart(2, '0')}</div>
+    </div>
+
+    <!-- Active source -->
+    <div style="background:white;padding:32px;border-radius:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;">Fuente principal</p>
+        {topSource && <span style="padding:3px 8px;background:#00563a;color:#3fd298;font-size:10px;font-weight:700;border-radius:4px;">LIVE</span>}
+      </div>
+      <div class="font-headline" style="font-size:18px;font-weight:700;color:#191c1e;">{topSource || 'Sin datos'}</div>
+      {topSourcePct > 0 && (
+        <>
+          <div style="margin-top:12px;background:#f2f4f6;height:8px;border-radius:99px;overflow:hidden;">
+            <div style={`background:#00288e;height:100%;width:${topSourcePct}%;border-radius:99px;`}></div>
+          </div>
+          <p style="margin-top:8px;font-size:12px;font-weight:500;color:#444653;">{topSourcePct}% del volumen total de adquisicion</p>
+        </>
       )}
     </div>
-  )}
+  </div>
+
+  <style>
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  </style>
 </AdminLayout>

@@ -8,7 +8,6 @@ if (!user || user.role !== 'superuser') return Astro.redirect('/dashboard');
 
 const clients = await listAllClients();
 
-// Enrich with latest snapshot + audit count
 let enriched: any[] = [];
 if (!IS_DEMO) {
   const sb = getSupabase();
@@ -16,136 +15,163 @@ if (!IS_DEMO) {
     const { data: snaps } = await sb.from('snapshots').select('id, date, score').eq('client_id', c.id).order('date', { ascending: false }).limit(1);
     const { count: auditCount } = await sb.from('audits').select('id', { count: 'exact', head: true }).ilike('url', `%${c.domain}%`);
     const { count: snapCount } = await sb.from('snapshots').select('id', { count: 'exact', head: true }).eq('client_id', c.id);
-    return {
-      ...c,
-      lastSnapshot: snaps?.[0] || null,
-      auditCount: auditCount || 0,
-      snapCount: snapCount || 0,
-    };
+    return { ...c, lastSnapshot: snaps?.[0] || null, auditCount: auditCount || 0, snapCount: snapCount || 0 };
   }));
 } else {
   enriched = clients.map((c: any) => ({ ...c, lastSnapshot: null, auditCount: 0, snapCount: 0 }));
 }
 
-// Filter
 const search = Astro.url.searchParams.get('q') || '';
 const tierFilter = Astro.url.searchParams.get('tier') || '';
 let filtered = enriched;
 if (search) filtered = filtered.filter((c: any) => (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.domain || '').toLowerCase().includes(search.toLowerCase()));
 if (tierFilter) filtered = filtered.filter((c: any) => c.tier === tierFilter);
 
-const tierLabels: any = { radar: 'Radar', señales: 'Senales', palancas: 'Palancas', free: 'Free' };
-const tierColors: any = { radar: '#6366f1', señales: '#3b82f6', palancas: '#8b5cf6', free: '#94a3b8' };
+const radarActive = enriched.filter((c: any) => c.tier === 'radar').length;
+const withSnaps = enriched.filter((c: any) => c.snapCount > 0).length;
+const noActivity = enriched.filter((c: any) => c.snapCount === 0).length;
+
+function scoreColor(s: number) {
+  if (s >= 70) return '#003d27';
+  if (s >= 40) return '#505f76';
+  return '#ba1a1a';
+}
+function scoreBg(s: number) {
+  if (s >= 70) return 'rgba(111,251,190,0.2)';
+  if (s >= 40) return '#f2f4f6';
+  return '#ffdad6';
+}
 ---
 
 <AdminLayout title="CRM — Clientes" currentPath="/admin/crm/clients">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:40px;">
+    <div>
+      <h2 class="font-headline" style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#191c1e;">CRM — Clientes</h2>
+      <p style="color:#505f76;margin-top:4px;font-size:14px;font-weight:500;">{enriched.length} clientes registrados</p>
+    </div>
+    <a href="/admin/clients/new" class="btn btn-primary" style="padding:12px 24px;">
+      <span class="material-symbols-outlined" style="font-size:18px;">person_add</span>
+      <span>Nuevo cliente</span>
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:32px;">
+    <div style="background:white;border-radius:12px;padding:20px 24px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;margin-bottom:6px;">Total</div>
+      <div class="font-headline" style="font-size:28px;font-weight:900;color:#191c1e;">{enriched.length}</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px 24px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;margin-bottom:6px;">Radar activo</div>
+      <div class="font-headline" style="font-size:28px;font-weight:900;color:#00288e;">{radarActive}</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px 24px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;margin-bottom:6px;">Con snapshots</div>
+      <div class="font-headline" style="font-size:28px;font-weight:900;color:#003d27;">{withSnaps}</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px 24px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#505f76;margin-bottom:6px;">Sin actividad</div>
+      <div class="font-headline" style="font-size:28px;font-weight:900;color:#ba1a1a;">{noActivity}</div>
+    </div>
+  </div>
+
   <!-- Filters -->
-  <div class="filter-bar">
-    <form method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;width:100%;">
-      <input type="text" name="q" placeholder="Buscar nombre o dominio..." value={search} style="flex:1;min-width:200px;" />
-      <select name="tier">
+  <form method="get" style="background:white;padding:24px;border-radius:12px;margin-bottom:32px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;">
+    <div style="flex:1;min-width:280px;position:relative;">
+      <span class="material-symbols-outlined" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#757684;font-size:20px;">search</span>
+      <input type="text" name="q" placeholder="Buscar nombre o dominio..." value={search} style="width:100%;background:#f2f4f6;border:none;border-radius:12px;padding:12px 16px 12px 48px;font-size:14px;font-family:inherit;color:#191c1e;outline:none;" />
+    </div>
+    <div style="position:relative;">
+      <select name="tier" style="appearance:none;background:#f2f4f6;border:none;border-radius:12px;padding:12px 40px 12px 16px;font-size:14px;font-family:inherit;font-weight:500;color:#444653;outline:none;cursor:pointer;">
         <option value="">Todos los planes</option>
         <option value="radar" selected={tierFilter === 'radar'}>Radar</option>
         <option value="señales" selected={tierFilter === 'señales'}>Senales</option>
         <option value="palancas" selected={tierFilter === 'palancas'}>Palancas</option>
         <option value="free" selected={tierFilter === 'free'}>Free</option>
       </select>
-      <button type="submit" class="btn btn-primary">
-        <span class="material-symbols-outlined" style="font-size:16px;">filter_list</span>
-        Filtrar
-      </button>
-      {(search || tierFilter) && (
-        <a href="/admin/crm/clients" class="btn btn-ghost">Limpiar</a>
-      )}
-    </form>
-  </div>
+      <span class="material-symbols-outlined" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#757684;pointer-events:none;font-size:20px;">expand_more</span>
+    </div>
+    <button type="submit" style="display:flex;align-items:center;gap:8px;background:#e6e8ea;color:#191c1e;padding:12px 24px;border-radius:12px;border:none;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;">
+      <span class="material-symbols-outlined" style="font-size:18px;">filter_list</span>
+      Filtrar
+    </button>
+    {(search || tierFilter) && (
+      <a href="/admin/crm/clients" style="color:#00288e;font-size:13px;font-weight:600;text-decoration:none;">Limpiar</a>
+    )}
+  </form>
 
-  <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
-    <div class="stat-card" style="padding:14px 18px;">
-      <div class="label">Total</div>
-      <div class="value" style="font-size:22px;">{enriched.length}</div>
-    </div>
-    <div class="stat-card" style="padding:14px 18px;">
-      <div class="label">Radar activo</div>
-      <div class="value" style="font-size:22px;color:#6366f1;">{enriched.filter((c: any) => c.tier === 'radar').length}</div>
-    </div>
-    <div class="stat-card" style="padding:14px 18px;">
-      <div class="label">Con snapshots</div>
-      <div class="value" style="font-size:22px;color:#10b981;">{enriched.filter((c: any) => c.snapCount > 0).length}</div>
-    </div>
-    <div class="stat-card" style="padding:14px 18px;">
-      <div class="label">Sin actividad</div>
-      <div class="value" style="font-size:22px;color:#ef4444;">{enriched.filter((c: any) => c.snapCount === 0).length}</div>
-    </div>
-  </div>
-
-  <!-- Client table -->
-  <div class="stat-card" style="padding:0;overflow-x:auto;">
-    <table class="admin-table">
+  <!-- Table -->
+  <div style="background:white;border-radius:12px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;text-align:left;">
       <thead>
-        <tr>
-          <th>Cliente</th>
-          <th>Dominio</th>
-          <th>Plan</th>
-          <th>Score</th>
-          <th>Snapshots</th>
-          <th>Auditorias</th>
-          <th>Ultimo analisis</th>
-          <th></th>
+        <tr style="background:#f2f4f6;">
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Cliente</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Dominio</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Plan</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Score</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Snapshots</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Ultimo analisis</th>
+          <th style="padding:16px 10px;width:40px;"></th>
         </tr>
       </thead>
       <tbody>
         {filtered.length === 0 ? (
-          <tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">No se han encontrado clientes</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:48px;color:#505f76;font-size:14px;">No se han encontrado clientes</td></tr>
         ) : filtered.map((c: any) => {
           const score = c.lastSnapshot?.score ?? null;
-          const scoreColor = score != null ? (score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444') : '#94a3b8';
+          const tierLabel: any = { radar: 'Radar', señales: 'Senales', palancas: 'Palancas', free: 'Free' };
           return (
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:32px;height:32px;border-radius:50%;background:#e2e0fc;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#325ea0;flex-shrink:0;">
+          <tr style="border-top:1px solid #f2f4f6;transition:background 0.15s;" onmouseenter="this.style.background='#f7f9fb'" onmouseleave="this.style.background=''">
+            <td style="padding:16px 24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:#f2f4f6;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#00288e;flex-shrink:0;">
                   {(c.name || '?').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div style="font-weight:700;font-size:13px;">{c.name || '—'}</div>
-                  {c.sector && <div style="font-size:11px;color:#64748b;">{c.sector}</div>}
+                  <div style="font-size:14px;font-weight:600;color:#191c1e;">{c.name || '—'}</div>
+                  {c.sector && <div style="font-size:11px;color:#505f76;">{c.sector}</div>}
                 </div>
               </div>
             </td>
-            <td><a href={`https://${c.domain}`} target="_blank" style="color:#6366f1;text-decoration:none;font-size:12px;">{c.domain}</a></td>
-            <td>
-              <span class={`badge ${c.tier === 'radar' ? 'paying' : c.tier ? 'registered' : 'inactive'}`} style={c.tier ? `background:${tierColors[c.tier]}15;color:${tierColors[c.tier]};` : ''}>
-                {tierLabels[c.tier] || c.tier || 'Sin plan'}
+            <td style="padding:16px 24px;">
+              <a href={`https://${c.domain}`} target="_blank" style="font-size:13px;font-weight:500;color:#00288e;text-decoration:none;display:flex;align-items:center;gap:4px;">
+                {c.domain}
+                <span class="material-symbols-outlined" style="font-size:12px;">open_in_new</span>
+              </a>
+            </td>
+            <td style="padding:16px 24px;">
+              <span style={`display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;${c.tier === 'radar' ? 'background:#00563a;color:#3fd298;' : c.tier ? 'background:#d0e1fb;color:#54647a;' : 'background:#eceef0;color:#444653;'}`}>
+                {tierLabel[c.tier] || c.tier || 'Sin plan'}
               </span>
             </td>
-            <td><span style={`font-weight:800;color:${scoreColor};`}>{score ?? '—'}</span></td>
-            <td style="text-align:center;">{c.snapCount}</td>
-            <td style="text-align:center;">{c.auditCount}</td>
-            <td style="font-size:12px;color:#64748b;">{c.lastSnapshot?.date || '—'}</td>
-            <td>
-              <div style="display:flex;gap:6px;">
-                <form method="post" action="/api/auth/switch-client">
-                  <input type="hidden" name="clientId" value={c.id} />
-                  <button type="submit" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" title="Ver como este cliente">
-                    <span class="material-symbols-outlined" style="font-size:16px;">visibility</span>
-                  </button>
-                </form>
-              </div>
+            <td style="padding:16px 24px;">
+              {score != null ? (
+                <span style={`display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;font-weight:900;font-size:15px;font-family:'Manrope',sans-serif;background:${scoreBg(score)};color:${scoreColor(score)};`}>
+                  {score}
+                </span>
+              ) : (
+                <span style="color:#757684;font-size:13px;">—</span>
+              )}
+            </td>
+            <td style="padding:16px 24px;font-size:14px;font-weight:600;color:#191c1e;text-align:center;">
+              {c.snapCount}
+            </td>
+            <td style="padding:16px 24px;font-size:13px;font-weight:500;color:#444653;">
+              {c.lastSnapshot?.date || '—'}
+            </td>
+            <td style="padding:16px 10px;text-align:right;">
+              <form method="post" action="/api/auth/switch-client" style="display:inline;">
+                <input type="hidden" name="clientId" value={c.id} />
+                <button type="submit" title="Ver como este cliente" style="padding:8px;display:inline-flex;border-radius:99px;border:none;background:transparent;cursor:pointer;color:#757684;transition:background 0.15s;" onmouseenter="this.style.background='#e6e8ea'" onmouseleave="this.style.background=''">
+                  <span class="material-symbols-outlined" style="font-size:18px;">visibility</span>
+                </button>
+              </form>
             </td>
           </tr>
           );
         })}
       </tbody>
     </table>
-  </div>
-
-  <!-- New client -->
-  <div style="margin-top:20px;">
-    <a href="/admin/clients/new" class="btn btn-primary">
-      <span class="material-symbols-outlined" style="font-size:16px;">person_add</span>
-      Nuevo cliente
-    </a>
   </div>
 </AdminLayout>
