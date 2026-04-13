@@ -149,7 +149,7 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
     // The pipeline step saved analysis as `growth_agent` key. The dashboard
     // reads from `growth_analysis`. Copy now before anything else can timeout.
     const pipelineGrowthAgent = (await getAuditPage(auditId)).results?.growth_agent;
-    if (pipelineGrowthAgent && pipelineGrowthAgent.model !== 'fallback') {
+    if (pipelineGrowthAgent && pipelineGrowthAgent.executiveSummary?.headline) {
       try {
         const sb = getSupabase();
         const { data: snapData } = await sb.from('snapshots').select('pipeline_output').eq('id', snapshotId).single();
