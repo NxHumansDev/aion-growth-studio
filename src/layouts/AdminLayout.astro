@@ -175,12 +175,21 @@ function isActive(itemPath: string): boolean {
 
   <div class="admin-main">
     <header class="admin-topbar">
-      <h2>{title}</h2>
-      <div style="display:flex;gap:8px;">
-        <a href="/admin/crm/clients" class="btn btn-ghost">
-          <span class="material-symbols-outlined" style="font-size:16px;">person_add</span>
-          Nuevo cliente
-        </a>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#505f76;background:#eceef0;padding:4px 10px;border-radius:6px;">Admin Panel</span>
+        <span style="color:#c4c5d5;">|</span>
+        <h2>{title}</h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00288e,#1e40af);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:13px;">
+            {(user.email || '?').charAt(0).toUpperCase()}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;font-weight:700;color:#191c1e;">{user.email.split('@')[0]}</div>
+            <div style="font-size:10px;color:#505f76;">Superuser</div>
+          </div>
+        </div>
       </div>
     </header>
     <main class="admin-content">
