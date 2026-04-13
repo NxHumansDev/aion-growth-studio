@@ -7,107 +7,228 @@ const user = (Astro.locals as any).user;
 if (!user || user.role !== 'superuser') return Astro.redirect('/dashboard');
 
 let users: any[] = [];
-let clients: any[] = [];
+let totalUsers = 0;
 
 if (!IS_DEMO) {
-  const sb = getSupabase();
+  try {
+    const sb = getSupabase();
 
-  // Get all client_users with their client info
-  const { data: cuData } = await sb
-    .from('client_users')
-    .select('user_id, role, client_id, clients(name, domain, tier)')
-    .order('created_at', { ascending: false });
+    // Get all client_users with their client info
+    const { data: cuData } = await sb
+      .from('client_users')
+      .select('user_id, role, client_id, created_at, clients(name, domain, tier)')
+      .order('created_at', { ascending: false });
 
-  // Get user emails from auth (Supabase admin API)
-  const { data: authData } = await sb.auth.admin.listUsers();
-  const userMap = new Map<string, any>();
-  for (const u of (authData?.users || [])) {
-    userMap.set(u.id, { email: u.email, lastSignIn: u.last_sign_in_at, created: u.created_at });
-  }
+    // Get user details from auth
+    const { data: authData } = await sb.auth.admin.listUsers();
+    const userMap = new Map<string, any>();
+    for (const u of (authData?.users || [])) {
+      userMap.set(u.id, { email: u.email, lastSignIn: u.last_sign_in_at, created: u.created_at });
+    }
 
-  users = (cuData || []).map((cu: any) => ({
-    userId: cu.user_id,
-    role: cu.role,
-    clientId: cu.client_id,
-    clientName: cu.clients?.name || '—',
-    clientDomain: cu.clients?.domain || '—',
-    clientTier: cu.clients?.tier || 'free',
-    email: userMap.get(cu.user_id)?.email || '—',
-    lastSignIn: userMap.get(cu.user_id)?.lastSignIn,
-    created: userMap.get(cu.user_id)?.created,
-  }));
-
-  const { data: clientData } = await sb.from('clients').select('id, name, domain').order('name');
-  clients = clientData || [];
+    users = (cuData || []).map((cu: any) => {
+      const auth = userMap.get(cu.user_id);
+      const lastSignIn = auth?.lastSignIn ? new Date(auth.lastSignIn) : null;
+      const now = Date.now();
+      let lastActiveLabel = 'Nunca';
+      if (lastSignIn) {
+        const diffMin = Math.round((now - lastSignIn.getTime()) / 60000);
+        if (diffMin < 5) lastActiveLabel = 'Ahora';
+        else if (diffMin < 60) lastActiveLabel = `Hace ${diffMin} min`;
+        else if (diffMin < 1440) lastActiveLabel = `Hace ${Math.round(diffMin / 60)}h`;
+        else lastActiveLabel = `Hace ${Math.round(diffMin / 1440)}d`;
+      }
+      const isOnline = lastSignIn && (now - lastSignIn.getTime()) < 15 * 60000;
+      return {
+        userId: cu.user_id,
+        role: cu.role,
+        clientId: cu.client_id,
+        clientName: cu.clients?.name || '—',
+        clientDomain: cu.clients?.domain || '—',
+        clientTier: cu.clients?.tier || 'free',
+        email: auth?.email || '—',
+        lastActiveLabel,
+        isOnline,
+        created: auth?.created,
+        createdAt: cu.created_at,
+      };
+    });
+    totalUsers = users.length;
+  } catch {}
 }
 
 const SUPERUSER_EMAILS = (import.meta.env?.SUPERUSER_EMAILS || process.env.SUPERUSER_EMAILS || '').split(',').filter(Boolean);
+const adminCount = users.filter((u: any) => u.role === 'admin').length;
+const viewerCount = users.filter((u: any) => u.role === 'viewer').length;
+const onlineCount = users.filter((u: any) => u.isOnline).length;
+
+function roleBadgeStyle(role: string) {
+  switch (role) {
+    case 'admin': return 'background:#00563a;color:#3fd298;';
+    case 'editor': return 'background:#d0e1fb;color:#54647a;';
+    case 'viewer': return 'background:#e6e8ea;color:#191c1e;';
+    default: return 'background:#eceef0;color:#444653;';
+  }
+}
 ---
 
-<AdminLayout title="Usuarios y autorizaciones" currentPath="/admin/users">
-  <!-- Superusers -->
-  <div class="stat-card" style="margin-bottom:20px;">
-    <div class="label" style="margin-bottom:12px;">Superusuarios (acceso admin)</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      {SUPERUSER_EMAILS.map((email: string) => (
-        <span class="badge paying" style="font-size:12px;padding:6px 14px;">
-          <span class="material-symbols-outlined" style="font-size:14px;">shield</span>
-          {email.trim()}
-        </span>
-      ))}
-      <span class="badge inactive" style="font-size:12px;padding:6px 14px;">
-        <span class="material-symbols-outlined" style="font-size:14px;">shield</span>
-        *@aiongrowth.studio
-      </span>
-    </div>
-    <p style="font-size:11px;color:#94a3b8;margin-top:8px;">Configurados via env var SUPERUSER_EMAILS</p>
-  </div>
+<AdminLayout title="Usuarios" currentPath="/admin/users">
 
-  <!-- User table -->
-  <div class="stat-card" style="padding:0;overflow-x:auto;">
-    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
-      <div class="label" style="margin:0;">Usuarios del sistema ({users.length})</div>
-      <a href="/admin/clients/new" class="btn btn-primary" style="font-size:12px;">
-        <span class="material-symbols-outlined" style="font-size:14px;">person_add</span>
-        Invitar usuario
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:40px;">
+    <div>
+      <h2 class="font-headline" style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#191c1e;">Usuarios y accesos</h2>
+      <p style="color:#505f76;margin-top:4px;font-size:14px;">Gestiona permisos y accesos del equipo.</p>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <a href="/admin/clients/new" class="btn btn-primary" style="padding:12px 24px;">
+        <span class="material-symbols-outlined" style="font-size:18px;">person_add</span>
+        <span>Invitar usuario</span>
       </a>
     </div>
-    <table class="admin-table">
+  </div>
+
+  <!-- Bento: Superusers + Role Permissions -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:40px;">
+
+    <!-- Superuser cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      {SUPERUSER_EMAILS.slice(0, 2).map((email: string) => (
+        <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+            <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#00288e,#1e40af);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:20px;">
+              {email.trim().charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div class="font-headline" style="font-weight:800;font-size:16px;color:#191c1e;">{email.trim().split('@')[0]}</div>
+              <span style="display:inline-flex;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;background:#00563a;color:#3fd298;">Superuser</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(196,197,213,0.15);">
+            <span style="font-size:12px;color:#505f76;font-weight:500;">Acceso completo</span>
+            <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#003d27;">
+              <span class="material-symbols-outlined" style="font-size:14px;">verified</span> Activo
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Role Permissions -->
+    <div style="background:#f2f4f6;border-radius:14px;padding:24px;display:flex;flex-direction:column;justify-content:space-between;">
+      <div>
+        <h4 class="font-headline" style="font-weight:800;font-size:16px;color:#191c1e;margin-bottom:20px;">Permisos por rol</h4>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span class="material-symbols-outlined" style="font-size:20px;color:#00288e;margin-top:2px;">shield</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#191c1e;">Superuser</div>
+              <div style="font-size:12px;color:#505f76;">Acceso total: admin, clientes, facturacion, configuracion.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span class="material-symbols-outlined" style="font-size:20px;color:#00288e;margin-top:2px;">security</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#191c1e;">Admin (cliente)</div>
+              <div style="font-size:12px;color:#505f76;">Gestiona su cuenta: dashboard, advisor, plan de accion, ajustes.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span class="material-symbols-outlined" style="font-size:20px;color:#505f76;margin-top:2px;">visibility</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#191c1e;">Viewer</div>
+              <div style="font-size:12px;color:#505f76;">Solo lectura: ve datos pero no puede modificar.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;gap:8px;background:#f2f4f6;padding:8px 16px;border-radius:12px;">
+      <span style="font-size:11px;font-weight:700;color:#505f76;text-transform:uppercase;">Rol:</span>
+      <span style="font-size:13px;font-weight:600;color:#191c1e;">Todos ({totalUsers})</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:#f2f4f6;padding:8px 16px;border-radius:12px;">
+      <span style="font-size:11px;font-weight:700;color:#505f76;text-transform:uppercase;">Admin:</span>
+      <span style="font-size:13px;font-weight:600;color:#191c1e;">{adminCount}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:#f2f4f6;padding:8px 16px;border-radius:12px;">
+      <span style="font-size:11px;font-weight:700;color:#505f76;text-transform:uppercase;">Viewer:</span>
+      <span style="font-size:13px;font-weight:600;color:#191c1e;">{viewerCount}</span>
+    </div>
+    <div style="margin-left:auto;font-size:13px;color:#505f76;font-weight:500;">
+      <span style="font-weight:700;color:#191c1e;">{onlineCount}</span> online ahora
+    </div>
+  </div>
+
+  <!-- User Table -->
+  <div style="background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);">
+    <table style="width:100%;border-collapse:collapse;text-align:left;">
       <thead>
-        <tr>
-          <th>Email</th>
-          <th>Rol</th>
-          <th>Cliente</th>
-          <th>Plan</th>
-          <th>Ultimo login</th>
-          <th>Creado</th>
+        <tr style="background:#f2f4f6;">
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Usuario</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Email</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Rol</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Cliente</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Estado</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Ultima actividad</th>
+          <th style="padding:16px 24px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#444653;font-family:'Manrope',sans-serif;">Plan</th>
         </tr>
       </thead>
       <tbody>
         {users.length === 0 ? (
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:#94a3b8;">No hay usuarios registrados</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:48px;color:#505f76;font-size:14px;">No hay usuarios registrados</td></tr>
         ) : users.map((u: any) => (
-          <tr>
-            <td style="font-weight:600;">{u.email}</td>
-            <td>
-              <span class={`badge ${u.role === 'admin' ? 'paying' : 'registered'}`}>
+          <tr style="border-top:1px solid rgba(196,197,213,0.1);transition:background 0.15s;" onmouseenter="this.style.background='#f7f9fb'" onmouseleave="this.style.background=''">
+            <td style="padding:18px 24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:#eceef0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#00288e;flex-shrink:0;">
+                  {(u.email || '?').charAt(0).toUpperCase()}
+                </div>
+                <span class="font-headline" style="font-weight:700;font-size:14px;color:#191c1e;">{u.email.split('@')[0]}</span>
+              </div>
+            </td>
+            <td style="padding:18px 24px;font-size:13px;color:#505f76;font-weight:500;">{u.email}</td>
+            <td style="padding:18px 24px;">
+              <span style={`display:inline-flex;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;${roleBadgeStyle(u.role)}`}>
                 {u.role}
               </span>
             </td>
-            <td>
-              <div style="font-size:13px;font-weight:500;">{u.clientName}</div>
-              <div style="font-size:11px;color:#64748b;">{u.clientDomain}</div>
+            <td style="padding:18px 24px;">
+              <div style="font-size:13px;font-weight:600;color:#191c1e;">{u.clientName}</div>
+              <div style="font-size:11px;color:#505f76;">{u.clientDomain}</div>
             </td>
-            <td><span class="badge inactive">{u.clientTier}</span></td>
-            <td style="font-size:12px;color:#64748b;">
-              {u.lastSignIn ? new Date(u.lastSignIn).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : 'Nunca'}
+            <td style="padding:18px 24px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style={`width:8px;height:8px;border-radius:50%;background:${u.isOnline ? '#003d27' : '#c4c5d5'};`}></span>
+                <span style={`font-size:12px;font-weight:700;color:${u.isOnline ? '#191c1e' : '#505f76'};`}>{u.isOnline ? 'Online' : 'Offline'}</span>
+              </div>
             </td>
-            <td style="font-size:12px;color:#64748b;">
-              {u.created ? new Date(u.created).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+            <td style="padding:18px 24px;font-size:13px;color:#505f76;font-weight:500;">{u.lastActiveLabel}</td>
+            <td style="padding:18px 24px;">
+              <span style={`display:inline-flex;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;${u.clientTier === 'radar' ? 'background:#00563a;color:#3fd298;' : u.clientTier === 'free' ? 'background:#eceef0;color:#444653;' : 'background:#d0e1fb;color:#54647a;'}`}>
+                {u.clientTier || 'free'}
+              </span>
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+    {users.length > 0 && (
+      <div style="padding:16px 24px;background:rgba(242,244,246,0.3);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;font-weight:500;color:#505f76;">{totalUsers} usuarios en total</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:#505f76;">{SUPERUSER_EMAILS.length + 1} superusers</span>
+          <span style="width:1px;height:14px;background:#c4c5d5;"></span>
+          <span style="font-size:12px;color:#505f76;">{adminCount} admins</span>
+          <span style="width:1px;height:14px;background:#c4c5d5;"></span>
+          <span style="font-size:12px;color:#505f76;">{viewerCount} viewers</span>
+        </div>
+      </div>
+    )}
   </div>
+
 </AdminLayout>
