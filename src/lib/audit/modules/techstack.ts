@@ -109,12 +109,21 @@ const CMS_SIGNATURES: Array<{ name: string; patterns: string[] }> = [
 
 export async function runTechStack(url: string): Promise<TechStackResult> {
   try {
-    const res = await axios.get(url, {
+    let res;
+    const axiosCfg = {
       timeout: 90_000,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
       maxRedirects: 5,
-      validateStatus: (s) => s < 500,
-    });
+      validateStatus: (s: number) => s < 500,
+    };
+    try {
+      res = await axios.get(url, axiosCfg);
+    } catch (sslErr: any) {
+      if (sslErr.message?.includes('certificate') || sslErr.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+        const https = await import('https');
+        res = await axios.get(url, { ...axiosCfg, httpsAgent: new https.Agent({ rejectUnauthorized: false }) });
+      } else throw sslErr;
+    }
 
     const html = String(res.data);
 

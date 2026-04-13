@@ -494,7 +494,7 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
               </span>
             )}
           </div>
-          {trafficHistory.length > 1 && (
+          {trafficHistory.length >= 3 && (
             <div style="display:flex;align-items:flex-end;gap:2px;height:20px;margin-top:6px;">
               {trafficHistory.map((v, i) => {
                 const max = Math.max(...trafficHistory, 1);
@@ -509,7 +509,7 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
     </div>
 
     <!-- Main sparkline: Score evolution -->
-    {kwHistory.length > 1 && (
+    {kwHistory.length >= 3 && (
       <div style="margin-top:24px;border-top:1px solid #f0f0f0;padding-top:16px;">
         <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:10px;">Evolución Keywords Top 10 ({kwHistory.length} semanas)</p>
         <div style="display:flex;align-items:flex-end;gap:6px;height:56px;">
@@ -890,7 +890,8 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
     </section>
   )}
 
-  <!-- ══ Evolution Sparklines — desglose de posiciones ══ -->
+  <!-- ══ Evolution Sparklines — desglose de posiciones (only with 3+ weeks of data) ══ -->
+  {allSnapshots.length >= 3 && (
   <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
     <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
@@ -931,6 +932,7 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
       </div>
     </div>
   </section>
+  )}
 
   <!-- ══ Competitor SEO Comparison ══ -->
   {compItems.length > 0 && (

@@ -223,7 +223,7 @@ function buildDonut(score: number, radius: number, stroke: number) {
     </div>
 
     <!-- Sparkline -->
-    {sparkline.length > 1 && (
+    {sparkline.length >= 3 && (
       <div style="margin-top:24px;border-top:1px solid #f0f0f0;padding-top:16px;">
         <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:10px;">Evolución ({sparkline.length} semanas)</p>
         <div style="display:flex;align-items:flex-end;gap:6px;height:56px;">

@@ -40,10 +40,33 @@ export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
   };
 
   try {
-    const [mobileData, desktopData] = await Promise.all([
-      fetchWithRetry(`${base}&strategy=mobile`),
-      fetchWithRetry(`${base}&strategy=desktop`),
-    ]);
+    let mobileData: any;
+    let desktopData: any;
+
+    try {
+      [mobileData, desktopData] = await Promise.all([
+        fetchWithRetry(`${base}&strategy=mobile`),
+        fetchWithRetry(`${base}&strategy=desktop`),
+      ]);
+    } catch (firstErr: any) {
+      // If Lighthouse failed to load the page (often SSL chain issues), retry with HTTP
+      const isDocumentError = firstErr.message?.includes('FAILED_DOCUMENT_REQUEST')
+        || firstErr.message?.includes('DNS_FAILURE')
+        || firstErr.message?.includes('unable to reliably load');
+
+      if (isDocumentError && url.startsWith('https://')) {
+        const httpUrl = url.replace('https://', 'http://');
+        const httpBase = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(httpUrl)}&key=${API_KEY}&${cats}`;
+        console.log(`[pagespeed] HTTPS failed (${firstErr.message?.slice(0, 50)}). Retrying with HTTP...`);
+        [mobileData, desktopData] = await Promise.all([
+          fetchWithRetry(`${httpBase}&strategy=mobile`),
+          fetchWithRetry(`${httpBase}&strategy=desktop`),
+        ]);
+        console.log(`[pagespeed] HTTP retry succeeded for ${httpUrl}`);
+      } else {
+        throw firstErr;
+      }
+    }
 
     return {
       mobile: parseScore(mobileData),
@@ -51,7 +74,7 @@ export async function runPageSpeed(url: string): Promise<PageSpeedResult> {
     };
   } catch (err: any) {
     const msg = err.name === 'AbortError' ? 'PageSpeed API timed out (45s)' : err.message?.slice(0, 100);
-    return { skipped: true, reason: msg };
+    return { skipped: true, reason: `Lighthouse: ${msg}` };
   }
 }
 

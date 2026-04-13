@@ -267,10 +267,8 @@ async function translateToSpanish(text: string): Promise<string | null> {
 
 export async function runCrawl(url: string): Promise<CrawlResult> {
   try {
-    // Timeout 20s (was 10s): some WordPress/PHP sites take 3-8s to respond
-    // the first time (cold cache, heavy plugins). 10s was too tight and caused
-    // intermittent failures that cascaded to all downstream modules.
-    const response = await axios.get(url, {
+    // Shared axios config
+    const axiosConfig = {
       timeout: 150_000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0; +https://aiongrowth.studio)',
@@ -278,8 +276,34 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
         'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
       },
       maxRedirects: 5,
-      validateStatus: (status) => status < 500,
-    });
+      validateStatus: (status: number) => status < 500,
+    };
+
+    let response;
+    try {
+      // First attempt: strict SSL (normal)
+      response = await axios.get(url, axiosConfig);
+    } catch (sslErr: any) {
+      // If SSL error (incomplete chain, self-signed, expired), retry with relaxed SSL.
+      // Many real-world sites (especially Spanish SMBs) have misconfigured SSL chains
+      // but work fine in browsers. We still want their data for the audit.
+      const isSSLError = sslErr.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+        || sslErr.code === 'CERT_HAS_EXPIRED'
+        || sslErr.code === 'DEPTH_ZERO_SELF_SIGNED_CERT'
+        || sslErr.code === 'SELF_SIGNED_CERT_IN_CHAIN'
+        || sslErr.message?.includes('unable to verify')
+        || sslErr.message?.includes('certificate');
+
+      if (isSSLError) {
+        console.warn(`[crawl] SSL error for ${url}: ${sslErr.code || sslErr.message}. Retrying with relaxed SSL...`);
+        const https = await import('https');
+        const agent = new https.Agent({ rejectUnauthorized: false });
+        response = await axios.get(url, { ...axiosConfig, httpsAgent: agent });
+        console.log(`[crawl] Relaxed SSL retry succeeded for ${url}`);
+      } else {
+        throw sslErr; // Re-throw non-SSL errors
+      }
+    }
 
     // Detect redirect: if final URL differs from input, propagate it
     const finalUrl = response.request?.res?.responseUrl || response.config?.url || url;
