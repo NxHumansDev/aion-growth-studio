@@ -188,10 +188,65 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
   <!-- Save status -->
   <div id="save-status" style="display:none;position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.1);"></div>
 
+  <!-- Email Editor Modal -->
+  <div id="email-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:800px;max-height:90vh;background:white;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,0.2);">
+      <!-- Modal header -->
+      <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:center;background:#f2f4f6;">
+        <div>
+          <h3 class="font-headline" style="font-size:16px;font-weight:800;color:#191c1e;">Editor de email</h3>
+          <p style="font-size:12px;color:#505f76;margin-top:2px;">Paso <span id="modal-step-idx"></span> del workflow</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="previewEmail()" class="btn btn-ghost" style="font-size:12px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">visibility</span> Preview HTML
+          </button>
+          <button onclick="saveEmailAndClose()" class="btn btn-primary" style="font-size:12px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">check</span> Guardar
+          </button>
+          <button onclick="closeEmailModal()" style="background:none;border:none;cursor:pointer;padding:8px;color:#505f76;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+      <!-- Subject line -->
+      <div style="padding:16px 24px;background:white;border-bottom:1px solid #f2f4f6;">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#505f76;display:block;margin-bottom:6px;">Asunto</label>
+        <input id="modal-subject" type="text" style="width:100%;border:none;background:#f2f4f6;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:#191c1e;outline:none;" placeholder="Asunto del email..." />
+      </div>
+      <!-- Editor -->
+      <div style="flex:1;overflow-y:auto;min-height:300px;">
+        <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+        <div id="quill-editor" style="height:300px;font-family:'Inter',sans-serif;font-size:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="preview-modal" style="display:none;position:fixed;inset:0;z-index:210;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:700px;max-height:85vh;background:white;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,0.2);">
+      <div style="padding:16px 24px;display:flex;justify-content:space-between;align-items:center;background:#f2f4f6;">
+        <h3 class="font-headline" style="font-size:16px;font-weight:800;">Preview HTML</h3>
+        <div style="display:flex;gap:8px;">
+          <button onclick="copyHtml()" class="btn btn-ghost" style="font-size:12px;" id="copy-html-btn">
+            <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span> Copiar HTML
+          </button>
+          <button onclick="document.getElementById('preview-modal').style.display='none'" style="background:none;border:none;cursor:pointer;padding:8px;color:#505f76;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+      <div id="preview-frame" style="flex:1;overflow-y:auto;padding:24px;background:white;"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <script is:inline>
     let currentWorkflowId = null;
     let currentSteps = [];
     let currentStatus = 'draft';
+    let editingStepIdx = null;
+    let quillEditor = null;
 
     // Initialize with first workflow
     document.addEventListener('DOMContentLoaded', function() {
@@ -245,14 +300,19 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
           canvas.appendChild(wait);
         } else {
           var email = document.createElement('div');
-          email.style.cssText = 'background:white;border:2px solid rgba(0,40,142,0.1);padding:16px 20px;border-radius:16px;width:280px;position:relative;box-shadow:0 1px 4px rgba(0,0,0,0.04);';
-          email.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+          email.style.cssText = 'background:white;border:2px solid rgba(0,40,142,0.1);padding:16px 20px;border-radius:16px;width:300px;position:relative;box-shadow:0 1px 4px rgba(0,0,0,0.04);cursor:pointer;transition:all 0.15s;';
+          var hasBody = step.body && step.body.length > 10;
+          email.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
             '<span class="material-symbols-outlined" style="font-size:18px;color:#00288e;background:rgba(0,40,142,0.08);padding:6px;border-radius:8px;">mail</span>' +
-            '<span style="font-weight:700;font-size:13px;color:#191c1e;">Email ' + (idx + 1) + '</span></div>' +
-            '<input type="text" value="' + (step.subject || '').replace(/"/g, '&quot;') + '" onchange="updateSubject(' + idx + ', this.value)" style="width:100%;border:none;background:#f2f4f6;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;color:#444653;outline:none;" placeholder="Asunto del email..." />' +
-            '<button onclick="removeStep(' + idx + ')" style="position:absolute;right:-8px;top:-8px;width:20px;height:20px;border-radius:50%;background:#ba1a1a;color:white;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;" class="del-btn"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>';
-          email.onmouseenter = function() { email.querySelector('.del-btn').style.display = 'flex'; };
-          email.onmouseleave = function() { email.querySelector('.del-btn').style.display = 'none'; };
+            '<span style="font-weight:700;font-size:13px;color:#191c1e;">Email ' + (idx + 1) + '</span>' +
+            (hasBody ? '<span style="margin-left:auto;font-size:10px;font-weight:600;color:#003d27;background:rgba(111,251,190,0.2);padding:2px 6px;border-radius:4px;">EDITADO</span>' : '') +
+            '</div>' +
+            '<div style="font-size:12px;font-weight:600;color:#191c1e;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (step.subject || 'Sin asunto') + '</div>' +
+            '<div onclick="openEmailEditor(' + idx + ')" style="display:flex;align-items:center;gap:4px;font-size:11px;color:#00288e;font-weight:600;">' +
+            '<span class="material-symbols-outlined" style="font-size:14px;">edit</span> Editar contenido</div>' +
+            '<button onclick="event.stopPropagation();removeStep(' + idx + ')" style="position:absolute;right:-8px;top:-8px;width:20px;height:20px;border-radius:50%;background:#ba1a1a;color:white;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;" class="del-btn"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>';
+          email.onmouseenter = function() { email.querySelector('.del-btn').style.display = 'flex'; email.style.borderColor = 'rgba(0,40,142,0.25)'; };
+          email.onmouseleave = function() { email.querySelector('.del-btn').style.display = 'none'; email.style.borderColor = 'rgba(0,40,142,0.1)'; };
           canvas.appendChild(email);
         }
       });
@@ -346,6 +406,95 @@ const resendConfigured = !!(import.meta.env?.RESEND_API_KEY || process.env.RESEN
       }).then(function(r) { return r.json(); }).then(function(d) {
         if (d.ok) { location.reload(); }
         else { showStatus('Error: ' + (d.error || ''), true); }
+      });
+    }
+
+    // ── Email Editor (Quill WYSIWYG) ──────────────────────────
+    function openEmailEditor(idx) {
+      editingStepIdx = idx;
+      var step = currentSteps[idx];
+      document.getElementById('modal-step-idx').textContent = String(idx + 1);
+      document.getElementById('modal-subject').value = step.subject || '';
+
+      // Init Quill if not done
+      if (!quillEditor) {
+        quillEditor = new Quill('#quill-editor', {
+          theme: 'snow',
+          placeholder: 'Escribe el contenido del email...',
+          modules: {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ color: [] }, { background: [] }],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              ['link', 'image'],
+              [{ align: [] }],
+              ['blockquote', 'code-block'],
+              ['clean'],
+            ],
+          },
+        });
+      }
+
+      // Load existing body (HTML) or empty
+      if (step.body) {
+        quillEditor.root.innerHTML = step.body;
+      } else {
+        quillEditor.root.innerHTML = '<p>Hola {nombre},</p><p><br></p><p>Escribe aqui el contenido del email...</p><p><br></p><p>Un saludo,<br>El equipo de AION Growth Studio</p>';
+      }
+
+      document.getElementById('email-modal').style.display = 'block';
+    }
+
+    function closeEmailModal() {
+      document.getElementById('email-modal').style.display = 'none';
+    }
+
+    function saveEmailAndClose() {
+      if (editingStepIdx == null || !quillEditor) return;
+      var subject = document.getElementById('modal-subject').value;
+      var bodyHtml = quillEditor.root.innerHTML;
+
+      currentSteps[editingStepIdx].subject = subject;
+      currentSteps[editingStepIdx].body = bodyHtml;
+
+      closeEmailModal();
+      renderFlow();
+      showStatus('Email actualizado — recuerda guardar el workflow', false);
+    }
+
+    function previewEmail() {
+      if (!quillEditor) return;
+      var subject = document.getElementById('modal-subject').value;
+      var bodyHtml = quillEditor.root.innerHTML;
+
+      // Build a full email HTML preview
+      var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' +
+        'body{font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#333;line-height:1.6;}' +
+        'img{max-width:100%;height:auto;border-radius:8px;}' +
+        'a{color:#00288e;}' +
+        'h1,h2,h3{color:#191c1e;font-family:Manrope,sans-serif;}' +
+        '.footer{margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999;}' +
+        '</style></head><body>' +
+        '<div style="text-align:center;margin-bottom:24px;"><img src="/images/aion-logo-admin.png" style="height:40px;" alt="AION"></div>' +
+        '<h2 style="margin:0 0 16px;">' + (subject || 'Sin asunto') + '</h2>' +
+        bodyHtml +
+        '<div class="footer"><p>AION Growth Studio · aiongrowth.studio</p></div>' +
+        '</body></html>';
+
+      var preview = document.getElementById('preview-frame');
+      preview.innerHTML = '<iframe srcdoc="' + html.replace(/"/g, '&quot;') + '" style="width:100%;height:500px;border:1px solid #eee;border-radius:8px;"></iframe>';
+      document.getElementById('preview-modal').style.display = 'block';
+    }
+
+    function copyHtml() {
+      if (!quillEditor) return;
+      var bodyHtml = quillEditor.root.innerHTML;
+      navigator.clipboard.writeText(bodyHtml).then(function() {
+        var btn = document.getElementById('copy-html-btn');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">check</span> Copiado';
+        setTimeout(function() { btn.innerHTML = orig; }, 2000);
       });
     }
   </script>
