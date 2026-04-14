@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-surface": "#1a1a2e",
+              "tertiary-container": "#793b00",
+              "outline-variant": "#c3c6d2",
+              "outline": "#737781",
+              "on-tertiary-container": "#ffa96a",
+              "inverse-primary": "#aac7ff",
+              "on-tertiary": "#ffffff",
+              "inverse-on-surface": "#f2efff",
+              "on-primary-fixed": "#001b3e",
+              "surface-variant": "#e2e0fc",
+              "surface-bright": "#fcf8ff",
+              "on-background": "#1a1a2e",
+              "background": "#fcf8ff",
+              "surface-tint": "#325ea0",
+              "tertiary": "#572900",
+              "surface-container-high": "#e8e5ff",
+              "primary-fixed": "#d6e3ff",
+              "on-primary-fixed-variant": "#124687",
+              "surface": "#fcf8ff",
+              "on-secondary-fixed-variant": "#00458f",
+              "on-secondary-fixed": "#001b3f",
+              "surface-dim": "#dad7f3",
+              "secondary": "#205db0",
+              "on-surface-variant": "#434750",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed": "#ffdcc6",
+              "on-primary-container": "#99bdff",
+              "surface-container-low": "#f5f2ff",
+              "secondary-fixed-dim": "#abc7ff",
+              "on-secondary-container": "#003a7a",
+              "on-primary": "#ffffff",
+              "on-error-container": "#93000a",
+              "surface-container-highest": "#e2e0fc",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed-variant": "#713700",
+              "primary": "#00346d",
+              "error": "#ba1a1a",
+              "primary-container": "#1a4b8c",
+              "surface-container": "#efecff",
+              "on-secondary": "#ffffff",
+              "tertiary-fixed-dim": "#ffb785",
+              "inverse-surface": "#2f2e43",
+              "on-error": "#ffffff",
+              "secondary-fixed": "#d7e3ff",
+              "on-tertiary-fixed": "#301400",
+              "secondary-container": "#73a6fe",
+              "primary-fixed-dim": "#aac7ff"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased overflow-x-hidden">
+<!-- SideNavBar (Authority: JSON & Design System) -->
+<aside class="h-full w-64 fixed left-0 top-0 z-50 bg-[#1a1a2e] dark:bg-slate-950 flex flex-col py-6 shadow-2xl shadow-black/20 font-['Inter'] antialiased tracking-tight text-sm">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-lg" data-icon="hub">hub</span>
+</div>
+<div>
+<h1 class="text-lg font-bold tracking-tighter text-white">AION Growth Studio</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest">Marketing Intelligence</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 text-white bg-blue-600/10 border-r-4 border-blue-500 font-semibold" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span>Monthly Report</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span>Evolution</span>
+</a>
+<!-- Special Logic for "Signals" which is the current tier requested -->
+<a class="flex items-center gap-3 px-4 py-3 text-white bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined filled-icon text-secondary-container" data-icon="notifications_active" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+<span>Alerts</span>
+<span class="ml-auto text-[10px] bg-secondary-container/20 text-secondary-container px-1.5 py-0.5 rounded border border-secondary-container/30">Signals</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 opacity-40" href="#">
+<span class="material-symbols-outlined" data-icon="settings_suggest">settings_suggest</span>
+<span>Technical Optimization</span>
+<span class="ml-auto text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">Palancas</span>
+</a>
+<div class="px-4 pt-8 pb-2 text-[10px] text-slate-500 uppercase tracking-widest font-bold">Intelligence</div>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Competitors</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="search_check">search_check</span>
+<span>SEO Opportunities</span>
+</a>
+</nav>
+<div class="mt-auto px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="settings">settings</span>
+<span class="text-xs">Settings</span>
+</a>
+<div class="mt-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">JG</div>
+<div class="overflow-hidden">
+<p class="text-white text-xs font-semibold truncate">Javier García</p>
+<p class="text-slate-500 text-[10px] truncate">Growth Advisor</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Authority: JSON & Design System) -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex justify-between items-center h-16 px-8 ml-64 border-none font-['Inter'] text-sm font-medium">
+<div class="flex items-center gap-4">
+<h2 class="text-xl font-black text-[#1a1a2e] dark:text-white tracking-tight">Soluciones Verdes</h2>
+<div class="h-4 w-[1px] bg-outline-variant/30"></div>
+<span class="text-slate-500 font-normal">solucionesverdes.es</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-bold uppercase tracking-tight">
+<span class="material-symbols-outlined text-sm filled-icon" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
+                Señales
+            </div>
+<div class="text-slate-500 text-xs">
+                Last Report: <span class="font-bold text-on-surface">Oct 2023</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="close-up portrait of professional male executive with friendly expression in office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgLyfrP4kecoaZHeYxD77leCI0FeBsUN95y9Ov9qulIXtAYFRcukabhlCaQF9Uf7Vpr3-7VHpkDJUjVlPiwKWsR_NLNigFScaKbx9LNKhX-0lLmnWx6yAtiQFUXMskCcu_ff95ipkb89q8Kfu5O6W3NRTMs-8-UjftR65KcU_OX2oL9_0KhRarnjbRdo41D9LVS_XE9Oa2ALW54R66VuWZFDpRpK9Nf_62kG4dj2pQ90CBMK23-j4hy4b7cm08Ed1138HEeLgPTXg"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-8 pb-12 bg-surface min-h-screen">
+<div class="max-w-6xl mx-auto space-y-12">
+<!-- Metric Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Score Presencia Digital -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border-none relative overflow-hidden group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Score Presencia Digital</span>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container text-[10px] font-bold">Mejorable</span>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="text-5xl font-black tracking-tighter text-on-surface">55</span>
+<div class="flex items-center text-green-600 font-bold text-sm">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_upward">arrow_upward</span>
+                            +6
+                        </div>
+</div>
+<!-- Mini Sparkline -->
+<div class="mt-6 h-12 w-full flex items-end gap-1">
+<div class="flex-1 bg-primary/10 h-4 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/10 h-6 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/10 h-5 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/10 h-8 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/20 h-7 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-10 rounded-t-sm"></div>
+<div class="flex-1 bg-primary h-12 rounded-t-sm"></div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+<span>Score: 49</span>
+<span>Score: 55</span>
+</div>
+</div>
+<!-- Visitas Mensuales -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border-none">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Visitas Mensuales</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold">GA4</span>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="text-5xl font-black tracking-tighter text-on-surface">12.4K</span>
+<div class="flex items-center text-green-600 font-bold text-sm">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+                            18%
+                        </div>
+</div>
+<p class="mt-4 text-xs text-on-surface-variant leading-relaxed">Incremento sostenido orgánico impulsado por contenido estacional.</p>
+</div>
+<!-- Visibilidad GEO -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border-none">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Visibilidad GEO</span>
+<span class="text-[10px] text-primary font-bold">menciones en IA</span>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="text-5xl font-black tracking-tighter text-on-surface">2/15</span>
+<div class="flex items-center text-on-surface-variant font-bold text-sm">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                            1
+                        </div>
+</div>
+<div class="mt-6 flex gap-1">
+<div class="h-1.5 w-6 rounded-full bg-primary"></div>
+<div class="h-1.5 w-6 rounded-full bg-primary"></div>
+<div class="h-1.5 flex-1 rounded-full bg-surface-container-high"></div>
+</div>
+<p class="mt-4 text-xs text-on-surface-variant">Menciones en Local Pack han crecido un 4% este mes.</p>
+</div>
+</section>
+<!-- Bento Grid - Alerts & Plan de Acción -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Active Alerts -->
+<div class="lg:col-span-4 bg-surface-container-low p-8 rounded-xl space-y-6">
+<div class="flex items-center justify-between mb-2">
+<h3 class="text-sm font-black uppercase tracking-widest text-on-surface">Alertas Activas</h3>
+<span class="material-symbols-outlined text-slate-400" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="space-y-4">
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container-lowest shadow-sm">
+<div class="w-2 h-2 rounded-full bg-error shrink-0 mt-1.5"></div>
+<div>
+<p class="text-xs font-bold text-on-surface">Caída en CTR Orgánico</p>
+<p class="text-[11px] text-on-surface-variant mt-1">Keywords principales han bajado -12% de clics en 48h.</p>
+<span class="text-[10px] text-slate-400 font-medium block mt-2">Hace 2 horas</span>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container-lowest shadow-sm">
+<div class="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1.5"></div>
+<div>
+<p class="text-xs font-bold text-on-surface">Nuevo competidor detectado</p>
+<p class="text-[11px] text-on-surface-variant mt-1">SosteniblePlus.es ha incrementado puja en tus keywords.</p>
+<span class="text-[10px] text-slate-400 font-medium block mt-2">Hoy, 09:12</span>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container-lowest shadow-sm opacity-70">
+<div class="w-2 h-2 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
+<div>
+<p class="text-xs font-bold text-on-surface">Backlink de Alta Autoridad</p>
+<p class="text-[11px] text-on-surface-variant mt-1">ElDiario.es ha enlazado tu guía de sostenibilidad.</p>
+<span class="text-[10px] text-slate-400 font-medium block mt-2">Ayer, 18:45</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Plan de Acción -->
+<div class="lg:col-span-8 bg-surface-container-lowest p-8 rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="text-lg font-black tracking-tight text-on-surface">Plan de Acción Estratégico</h3>
+<p class="text-sm text-on-surface-variant">Próximos pasos validados por tu Advisor</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Progreso: 40%</span>
+<div class="w-24 h-2 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[40%]"></div>
+</div>
+</div>
+</div>
+<div class="divide-y divide-transparent space-y-2">
+<!-- Action Items -->
+<div class="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors group">
+<span class="material-symbols-outlined text-green-500 filled-icon" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="flex-1 text-sm font-medium text-on-surface-variant line-through opacity-50">Optimización de Core Web Vitals (Mobile)</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">Impacto Alto</span>
+</div>
+<div class="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-green-500 filled-icon" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="flex-1 text-sm font-medium text-on-surface-variant line-through opacity-50">Auditoría de Enlaces Tóxicos</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px] font-bold">Impacto Medio</span>
+</div>
+<div class="flex items-center gap-4 py-3 px-4 rounded-lg bg-surface-container-low ring-1 ring-primary/10">
+<div class="w-5 h-5 rounded-full border-2 border-amber-500 flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-amber-500"></div>
+</div>
+<span class="flex-1 text-sm font-bold text-on-surface">Creación de 5 Silos de Contenido para SEO Local</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">Impacto Alto</span>
+</div>
+<div class="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-slate-300" data-icon="radio_button_unchecked">radio_button_unchecked</span>
+<span class="flex-1 text-sm font-medium text-on-surface">Implementación de Schema para FAQ</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px] font-bold">Impacto Medio</span>
+</div>
+<div class="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-slate-300" data-icon="radio_button_unchecked">radio_button_unchecked</span>
+<span class="flex-1 text-sm font-medium text-on-surface">Configuración de Seguimiento de Conversiones Offline</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold">Impacto Alto</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Próxima Revisión Section -->
+<section class="flex justify-center">
+<div class="w-full max-w-2xl bg-on-surface text-white rounded-2xl p-6 flex items-center justify-between shadow-xl">
+<div class="flex items-center gap-6">
+<div class="bg-white/10 p-4 rounded-xl text-center">
+<p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">JUN</p>
+<p class="text-2xl font-black">12</p>
+</div>
+<div>
+<h4 class="text-sm font-bold">Sesión de Crecimiento Mensual</h4>
+<div class="flex items-center gap-3 mt-1">
+<span class="flex items-center gap-1 text-xs text-slate-400">
+<span class="material-symbols-outlined text-xs" data-icon="schedule">schedule</span>
+                                    30 min
+                                </span>
+<span class="flex items-center gap-1 text-xs text-slate-400">
+<span class="material-symbols-outlined text-xs" data-icon="person">person</span>
+                                    Javier García
+                                </span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-primary-container transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="calendar_add_on">calendar_add_on</span>
+                        Añadir al calendario
+                    </button>
+</div>
+</section>
+</div>
+</main>
+<!-- Support Floating UI -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-2xl filled-icon" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</button>
+</div>
+</body></html>

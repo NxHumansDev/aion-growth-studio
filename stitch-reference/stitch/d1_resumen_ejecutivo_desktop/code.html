@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AION | Executive Summary - bodeboca.com</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "on-surface": "#e2e0fc",
+                "tertiary-fixed-dim": "#68dbae",
+                "surface-tint": "#aac7ff",
+                "secondary-fixed": "#69ff87",
+                "outline": "#8d909b",
+                "surface-container-low": "#1a1a2e",
+                "inverse-surface": "#e2e0fc",
+                "surface-container-lowest": "#0c0c1f",
+                "on-background": "#e2e0fc",
+                "tertiary-fixed": "#86f8c9",
+                "surface": "#111125",
+                "secondary-fixed-dim": "#48e26e",
+                "on-tertiary-container": "#5dd1a4",
+                "on-tertiary-fixed": "#002115",
+                "surface-bright": "#37374d",
+                "secondary": "#48e26e",
+                "secondary-container": "#03bc4e",
+                "on-error-container": "#ffdad6",
+                "surface-dim": "#111125",
+                "on-secondary": "#003912",
+                "surface-container-highest": "#333348",
+                "on-primary": "#002f64",
+                "on-error": "#690005",
+                "inverse-primary": "#325ea0",
+                "on-secondary-fixed": "#002108",
+                "surface-container-high": "#28283d",
+                "on-primary-fixed-variant": "#124687",
+                "on-surface-variant": "#c3c6d2",
+                "tertiary": "#68dbae",
+                "error": "#ffb4ab",
+                "on-secondary-container": "#004317",
+                "inverse-on-surface": "#2f2e43",
+                "primary-container": "#1a4b8c",
+                "error-container": "#93000a",
+                "background": "#111125",
+                "on-tertiary-fixed-variant": "#00513a",
+                "on-secondary-fixed-variant": "#00531e",
+                "primary-fixed-dim": "#aac7ff",
+                "surface-container": "#1e1e32",
+                "primary": "#aac7ff",
+                "on-tertiary": "#003827",
+                "on-primary-container": "#99bdff",
+                "tertiary-container": "#00573e",
+                "primary-fixed": "#d6e3ff",
+                "on-primary-fixed": "#001b3e",
+                "surface-variant": "#333348",
+                "outline-variant": "#434750"
+              },
+              fontFamily: {
+                "headline": ["Inter"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(51, 51, 72, 0.4);
+            backdrop-filter: blur(12px);
+        }
+        body {
+            background-color: #111125;
+            color: #e2e0fc;
+            font-family: 'Inter', sans-serif;
+        }
+        .gauge-ring {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 104; /* Represents 63/100 approximately */
+            transition: stroke-dashoffset 1s ease-out;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#1a1a2e] flex flex-col py-8 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-bold text-[#aac7ff] tracking-tight">AION</h1>
+<p class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem] text-[#69FF87]">Precision Oracle</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Summary Active -->
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#69FF87] bg-[#333348] rounded-r-full border-r-4 border-[#69FF87]">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Summary</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Digital Visibility</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">search</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Organic SEO</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">AI Visibility</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">star_rate</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Reputation</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">speed</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Web &amp; Performance</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">checklist</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Action Plan</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1">
+<span class="material-symbols-outlined">radar</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Radar</span>
+</div>
+</nav>
+</aside>
+<!-- Main Content Wrapper -->
+<main class="ml-64 flex-1 flex flex-col h-screen overflow-y-auto bg-[#111125]">
+<!-- TopNavBar -->
+<header class="bg-[#111125]/60 backdrop-blur-xl sticky top-0 z-40 w-full px-6 py-4 flex justify-between items-center shadow-[0_10_40px_rgba(0,0,0,0.4)]">
+<div class="flex flex-col">
+<span class="text-2xl font-black tracking-tighter text-[#aac7ff]">AION</span>
+<span class="text-[10px] uppercase tracking-widest text-[#69FF87]">Executive Intelligence</span>
+</div>
+<nav class="hidden md:flex gap-8 items-center font-['Inter'] font-medium text-sm tracking-wide">
+<a class="text-[#69FF87] font-bold transition-colors duration-300" href="#">Summary</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Reports</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Audit Logs</a>
+<button class="bg-[#69ff87] text-[#002108] px-5 py-2 rounded-full font-bold active:scale-95 transition-transform">
+                    Export PDF
+                </button>
+</nav>
+</header>
+<!-- Content Canvas -->
+<div class="px-8 py-12 max-w-7xl mx-auto w-full space-y-16">
+<!-- Hero Section / Top Banner -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low p-12 flex flex-col md:flex-row items-center gap-12">
+<!-- Background Glow -->
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-[#aac7ff]/10 blur-[120px] rounded-full"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-[#69ff87]/5 blur-[80px] rounded-full"></div>
+<div class="relative z-10 flex-1 space-y-4">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest border border-outline-variant/20">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed animate-pulse"></span>
+<span class="text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant">Live Analysis</span>
+</div>
+<h2 class="text-5xl font-black tracking-tighter text-[#e2e0fc]">
+                        En desarrollo — <span class="text-[#aac7ff]">bodeboca.com</span>
+</h2>
+<p class="text-xl text-on-surface-variant max-w-xl">
+                        E-commerce de bebidas alcohólicas. Diagnosticando visibilidad estratégica y rendimiento transaccional.
+                    </p>
+</div>
+<!-- Global Score Gauge -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="relative w-48 h-48">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" stroke-width="12"></circle>
+<circle class="gauge-ring" cx="96" cy="96" fill="transparent" r="88" stroke="url(#gaugeGradient)" stroke-linecap="round" stroke-width="12"></circle>
+<defs>
+<lineargradient id="gaugeGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#69FF87"></stop>
+<stop offset="100%" stop-color="#5dd1a4"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-5xl font-bold tracking-tighter text-on-surface">63</span>
+<span class="text-[0.6875rem] uppercase tracking-widest text-secondary-fixed">BIEN</span>
+</div>
+</div>
+<p class="mt-4 font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem] text-on-surface-variant">Global Score</p>
+</div>
+</section>
+<!-- Metrics Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Visibilidad Digital -->
+<div class="glass-card p-8 rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">visibility</span>
+<span class="text-2xl font-bold text-on-surface">61<span class="text-sm text-on-surface-variant">/100</span></span>
+</div>
+<h3 class="text-lg font-bold mb-2">Visibilidad Digital</h3>
+<p class="text-sm text-on-surface-variant mb-6">Presencia multicanal y autoridad de dominio en el sector vinícola.</p>
+<div class="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[61%] rounded-full"></div>
+</div>
+</div>
+<!-- Benchmark -->
+<div class="glass-card p-8 rounded-xl border border-outline-variant/10 hover:border-secondary/30 transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-secondary text-3xl">analytics</span>
+<span class="text-2xl font-bold text-on-surface">55<span class="text-sm text-on-surface-variant">/100</span></span>
+</div>
+<h3 class="text-lg font-bold mb-2">Benchmark</h3>
+<p class="text-sm text-on-surface-variant mb-6">Comparativa directa frente a competidores clave (Vinoselección, Decántalo).</p>
+<div class="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[55%] rounded-full"></div>
+</div>
+</div>
+<!-- Web & Conv. -->
+<div class="glass-card p-8 rounded-xl border border-outline-variant/10 hover:border-tertiary/30 transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-tertiary text-3xl">shopping_cart</span>
+<span class="text-2xl font-bold text-on-surface">64<span class="text-sm text-on-surface-variant">/100</span></span>
+</div>
+<h3 class="text-lg font-bold mb-2">Web &amp; Conv.</h3>
+<p class="text-sm text-on-surface-variant mb-6">Optimización del funnel de ventas y experiencia de usuario móvil.</p>
+<div class="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[64%] rounded-full"></div>
+</div>
+</div>
+</section>
+<!-- Detailed Status List -->
+<section class="space-y-8 pb-12">
+<div class="flex items-end justify-between">
+<div>
+<p class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem] text-secondary-fixed mb-2">Detailed Audit</p>
+<h3 class="text-3xl font-bold tracking-tight">Estado por Área</h3>
+</div>
+<button class="text-sm font-bold text-primary hover:underline transition-all">Ver informe completo</button>
+</div>
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<!-- Table Header -->
+<div class="grid grid-cols-12 px-8 py-4 border-b border-outline-variant/10 bg-surface-container-high/50">
+<div class="col-span-5 text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant">Categoría de Análisis</div>
+<div class="col-span-3 text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant">Indicador de Salud</div>
+<div class="col-span-2 text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant">Puntuación</div>
+<div class="col-span-2 text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant text-right">Trend</div>
+</div>
+<!-- Row 1 -->
+<div class="grid grid-cols-12 px-8 py-6 hover:bg-surface-container-highest/30 transition-colors group">
+<div class="col-span-5 flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">language</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface">SEO On-Page</h4>
+<p class="text-xs text-on-surface-variant">Meta-etiquetado y estructura semántica</p>
+</div>
+</div>
+<div class="col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+<span class="text-sm text-on-surface">Optimizado</span>
+</div>
+<div class="col-span-2 flex items-center">
+<span class="text-lg font-bold">78<span class="text-xs text-on-surface-variant">/100</span></span>
+</div>
+<div class="col-span-2 flex items-center justify-end text-secondary-fixed">
+<span class="material-symbols-outlined">trending_up</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 px-8 py-6 hover:bg-surface-container-highest/30 transition-colors group">
+<div class="col-span-5 flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface">WPO &amp; Core Web Vitals</h4>
+<p class="text-xs text-on-surface-variant">Velocidad de carga en dispositivos móviles</p>
+</div>
+</div>
+<div class="col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="text-sm text-on-surface">Crítico (LCP &gt; 4s)</span>
+</div>
+<div class="col-span-2 flex items-center">
+<span class="text-lg font-bold">42<span class="text-xs text-on-surface-variant">/100</span></span>
+</div>
+<div class="col-span-2 flex items-center justify-end text-error">
+<span class="material-symbols-outlined">trending_down</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 px-8 py-6 hover:bg-surface-container-highest/30 transition-colors group border-b border-outline-variant/5">
+<div class="col-span-5 flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-[#aac7ff]/10 flex items-center justify-center text-[#aac7ff]">
+<span class="material-symbols-outlined">share</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface">Perfil de Enlaces</h4>
+<p class="text-xs text-on-surface-variant">Backlinks y autoridad de nicho</p>
+</div>
+</div>
+<div class="col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-sm text-on-surface">Sólido</span>
+</div>
+<div class="col-span-2 flex items-center">
+<span class="text-lg font-bold">69<span class="text-xs text-on-surface-variant">/100</span></span>
+</div>
+<div class="col-span-2 flex items-center justify-end text-on-surface-variant">
+<span class="material-symbols-outlined">horizontal_rule</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Sticky Footer Summary / Breadcrumb -->
+<footer class="mt-auto bg-[#1a1a2e] px-8 py-4 flex items-center justify-between border-t border-outline-variant/10">
+<div class="flex items-center gap-6">
+<div class="flex -space-x-3">
+<img class="w-8 h-8 rounded-full border-2 border-surface" data-alt="professional male business analyst headshot in dark suit" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRdb_EZRpeyNKKHLvP0fgpRsVSyveUgVPBK0HGjw4H0dVxBZqEJMXOvSwFlu-sCkqP7faEIPUZoZUFddI-zg2fducniU5FhMOE0oGBhp7wbmP0B1ioWGlIeDmrM7s8gSM7pokqis4AeE1Vftnqc6CfBGBl4AM20CsLsVkqlxxb4OdmCd6hXQXd7DPrskeLptISdJgaSYy4VgsTHoYfrMM_b0C1mxYUpEnQXioxp3MtMZtS5i9F4X2vk-qCQ4ozCNbwqE3UbAG2GX8"/>
+<img class="w-8 h-8 rounded-full border-2 border-surface" data-alt="professional female strategy consultant headshot in office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApEgz00zOhWC6PmatzIlQV2lFlRPXMzw6w0PbP39AXquqkWFn-IpkAu_vN0gewFl3JL6dWJDog2GSnM1l7dq0XExnzbkIfoRRsNFaO7Oo3yNBP2VUu2u2miUVKHlsKV1y9m-6Mlp6-nG-hZ0yLYDu9vQnYxsH47T4rs2Kc2M9xDB8TMCYZYvd6L4Dok1-JJeLluUgSNs2PrBJ2NYMyYPQsLCjsl_Lzya9OX7pOET3vxbikeKpDkpWHkekqNPVR4_UOHEgEeHBziZw"/>
+</div>
+<span class="text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-on-surface-variant">Analistas Asignados: 2</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 bg-[#69ff87] rounded-full"></div>
+<span class="text-[0.6875rem] font-['Inter'] uppercase tracking-widest text-[#69ff87]">Database Updated: Just Now</span>
+</div>
+</footer>
+</main>
+<!-- Background Decoration -->
+<div class="fixed inset-0 pointer-events-none z-[-1] opacity-30">
+<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-[#aac7ff]/5 blur-[150px]"></div>
+<div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#69ff87]/5 blur-[150px]"></div>
+</div>
+</body></html>

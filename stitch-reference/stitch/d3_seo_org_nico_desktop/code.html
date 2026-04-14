@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-surface": "#e2e0fc",
+            "tertiary-fixed-dim": "#68dbae",
+            "surface-tint": "#aac7ff",
+            "secondary-fixed": "#69ff87",
+            "outline": "#8d909b",
+            "surface-container-low": "#1a1a2e",
+            "inverse-surface": "#e2e0fc",
+            "surface-container-lowest": "#0c0c1f",
+            "on-background": "#e2e0fc",
+            "tertiary-fixed": "#86f8c9",
+            "surface": "#111125",
+            "secondary-fixed-dim": "#48e26e",
+            "on-tertiary-container": "#5dd1a4",
+            "on-tertiary-fixed": "#002115",
+            "surface-bright": "#37374d",
+            "secondary": "#48e26e",
+            "secondary-container": "#03bc4e",
+            "on-error-container": "#ffdad6",
+            "surface-dim": "#111125",
+            "on-secondary": "#003912",
+            "surface-container-highest": "#333348",
+            "on-primary": "#002f64",
+            "on-error": "#690005",
+            "inverse-primary": "#325ea0",
+            "on-secondary-fixed": "#002108",
+            "surface-container-high": "#28283d",
+            "on-primary-fixed-variant": "#124687",
+            "on-surface-variant": "#c3c6d2",
+            "tertiary": "#68dbae",
+            "error": "#ffb4ab",
+            "on-secondary-container": "#004317",
+            "inverse-on-surface": "#2f2e43",
+            "primary-container": "#1a4b8c",
+            "error-container": "#93000a",
+            "background": "#111125",
+            "on-tertiary-fixed-variant": "#00513a",
+            "on-secondary-fixed-variant": "#00531e",
+            "primary-fixed-dim": "#aac7ff",
+            "surface-container": "#1e1e32",
+            "primary": "#aac7ff",
+            "on-tertiary": "#003827",
+            "on-primary-container": "#99bdff",
+            "tertiary-container": "#00573e",
+            "primary-fixed": "#d6e3ff",
+            "on-primary-fixed": "#001b3e",
+            "surface-variant": "#333348",
+            "outline-variant": "#434750"
+          },
+          fontFamily: {
+            "headline": ["Inter"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    body { font-family: 'Inter', sans-serif; }
+    .glass-effect { backdrop-filter: blur(20px); }
+  </style>
+</head>
+<body class="bg-surface text-on-surface overflow-x-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#1a1a2e] flex flex-col h-full py-8 z-50">
+<div class="px-6 mb-12">
+<h1 class="text-xl font-bold text-[#aac7ff] tracking-tight">AION</h1>
+<p class="text-[0.6875rem] uppercase tracking-[0.1em] text-on-surface-variant opacity-60">Precision Oracle</p>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto no-border">
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Summary</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Digital Visibility</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#69FF87] bg-[#333348] rounded-r-full border-r-4 border-[#69FF87] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">search</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Organic SEO</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">AI Visibility</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">star_rate</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Reputation</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">speed</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Web &amp; Performance</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">checklist</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Action Plan</span>
+</div>
+<div class="cursor-pointer flex items-center gap-3 px-6 py-4 text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">radar</span>
+<span class="font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem]">Radar</span>
+</div>
+</nav>
+<div class="px-6 py-4">
+<div class="bg-surface-container-high rounded-xl p-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold">BB</div>
+<div>
+<p class="text-xs font-bold">bodeboca.com</p>
+<p class="text-[0.6rem] text-on-surface-variant">Standard Tier</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<main class="ml-64 min-h-screen">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-40 bg-[#111125]/60 backdrop-blur-xl flex justify-between items-center w-full px-8 py-5 shadow-[0_10_40px_rgba(0,0,0,0.4)]">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-black tracking-tighter text-[#aac7ff]">AION</span>
+<nav class="hidden md:flex gap-6 font-['Inter'] font-medium text-sm tracking-wide">
+<a class="text-[#69FF87] font-bold active:scale-95 transition-transform" href="#">Overview</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Competitors</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Strategy</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-secondary-fixed text-on-secondary-fixed px-6 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-opacity active:scale-95">Export PDF</button>
+</div>
+</header>
+<!-- Canvas Content -->
+<div class="p-8 max-w-7xl mx-auto space-y-12">
+<!-- Editorial Header -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<p class="label-sm text-secondary-fixed uppercase tracking-widest mb-2 font-bold text-[0.6875rem]">Diagnostic Insight</p>
+<h2 class="text-5xl font-black tracking-tighter text-on-surface">SEO Orgánico</h2>
+<p class="text-on-surface-variant mt-2 max-w-md opacity-70">Deep analysis of bodeboca.com search footprint and organic authority.</p>
+</div>
+<div class="relative flex items-center justify-center">
+<div class="w-32 h-32 rounded-full border-8 border-surface-container-highest flex items-center justify-center">
+<div class="absolute inset-0 border-8 border-secondary-fixed rounded-full" style="clip-path: polygon(0 0, 100% 0, 100% 94%, 0 94%);"></div>
+<span class="text-4xl font-black tracking-tighter">94<span class="text-sm opacity-50">/100</span></span>
+</div>
+</div>
+</section>
+<!-- Bento Grid Metrics -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Metric 1 -->
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between min-h-[180px] hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-secondary-fixed mb-4">analytics</span>
+<div>
+<p class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Keywords Top 10</p>
+<h3 class="text-4xl font-black tracking-tighter mt-1">7,000</h3>
+</div>
+</div>
+<!-- Metric 2 -->
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between min-h-[180px] hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-primary mb-4">auto_awesome</span>
+<div>
+<p class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Keywords Top 3</p>
+<h3 class="text-4xl font-black tracking-tighter mt-1">2,100</h3>
+</div>
+</div>
+<!-- Metric 3 -->
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between min-h-[180px] hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-tertiary-fixed mb-4">trending_up</span>
+<div>
+<p class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Tráfico Mensual</p>
+<h3 class="text-4xl font-black tracking-tighter mt-1">287K</h3>
+</div>
+</div>
+<!-- Metric 4 -->
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between min-h-[180px] hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-on-primary-fixed-variant mb-4">payments</span>
+<div>
+<p class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Valor de Mercado</p>
+<h3 class="text-4xl font-black tracking-tighter mt-1">~350K <span class="text-lg font-medium opacity-50">€/mes</span></h3>
+</div>
+</div>
+</section>
+<!-- Main Analysis Row -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+<!-- Oportunidad Card (Main Content) -->
+<div class="lg:col-span-2 space-y-6">
+<div class="bg-surface-container-low rounded-xl overflow-hidden group">
+<div class="p-8 pb-4 flex justify-between items-start">
+<div>
+<h4 class="text-2xl font-bold tracking-tight">Oportunidad de Crecimiento</h4>
+<p class="text-on-surface-variant opacity-70">Tendencia histórica de tráfico orgánico (12 meses)</p>
+</div>
+<div class="flex items-center gap-2 text-secondary-fixed bg-secondary-fixed/10 px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-sm">north_east</span>
+<span class="text-sm font-bold">+52%</span>
+</div>
+</div>
+<!-- Sparkline Visual Area -->
+<div class="h-64 relative px-8 flex items-end">
+<svg class="w-full h-48 overflow-visible" preserveaspectratio="none" viewbox="0 0 1000 100">
+<defs>
+<lineargradient id="gradient-line" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#aac7ff"></stop>
+<stop offset="100%" stop-color="#69FF87"></stop>
+</lineargradient>
+<lineargradient id="gradient-fill" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#69FF87" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#69FF87" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,80 Q100,75 200,85 T400,60 T600,40 T800,20 T1000,5" fill="none" stroke="url(#gradient-line)" stroke-linecap="round" stroke-width="4"></path>
+<path d="M0,80 Q100,75 200,85 T400,60 T600,40 T800,20 T1000,5 L1000,100 L0,100 Z" fill="url(#gradient-fill)"></path>
+</svg>
+<div class="absolute bottom-4 left-8 right-8 flex justify-between text-[0.6rem] uppercase tracking-widest text-on-surface-variant font-bold opacity-40">
+<span>Ene 2023</span>
+<span>Jun 2023</span>
+<span>Dic 2023</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="bg-surface-container-low p-6 rounded-xl">
+<h5 class="font-bold mb-4">Top Keywords Ganadas</h5>
+<ul class="space-y-3">
+<li class="flex justify-between items-center text-sm">
+<span>Vino Tinto Ribera</span>
+<span class="text-secondary-fixed font-bold">#1</span>
+</li>
+<li class="flex justify-between items-center text-sm">
+<span>Comprar Vino Online</span>
+<span class="text-secondary-fixed font-bold">#2</span>
+</li>
+<li class="flex justify-between items-center text-sm">
+<span>Mejores Vinos 2024</span>
+<span class="text-secondary-fixed font-bold">#3</span>
+</li>
+</ul>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl">
+<h5 class="font-bold mb-4">Salud del Dominio</h5>
+<div class="flex items-center gap-4">
+<div class="flex-1 bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[88%]"></div>
+</div>
+<span class="text-sm font-bold">88/100</span>
+</div>
+<p class="text-[0.65rem] text-on-surface-variant mt-4 leading-relaxed uppercase tracking-wider">Perfil de enlaces optimizado con 4.2k dominios de referencia.</p>
+</div>
+</div>
+</div>
+<!-- Benchmark Column -->
+<div class="space-y-8">
+<div class="bg-surface-container-low p-8 rounded-xl h-full border-l-4 border-primary">
+<div class="mb-8">
+<h4 class="text-xl font-bold tracking-tight">Benchmark SEO</h4>
+<p class="text-xs text-on-surface-variant opacity-60 mt-1 uppercase tracking-widest">Visibility Share</p>
+</div>
+<div class="space-y-10">
+<!-- Bar 1 -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Bodeboca</span>
+<span>7,000 Keywords</span>
+</div>
+<div class="w-full bg-surface-container-highest h-4 rounded-full overflow-hidden">
+<div class="bg-secondary-fixed h-full w-[70%]"></div>
+</div>
+</div>
+<!-- Bar 2 -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Vinissimus</span>
+<span class="opacity-60">9,800 Keywords</span>
+</div>
+<div class="w-full bg-surface-container-highest h-4 rounded-full overflow-hidden">
+<div class="bg-on-primary-fixed-variant h-full w-[98%]"></div>
+</div>
+</div>
+<!-- Bar 3 -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Decántalo</span>
+<span class="opacity-60">3,200 Keywords</span>
+</div>
+<div class="w-full bg-surface-container-highest h-4 rounded-full overflow-hidden">
+<div class="bg-primary-container h-full w-[32%]"></div>
+</div>
+</div>
+</div>
+<div class="mt-12 p-4 bg-surface-container-highest/40 rounded-lg border border-outline-variant/10">
+<p class="text-xs italic text-on-surface-variant leading-relaxed">"Vinissimus lidera en volumen total, pero Bodeboca muestra un crecimiento relativo un 14% superior en el último trimestre."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Strategic Note -->
+<footer class="pt-12 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center gap-6 opacity-60">
+<p class="text-xs uppercase tracking-[0.2em]">Generated by AION Precision Engine v4.0</p>
+<div class="flex gap-6">
+<a class="text-xs hover:text-secondary-fixed transition-colors" href="#">Privacy Policy</a>
+<a class="text-xs hover:text-secondary-fixed transition-colors" href="#">Methodology</a>
+<a class="text-xs hover:text-secondary-fixed transition-colors" href="#">API Status</a>
+</div>
+</footer>
+</div>
+</main>
+<!-- Fixed Pagination / HUD Elements -->
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 glass-effect bg-surface-variant/60 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.4)] z-50">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_#69FF87]"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest/50"></div>
+<div class="h-4 w-[1px] bg-outline-variant/20 mx-2"></div>
+<span class="text-[0.6rem] uppercase tracking-widest font-black text-on-surface">Page 1 / 8</span>
+</div>
+</body></html>

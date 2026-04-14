@@ -1,11 +1,12 @@
 ---
 export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { getClient, getLatestSnapshot, getAllSnapshots, getClientOnboarding } from '../../lib/db';
+import { getClient, getLatestSnapshot, getAllSnapshots, getClientOnboarding, getRecommendationsByPillar } from '../../lib/db';
 import type { Tier } from '../../lib/demo-data';
 import { computeKeywordOpportunities, autoSelectPriorities } from '../../lib/seo/keyword-opportunities';
 import { computeOnPageIssues } from '../../lib/audit/on-page-issues';
 import KeywordConfigurator from '../../components/dashboard/KeywordConfigurator.astro';
+import PillarRecommendations from '../../components/dashboard/PillarRecommendations.astro';
 
 const client = Astro.locals.client ?? await getClient();
 const tier: Tier = client.tier;
@@ -33,6 +34,7 @@ const autoSelectedKeywords = autoSelectPriorities(keywordOpportunities, 8);
 const r = snapshot.pipeline_output || {};
 const pr = prevSnap?.pipeline_output || {};
 const seo = r.seo || {};
+const seoRecs = await getRecommendationsByPillar(client.id, 'seo');
 const prevSeo = pr.seo || {};
 const gsc = r.analytics?.gsc;
 const prevGsc = pr.analytics?.gsc;
@@ -1096,4 +1098,12 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
     });
   });
 </script>
+
+<PillarRecommendations
+  pillar="seo"
+  accentColor="#1A4B8C"
+  accentBg="#f0f4ff"
+  recs={seoRecs}
+  pillarLabel="SEO"
+/>
 </DashboardLayout>

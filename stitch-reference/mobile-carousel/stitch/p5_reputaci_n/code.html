@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#d6e3ff",
+              "on-error": "#690005",
+              "outline": "#8d909b",
+              "surface-container-highest": "#333348",
+              "surface-container-high": "#28283d",
+              "surface": "#111125",
+              "primary": "#aac7ff",
+              "primary-fixed-dim": "#aac7ff",
+              "on-surface": "#e2e0fc",
+              "on-secondary": "#003912",
+              "tertiary-fixed": "#86f8c9",
+              "on-secondary-container": "#004317",
+              "outline-variant": "#434750",
+              "on-primary-fixed": "#001b3e",
+              "surface-bright": "#37374d",
+              "surface-tint": "#aac7ff",
+              "on-tertiary-fixed": "#002115",
+              "inverse-primary": "#325ea0",
+              "tertiary-container": "#00573e",
+              "tertiary-fixed-dim": "#68dbae",
+              "primary-container": "#1a4b8c",
+              "on-background": "#e2e0fc",
+              "inverse-surface": "#e2e0fc",
+              "surface-dim": "#111125",
+              "secondary-fixed": "#69ff87",
+              "on-tertiary-fixed-variant": "#00513a",
+              "on-tertiary-container": "#5dd1a4",
+              "error": "#ffb4ab",
+              "background": "#111125",
+              "on-primary-container": "#99bdff",
+              "surface-variant": "#333348",
+              "secondary": "#48e26e",
+              "on-secondary-fixed": "#002108",
+              "on-primary-fixed-variant": "#124687",
+              "secondary-fixed-dim": "#48e26e",
+              "surface-container-lowest": "#0c0c1f",
+              "surface-container-low": "#1a1a2e",
+              "error-container": "#93000a",
+              "on-primary": "#002f64",
+              "tertiary": "#68dbae",
+              "on-surface-variant": "#c3c6d2",
+              "inverse-on-surface": "#2f2e43",
+              "surface-container": "#1e1e32",
+              "on-error-container": "#ffdad6",
+              "on-tertiary": "#003827",
+              "on-secondary-fixed-variant": "#00531e",
+              "secondary-container": "#03bc4e"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      body { font-family: 'Inter', sans-serif; background-color: #111125; color: #e2e0fc; margin: 0; padding: 0; }
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .glass-panel { background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(12px); }
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-[812px] w-[375px] mx-auto overflow-hidden flex flex-col relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-5 h-14 bg-[#111125]/60 backdrop-blur-xl z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#aac7ff]" data-icon="clinical_notes">clinical_notes</span>
+<span class="text-xl font-bold tracking-tighter text-[#aac7ff]">AION</span>
+<span class="text-[10px] uppercase tracking-widest text-[#e2e0fc]/40 ml-1">dominio.com</span>
+</div>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:opacity-80 transition-opacity active:scale-95 duration-150">
+            Exportar PDF
+        </button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto hide-scrollbar pt-20 pb-24 px-5">
+<!-- Hero Section: Editorial Header -->
+<section class="mb-12">
+<div class="inline-flex items-center gap-2 bg-surface-container-high px-3 py-1 rounded-full mb-4">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse"></span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-secondary-fixed">Métricas de Reputación</span>
+</div>
+<h1 class="text-[3.5rem] font-extrabold leading-[0.9] tracking-tighter text-on-surface mb-2">
+                Autoridad <span class="text-primary">&amp;</span> reputación.
+            </h1>
+<p class="text-on-surface-variant text-sm leading-relaxed max-w-[280px]">
+                Análisis multidimensional de la percepción de marca y posicionamiento orgánico.
+            </p>
+</section>
+<!-- Bento Grid: Ratings & Reviews -->
+<div class="grid grid-cols-2 gap-4 mb-10">
+<!-- Google Business Profile -->
+<div class="col-span-1 bg-surface-container-low p-5 rounded-xl flex flex-col justify-between aspect-square">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary" data-icon="google">google</span>
+<span class="text-[10px] font-bold uppercase tracking-[0.05em] text-outline">GBP</span>
+</div>
+<div>
+<div class="text-3xl font-bold text-on-surface tracking-tighter">4.8</div>
+<div class="flex gap-0.5 my-1">
+<span class="material-symbols-outlined text-secondary-fixed text-xs" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary-fixed text-xs" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary-fixed text-xs" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary-fixed text-xs" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary-fixed text-xs" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<div class="text-[10px] text-on-surface-variant">124 reseñas activas</div>
+</div>
+</div>
+<!-- Trustpilot -->
+<div class="col-span-1 bg-surface-container-low p-5 rounded-xl flex flex-col justify-between aspect-square">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-[#00b67a]" data-icon="verified_user">verified_user</span>
+<span class="text-[10px] font-bold uppercase tracking-[0.05em] text-outline">Trustpilot</span>
+</div>
+<div>
+<div class="text-3xl font-bold text-on-surface tracking-tighter">Excelente</div>
+<div class="bg-[#00b67a] h-1.5 w-full mt-2 rounded-full overflow-hidden">
+<div class="bg-white/40 h-full w-[92%]"></div>
+</div>
+<div class="text-[10px] text-on-surface-variant mt-2">Score: 4.6 / 5</div>
+</div>
+</div>
+</div>
+<!-- Press Presence: Editorial List -->
+<section class="mb-12">
+<h2 class="text-xs font-bold uppercase tracking-[0.1em] text-primary mb-6 flex items-center gap-2">
+<span class="w-4 h-[1px] bg-primary"></span> Presencia en Prensa
+            </h2>
+<div class="space-y-6">
+<div class="group">
+<span class="text-[10px] font-bold text-secondary-fixed uppercase block mb-1">El Economista</span>
+<h3 class="text-lg font-semibold leading-snug text-on-surface group-hover:text-primary transition-colors">La disrupción digital de [Marca] en el sector retail</h3>
+</div>
+<div class="group">
+<span class="text-[10px] font-bold text-secondary-fixed uppercase block mb-1">Forbes Spain</span>
+<h3 class="text-lg font-semibold leading-snug text-on-surface group-hover:text-primary transition-colors">Top 50 marcas con mayor crecimiento orgánico 2024</h3>
+</div>
+<div class="group">
+<span class="text-[10px] font-bold text-secondary-fixed uppercase block mb-1">TechCrunch</span>
+<h3 class="text-lg font-semibold leading-snug text-on-surface group-hover:text-primary transition-colors">Innovación y escalabilidad: El caso de éxito de AION</h3>
+</div>
+</div>
+</section>
+<!-- Social & Content Grid -->
+<div class="grid grid-cols-2 gap-4 mb-12">
+<!-- Instagram Engagement -->
+<div class="col-span-1 bg-surface-container-high p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary-fixed-dim text-xl" data-icon="photo_camera">photo_camera</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Instagram</span>
+</div>
+<div class="text-2xl font-bold text-on-surface tracking-tighter">12.4K</div>
+<div class="text-[10px] text-secondary-fixed font-bold mt-1">4.2% Engagement</div>
+</div>
+<!-- Blog Frequency -->
+<div class="col-span-1 bg-surface-container-high p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary-fixed-dim text-xl" data-icon="article">article</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Blog Activo</span>
+</div>
+<div class="text-2xl font-bold text-on-surface tracking-tighter">8 posts</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Frecuencia Mensual</div>
+</div>
+</div>
+<!-- AI Executive Message -->
+<section class="bg-primary-container/20 rounded-2xl p-6 mb-8 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-icon="psychology">psychology</span>
+</div>
+<h4 class="text-[10px] font-bold uppercase tracking-[0.15em] text-primary mb-3">Mensaje Ejecutivo LLM</h4>
+<p class="text-sm italic leading-relaxed text-on-primary-container">
+                "La marca mantiene una **autoridad de dominio robusta**. Sin embargo, la frecuencia del blog es óptima para SEO tradicional pero sub-óptima para la nueva era de **SGE (Search Generative Experience)**. Se recomienda pivotar hacia contenido de alta especificidad técnica para blindar la reputación frente a IA generativa."
+            </p>
+</section>
+</main>
+<!-- BottomNavBar / Navigation Dots -->
+<nav class="fixed bottom-8 left-0 w-full z-50 flex justify-center items-center gap-3">
+<div class="flex gap-2.5 px-4 py-2 glass-panel rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<!-- Active Dot -->
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(105,255,135,0.6)] scale-125 blur-[0.5px]"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></span>
+</div>
+</nav>
+</body></html>

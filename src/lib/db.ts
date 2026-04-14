@@ -82,7 +82,10 @@ function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdo
   // GEO
   const geoScore = geo.mentionRate ?? geo.overallScore ?? 0;
 
-  // Web
+  // Web — pagespeed (60%) + techChecks (25%) + techstack maturity (15%)
+  // techstack moved from Reputation to Web: it's a measurement / engineering
+  // signal, not an external reputation signal.
+  const tech = po.techstack || {};
   const psScore = ps.mobile?.performance ?? 0;
   let techChecks = 0;
   if (ssl.valid !== false) techChecks += 25;
@@ -90,7 +93,10 @@ function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdo
   if (crawl.hasSchemaMarkup) techChecks += 30;
   if (crawl.hasSitemap) techChecks += 20;
   if (crawl.hasRobots) techChecks += 5;
-  const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
+  const techstackMaturity = (tech.maturityScore != null && tech.maturityScore > 0) ? tech.maturityScore : null;
+  const webScore = techstackMaturity != null
+    ? Math.min(100, Math.round(psScore * 0.6 + techChecks * 0.25 + techstackMaturity * 0.15))
+    : Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
 
   // Conversion
   const conversionScore = Math.min(100, conv.funnelScore ?? 20);

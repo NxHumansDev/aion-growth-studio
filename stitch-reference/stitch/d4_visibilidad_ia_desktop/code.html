@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AION | AI Visibility - bodeboca.com</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface": "#e2e0fc",
+                        "tertiary-fixed-dim": "#68dbae",
+                        "surface-tint": "#aac7ff",
+                        "secondary-fixed": "#69ff87",
+                        "outline": "#8d909b",
+                        "surface-container-low": "#1a1a2e",
+                        "inverse-surface": "#e2e0fc",
+                        "surface-container-lowest": "#0c0c1f",
+                        "on-background": "#e2e0fc",
+                        "tertiary-fixed": "#86f8c9",
+                        "surface": "#111125",
+                        "secondary-fixed-dim": "#48e26e",
+                        "on-tertiary-container": "#5dd1a4",
+                        "on-tertiary-fixed": "#002115",
+                        "surface-bright": "#37374d",
+                        "secondary": "#48e26e",
+                        "secondary-container": "#03bc4e",
+                        "on-error-container": "#ffdad6",
+                        "surface-dim": "#111125",
+                        "on-secondary": "#003912",
+                        "surface-container-highest": "#333348",
+                        "on-primary": "#002f64",
+                        "on-error": "#690005",
+                        "inverse-primary": "#325ea0",
+                        "on-secondary-fixed": "#002108",
+                        "surface-container-high": "#28283d",
+                        "on-primary-fixed-variant": "#124687",
+                        "on-surface-variant": "#c3c6d2",
+                        "tertiary": "#68dbae",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#004317",
+                        "inverse-on-surface": "#2f2e43",
+                        "primary-container": "#1a4b8c",
+                        "error-container": "#93000a",
+                        "background": "#111125",
+                        "on-tertiary-fixed-variant": "#00513a",
+                        "on-secondary-fixed-variant": "#00531e",
+                        "primary-fixed-dim": "#aac7ff",
+                        "surface-container": "#1e1e32",
+                        "primary": "#aac7ff",
+                        "on-tertiary": "#003827",
+                        "on-primary-container": "#99bdff",
+                        "tertiary-container": "#00573e",
+                        "primary-fixed": "#d6e3ff",
+                        "on-primary-fixed": "#001b3e",
+                        "surface-variant": "#333348",
+                        "outline-variant": "#434750"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111125; }
+        ::-webkit-scrollbar-thumb { background: #333348; border-radius: 10px; }
+        .glass-panel {
+            background: rgba(26, 26, 46, 0.6);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-secondary-fixed selection:text-on-secondary-fixed">
+<!-- TopNavBar (Shared Component) -->
+<nav class="bg-[#111125]/60 backdrop-blur-xl text-[#aac7ff] font-['Inter'] font-medium text-sm tracking-wide docked full-width top-0 sticky z-40 shadow-[0_10_40px_rgba(0,0,0,0.4)] flex justify-between items-center w-full px-6 py-4">
+<div class="text-2xl font-black tracking-tighter text-[#aac7ff]">AION</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Dashboard</a>
+<a class="text-[#69FF87] font-bold" href="#">AI Visibility</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Market Insight</a>
+<a class="text-[#e2e0fc]/70 hover:text-[#69FF87] transition-colors duration-300" href="#">Performance</a>
+</div>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-5 py-2 rounded-full font-bold active:scale-95 transition-transform">Export PDF</button>
+</nav>
+<div class="flex">
+<!-- SideNavBar (Shared Component) -->
+<aside class="bg-[#1a1a2e] font-['Inter'] uppercase tracking-[0.05em] text-[0.6875rem] fixed left-0 top-0 h-screen w-64 flex flex-col h-full py-8 z-50">
+<div class="px-6 mb-8">
+<div class="text-xl font-bold text-[#aac7ff]">AION</div>
+<div class="text-[10px] text-on-surface-variant opacity-60">Precision Oracle</div>
+</div>
+<nav class="flex flex-col no-border space-y-1 overflow-y-auto">
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">dashboard</span> Summary
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">visibility</span> Digital Visibility
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">search</span> Organic SEO
+                </div>
+<div class="text-[#69FF87] bg-[#333348] rounded-r-full border-r-4 border-[#69FF87] cursor-pointer flex items-center gap-3 px-6 py-4 transition-all duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span> AI Visibility
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">star_rate</span> Reputation
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">speed</span> Web &amp; Performance
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">checklist</span> Action Plan
+                </div>
+<div class="text-[#e2e0fc]/60 hover:bg-[#333348]/50 hover:text-[#e2e0fc] cursor-pointer flex items-center gap-3 px-6 py-4 hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined">radar</span> Radar
+                </div>
+</nav>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 flex-1 p-12 bg-[#FFFFFF] min-h-screen text-surface">
+<!-- Editorial Header -->
+<div class="mb-16">
+<h1 class="text-on-primary-fixed-variant text-4xl font-extrabold tracking-tight mb-2">Visibilidad en IA Generativa</h1>
+<p class="text-outline font-medium">bodeboca.com — Auditoría de Presencia en LLMs</p>
+</div>
+<!-- Hero Score Section -->
+<section class="mb-16 flex flex-col md:flex-row items-center gap-12 bg-surface-container-low rounded-[2.5rem] p-12 text-on-surface">
+<div class="relative w-64 h-64 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container-highest" cx="128" cy="128" fill="transparent" r="110" stroke="currentColor" stroke-width="24"></circle>
+<circle cx="128" cy="128" fill="transparent" r="110" stroke="url(#gradientScore)" stroke-dasharray="691" stroke-dashoffset="290" stroke-linecap="round" stroke-width="24"></circle>
+<defs>
+<lineargradient id="gradientScore" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" style="stop-color:#69FF87"></stop>
+<stop offset="100%" style="stop-color:#5dd1a4"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="text-6xl font-black tracking-tighter leading-none">58%</span>
+</div>
+</div>
+<div class="flex-1 space-y-4">
+<div class="label-sm font-label uppercase tracking-[0.1em] text-secondary-fixed">Global Mention Rate</div>
+<h2 class="text-5xl font-bold tracking-tight">Tasa de mención global</h2>
+<p class="text-on-surface-variant max-w-xl text-lg">Su marca es referenciada en más de la mitad de las consultas analizadas. Esta visibilidad posiciona a Bodeboca como el referente principal en la categoría vinícola frente a motores de razonamiento.</p>
+</div>
+</section>
+<!-- Engines Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+<!-- ChatGPT -->
+<div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between h-56 transition-all hover:bg-surface-container-highest">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-medium">ChatGPT</span>
+<span class="material-symbols-outlined text-secondary-fixed">bolt</span>
+</div>
+<div>
+<div class="text-4xl font-bold text-on-surface">42%</div>
+<div class="w-full bg-surface-container-low h-1.5 mt-3 rounded-full overflow-hidden">
+<div class="bg-secondary-fixed h-full w-[42%]"></div>
+</div>
+</div>
+</div>
+<!-- Claude -->
+<div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between h-56 transition-all hover:bg-surface-container-highest">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-medium">Claude</span>
+<span class="material-symbols-outlined text-secondary-fixed">auto_awesome</span>
+</div>
+<div>
+<div class="text-4xl font-bold text-on-surface">42%</div>
+<div class="w-full bg-surface-container-low h-1.5 mt-3 rounded-full overflow-hidden">
+<div class="bg-secondary-fixed h-full w-[42%]"></div>
+</div>
+</div>
+</div>
+<!-- Gemini -->
+<div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between h-56 transition-all hover:bg-surface-container-highest opacity-80">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-medium">Gemini</span>
+<span class="material-symbols-outlined text-primary">cloud</span>
+</div>
+<div>
+<div class="text-4xl font-bold text-on-surface">17%</div>
+<div class="w-full bg-surface-container-low h-1.5 mt-3 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[17%]"></div>
+</div>
+</div>
+</div>
+<!-- Perplexity -->
+<div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between h-56 transition-all hover:bg-surface-container-highest opacity-60">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-medium">Perplexity</span>
+<span class="material-symbols-outlined text-error">language</span>
+</div>
+<div>
+<div class="text-4xl font-bold text-on-surface">8%</div>
+<div class="w-full bg-surface-container-low h-1.5 mt-3 rounded-full overflow-hidden">
+<div class="bg-error h-full w-[8%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Detailed Queries Table -->
+<section>
+<div class="flex items-end justify-between mb-8">
+<div>
+<h3 class="text-2xl font-bold text-surface mb-1">Consultas Detalladas</h3>
+<p class="text-outline text-sm">Desglose por motor de búsqueda e intención de compra</p>
+</div>
+<div class="flex gap-4">
+<span class="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-outline"><span class="w-2 h-2 rounded-full bg-secondary-fixed"></span> Mención</span>
+<span class="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-outline"><span class="w-2 h-2 rounded-full bg-surface-container-highest"></span> N/A</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-highest text-on-surface uppercase text-[10px] tracking-widest font-bold">
+<th class="px-8 py-6">Prompt / Consulta</th>
+<th class="px-4 py-6 text-center">Etapa</th>
+<th class="px-4 py-6 text-center">ChatGPT</th>
+<th class="px-4 py-6 text-center">Claude</th>
+<th class="px-4 py-6 text-center">Gemini</th>
+<th class="px-4 py-6 text-center">Perplexity</th>
+</tr>
+</thead>
+<tbody class="text-on-surface text-sm divide-y divide-surface-container-high">
+<!-- Generation of 20 representative rows -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Mejores tintos Ribera del Duero 2024"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-primary-container text-[10px] text-on-primary-container font-bold">TOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Comprar vino online entrega 24h"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-secondary-container text-[10px] text-on-secondary-container font-bold">BOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Diferencia entre Rioja y Ribera calidad-precio"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary-container text-[10px] text-on-tertiary-container font-bold">MOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<!-- Repeat logic for visual representation of 20 rows -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Regalo para amante de los vinos blancos"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary-container text-[10px] text-on-tertiary-container font-bold">MOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<!-- Sample of 5 rows repeated visually for the mockup -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Bodeboca opiniones clientes 2024"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-secondary-container text-[10px] text-on-secondary-container font-bold">BOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Suscripción mensual vino recomendación"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-primary-container text-[10px] text-on-primary-container font-bold">TOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Vinos premiados Decanter por menos de 20€"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary-container text-[10px] text-on-tertiary-container font-bold">MOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Venta privada de vinos exclusivos España"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-secondary-container text-[10px] text-on-secondary-container font-bold">BOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<!-- More placeholder rows to reach 20 -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Mejor cava para celebraciones"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-primary-container text-[10px] text-on-primary-container font-bold">TOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Código descuento Bodeboca primera compra"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-secondary-container text-[10px] text-on-secondary-container font-bold">BOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Vinos de Jerez recomendados para aperitivo"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary-container text-[10px] text-on-tertiary-container font-bold">MOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Cómo conservar el vino tinto una vez abierto"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-primary-container text-[10px] text-on-primary-container font-bold">TOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Maridaje para sushi con vino blanco"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary-container text-[10px] text-on-tertiary-container font-bold">MOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Ofertas Black Friday vinos de lujo"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-secondary-container text-[10px] text-on-secondary-container font-bold">BOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-secondary-fixed">check_circle</span></td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-8 py-4 font-medium italic">"Diferencia entre crianza, reserva y gran reserva"</td>
+<td class="px-4 py-4 text-center"><span class="px-2 py-1 rounded bg-primary-container text-[10px] text-on-primary-container font-bold">TOFU</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+<td class="px-4 py-4 text-center"><span class="material-symbols-outlined text-outline/30">cancel</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
+<!-- Floating Action Element -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="flex items-center gap-3 bg-primary text-on-primary p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined">magic_button</span>
+<span class="font-bold pr-2">Update Analysis</span>
+</button>
+</div>
+</body></html>

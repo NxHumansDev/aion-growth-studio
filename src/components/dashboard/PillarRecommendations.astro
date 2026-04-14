@@ -1,0 +1,142 @@
+---
+/**
+ * Recomendaciones de un pilar concreto, renderizadas al final de su página.
+ * Replica el patrón de la página GEO para SEO/Web/Conversión/Contenido/Reputación.
+ *
+ * Props:
+ *   pillar: 'seo' | 'web' | 'conversion' | 'content' | 'reputation' | 'geo'
+ *   accentColor: color principal del pilar (texto + borde)
+ *   accentBg: fondo claro del pilar (badge + caja info)
+ *   recs: lista filtrada por pilar (Recommendation[] de getRecommendationsByPillar)
+ *   pillarLabel: nombre humano para el copy ("SEO", "Conversión"...)
+ *   intro?: texto introductorio personalizado por pilar (opcional, hay default)
+ */
+import type { Recommendation } from '../../lib/db';
+
+interface Props {
+  pillar: string;
+  accentColor: string;
+  accentBg: string;
+  recs: Recommendation[];
+  pillarLabel: string;
+  intro?: string;
+}
+
+const { pillar, accentColor, accentBg, recs, pillarLabel, intro } = Astro.props as Props;
+
+const impactColor: Record<string, { bg: string; fg: string; label: string }> = {
+  high:   { bg: '#FCEBEB', fg: '#E24B4A', label: 'Alto' },
+  medium: { bg: '#FAEEDA', fg: '#BA7517', label: 'Medio' },
+  low:    { bg: '#E1F5EE', fg: '#1D9E75', label: 'Bajo' },
+};
+
+const defaultIntros: Record<string, string> = {
+  seo: 'Acciones priorizadas para mejorar tu posicionamiento orgánico.',
+  geo: 'Acciones para que las IAs te recomienden más.',
+  web: 'Acciones para mejorar la velocidad y calidad técnica de tu web.',
+  conversion: 'Acciones para que más visitantes se conviertan en leads o ventas.',
+  content: 'Acciones para reforzar tu cadencia y autoridad de contenido.',
+  reputation: 'Acciones para fortalecer tu reputación pública y autoridad de marca.',
+};
+const introText = intro || defaultIntros[pillar] || `Acciones recomendadas para el pilar ${pillarLabel}.`;
+---
+
+{recs.length > 0 && (
+  <section style="margin-top:32px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span class="material-symbols-outlined" style={`font-size:20px;color:${accentColor};`}>lightbulb</span>
+      <h2 style="font-size:15px;font-weight:800;color:#1a1a2e;">Recomendaciones de {pillarLabel}</h2>
+    </div>
+    <div style={`background:${accentBg};border-radius:10px;padding:14px 18px;margin-bottom:16px;border-left:3px solid ${accentColor};`}>
+      <p style="font-size:13px;color:#434750;line-height:1.5;">
+        {introText} <strong>Inclúyelas en tu Plan de Acción o descártalas si no aplican.</strong>
+      </p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      {recs.map(rec => {
+        const impact = impactColor[(rec as any).impact || 'medium'];
+        const detail = (rec.data as any)?.detail || (rec as any).detail;
+        return (
+          <div class="pillar-rec-card" data-rec-id={rec.id} style="background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-start;">
+            <div style={`flex-shrink:0;width:40px;height:40px;border-radius:10px;background:${accentBg};display:flex;align-items:center;justify-content:center;`}>
+              <span class="material-symbols-outlined" style={`font-size:20px;color:${accentColor};`}>auto_awesome</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>
+                  Impacto {impact.label}
+                </span>
+                <span style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">{pillarLabel}</span>
+              </div>
+              <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
+              {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
+              {detail && (
+                <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
+                  <summary style={`font-size:12px;font-weight:700;color:${accentColor};display:flex;align-items:center;gap:4px;list-style:none;`}>
+                    <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+                    Saber más — guía paso a paso
+                  </summary>
+                  <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                    {detail}
+                  </div>
+                </details>
+              )}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
+              <button class="btn-pillar-accept" data-rec-id={rec.id} data-title={rec.title} data-desc={rec.description ?? ''} data-impact={(rec as any).impact ?? ''}
+                style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                <span class="material-symbols-outlined" style="font-size:16px;">add_task</span>
+                Añadir a Plan
+              </button>
+              <button class="btn-pillar-reject" data-rec-id={rec.id}
+                style="background:#f0f0f0;color:#64748b;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                Descartar
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+)}
+
+<script>
+  // Idempotent — múltiples instancias del componente comparten este script.
+  if (!(window as any).__pillarRecsHandlersAttached) {
+    (window as any).__pillarRecsHandlersAttached = true;
+
+    async function callRecAPI(body: Record<string, any>) {
+      return fetch('/api/dashboard/update-action', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+    }
+
+    document.addEventListener('click', async (e) => {
+      const target = e.target as Element | null;
+      const acceptBtn = target?.closest?.('.btn-pillar-accept') as HTMLButtonElement | null;
+      const rejectBtn = target?.closest?.('.btn-pillar-reject') as HTMLButtonElement | null;
+      if (!acceptBtn && !rejectBtn) return;
+
+      const card = (acceptBtn || rejectBtn)!.closest('.pillar-rec-card') as HTMLElement;
+      if (!card) return;
+      const recId = card.getAttribute('data-rec-id');
+      if (!recId) return;
+
+      if (acceptBtn) {
+        acceptBtn.disabled = true;
+        acceptBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">hourglass_empty</span> Añadiendo...';
+        const res = await callRecAPI({ recommendationId: recId, status: 'accepted' });
+        if (res.ok) { card.style.opacity = '0.4'; acceptBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">check</span> Añadida'; }
+        else { acceptBtn.disabled = false; acceptBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">add_task</span> Añadir a Plan'; alert('Error al añadir'); }
+      } else if (rejectBtn) {
+        const reason = prompt('¿Por qué descartas esta recomendación?', 'No relevante ahora');
+        if (reason === null) return;
+        rejectBtn.disabled = true;
+        const res = await callRecAPI({ recommendationId: recId, status: 'rejected', feedback: reason });
+        if (res.ok) card.remove();
+        else { rejectBtn.disabled = false; alert('Error al descartar'); }
+      }
+    });
+  }
+</script>

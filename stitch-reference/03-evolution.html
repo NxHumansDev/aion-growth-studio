@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .chart-gradient {
+            background: linear-gradient(180deg, rgba(26, 75, 140, 0.1) 0%, rgba(26, 75, 140, 0) 100%);
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-surface": "#1a1a2e",
+              "tertiary-container": "#793b00",
+              "outline-variant": "#c3c6d2",
+              "outline": "#737781",
+              "on-tertiary-container": "#ffa96a",
+              "inverse-primary": "#aac7ff",
+              "on-tertiary": "#ffffff",
+              "inverse-on-surface": "#f2efff",
+              "on-primary-fixed": "#001b3e",
+              "surface-variant": "#e2e0fc",
+              "surface-bright": "#fcf8ff",
+              "on-background": "#1a1a2e",
+              "background": "#fcf8ff",
+              "surface-tint": "#325ea0",
+              "tertiary": "#572900",
+              "surface-container-high": "#e8e5ff",
+              "primary-fixed": "#d6e3ff",
+              "on-primary-fixed-variant": "#124687",
+              "surface": "#fcf8ff",
+              "on-secondary-fixed-variant": "#00458f",
+              "on-secondary-fixed": "#001b3f",
+              "surface-dim": "#dad7f3",
+              "secondary": "#205db0",
+              "on-surface-variant": "#434750",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed": "#ffdcc6",
+              "on-primary-container": "#99bdff",
+              "surface-container-low": "#f5f2ff",
+              "secondary-fixed-dim": "#abc7ff",
+              "on-secondary-container": "#003a7a",
+              "on-primary": "#ffffff",
+              "on-error-container": "#93000a",
+              "surface-container-highest": "#e2e0fc",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed-variant": "#713700",
+              "primary": "#00346d",
+              "error": "#ba1a1a",
+              "primary-container": "#1a4b8c",
+              "surface-container": "#efecff",
+              "on-secondary": "#ffffff",
+              "tertiary-fixed-dim": "#ffb785",
+              "inverse-surface": "#2f2e43",
+              "on-error": "#ffffff",
+              "secondary-fixed": "#d7e3ff",
+              "on-tertiary-fixed": "#301400",
+              "secondary-container": "#73a6fe",
+              "primary-fixed-dim": "#aac7ff"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- SideNavBar Shell -->
+<aside class="h-full w-64 fixed left-0 top-0 z-50 bg-[#1a1a2e] dark:bg-slate-950 flex flex-col py-6 no-border shadow-2xl shadow-black/20 font-['Inter'] antialiased tracking-tight text-sm">
+<div class="px-6 mb-10">
+<h1 class="text-lg font-bold tracking-tighter text-white">AION Growth Studio</h1>
+<p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Marketing Intelligence</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span>Monthly Report</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-white bg-blue-600/10 border-r-4 border-blue-500 font-semibold active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">trending_up</span>
+<span>Evolution</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">group</span>
+<span>Competitors</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg text-blue-400">notifications_active</span>
+<span>Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">search_check</span>
+<span>SEO Opportunities</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">payments</span>
+<span>Paid Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span>Content Briefs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">edit_note</span>
+<span>Content Generator</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">settings_suggest</span>
+<span>Technical Optimization</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors duration-200 hover:bg-slate-800/50 transition-all active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-lg">schema</span>
+<span>Schema</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-800/50 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-white transition-colors text-xs" href="#">
+<span class="material-symbols-outlined text-sm">api</span>
+<span>Connections</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-white transition-colors text-xs" href="#">
+<span class="material-symbols-outlined text-sm">settings</span>
+<span>Settings</span>
+</a>
+<div class="px-4 py-4 mt-2">
+<div class="bg-blue-600/10 rounded-xl p-3 border border-blue-500/20">
+<p class="text-white font-bold text-xs">Premium Plan</p>
+<p class="text-slate-400 text-[10px]">Renewal in 12 days</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar Shell -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex justify-between items-center h-16 px-8 ml-64 bg-[#fcf8ff] dark:bg-slate-950 border-none">
+<div class="flex items-center gap-6">
+<span class="text-xl font-black text-[#1a1a2e] dark:text-white">Soluciones Verdes</span>
+<nav class="flex gap-6 font-['Inter'] text-sm font-medium">
+<a class="text-blue-700 dark:text-blue-400 font-bold border-b-2 border-blue-700 cursor-pointer active:opacity-70" href="#">Evolución</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 hover:text-blue-600 transition-colors cursor-pointer active:opacity-70" href="#">solucionesverdes.es</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-slate-400 text-xs font-medium">Last Report: Oct 2023</span>
+<button class="bg-primary-container text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm hover:opacity-90 transition-all">Señales</button>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container-high border-2 border-white shadow-sm">
+<img class="w-full h-full object-cover" data-alt="professional male executive headshot with neutral background and soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOlOjx8C8OUws0v-OhidzaIlfoD6srYlov35_vEQZ-a9pv0GD6H4amKfur7ew5DezLBn1MVvv8HnxZpWIKigoj7qW5VIEqJTvC3s7PTPUFPe3Tra9PCkNUBdqsBWI7ZAqIIljNvvv_Eub6-UO-U2FWA7P-NM6s_rDqSXIEMkI6iijZauY8nSt9tR6ZDSKmrlkQ7EVzfrHyqJPfRtM83XOpiP4ui4BOqCZ-tguUsVuJYOQvNtIa0mQ6buHe0j5cncTS5AgU7LJioGg"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 pb-12 px-10 min-h-screen bg-surface">
+<!-- Header Section -->
+<div class="mb-12">
+<span class="text-label-md font-bold text-primary tracking-widest uppercase mb-2 block">Performance Intelligence</span>
+<h2 class="text-4xl font-black text-on-surface tracking-tighter mb-4">Evolución Estratégica</h2>
+<p class="text-on-surface-variant max-w-2xl leading-relaxed">Análisis histórico detallado del rendimiento digital. Este informe consolida el crecimiento de marca y la eficiencia técnica durante los últimos 12 meses.</p>
+</div>
+<!-- Main Chart Block -->
+<div class="bg-surface-container-lowest rounded-xl p-8 mb-10 shadow-sm border border-outline-variant/10">
+<div class="flex justify-between items-end mb-10">
+<div>
+<h3 class="text-label-md font-bold text-on-surface-variant uppercase tracking-widest mb-1">Global Health Score</h3>
+<div class="flex items-baseline gap-3">
+<span class="text-5xl font-black text-on-surface tracking-tighter">84.2</span>
+<span class="text-green-600 font-bold text-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+                            +12.4% vs prev. year
+                        </span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-surface-container-high text-on-surface rounded-xl text-xs font-bold">12 Meses</button>
+<button class="px-4 py-2 hover:bg-surface-container-low text-on-surface-variant rounded-xl text-xs font-medium transition-colors">6 Meses</button>
+</div>
+</div>
+<!-- SVG Line Chart (Simulated) -->
+<div class="relative w-full h-64 mb-10">
+<svg class="w-full h-full overflow-visible" viewbox="0 0 1000 200">
+<!-- Subtle Grid Lines -->
+<line stroke="#c3c6d2" stroke-dasharray="4" stroke-width="0.5" x1="0" x2="1000" y1="0" y2="0"></line>
+<line stroke="#c3c6d2" stroke-dasharray="4" stroke-width="0.5" x1="0" x2="1000" y1="100" y2="100"></line>
+<line stroke="#c3c6d2" stroke-dasharray="4" stroke-width="0.5" x1="0" x2="1000" y1="200" y2="200"></line>
+<!-- Fill Area -->
+<path d="M0 200 L0 140 C 100 130, 200 150, 300 110 C 400 70, 500 90, 600 60 C 700 30, 800 50, 900 30 L 1000 20 L 1000 200 Z" fill="url(#chartGradient)"></path>
+<!-- Main Line -->
+<path d="M0 140 C 100 130, 200 150, 300 110 C 400 70, 500 90, 600 60 C 700 30, 800 50, 900 30 L 1000 20" fill="none" stroke="#1A4B8C" stroke-linecap="round" stroke-width="4"></path>
+<!-- Circle Points -->
+<circle cx="0" cy="140" fill="white" r="5" stroke="#1A4B8C" stroke-width="2"></circle>
+<circle cx="300" cy="110" fill="white" r="5" stroke="#1A4B8C" stroke-width="2"></circle>
+<circle cx="600" cy="60" fill="white" r="5" stroke="#1A4B8C" stroke-width="2"></circle>
+<circle cx="1000" cy="20" fill="#1A4B8C" r="6"></circle>
+<defs>
+<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#1A4B8C" stop-opacity="0.1"></stop>
+<stop offset="100%" stop-color="#1A4B8C" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+</svg>
+<!-- X-Axis Labels -->
+<div class="flex justify-between mt-4 px-2">
+<span class="text-[10px] font-bold text-outline uppercase tracking-tighter">Oct 22</span>
+<span class="text-[10px] font-bold text-outline uppercase tracking-tighter">Ene 23</span>
+<span class="text-[10px] font-bold text-outline uppercase tracking-tighter">Abr 23</span>
+<span class="text-[10px] font-bold text-outline uppercase tracking-tighter">Jul 23</span>
+<span class="text-[10px] font-bold text-on-surface font-black uppercase tracking-tighter">Oct 23</span>
+</div>
+</div>
+<!-- Timeline of Hitos -->
+<div class="relative pt-8 border-t border-surface-container-low">
+<div class="absolute top-8 left-0 w-full h-0.5 bg-surface-container-high"></div>
+<div class="grid grid-cols-5 relative z-10">
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-primary border-4 border-surface-container-lowest mb-3"></div>
+<p class="text-[10px] font-black text-on-surface-variant mb-1">MAR</p>
+<p class="text-[11px] text-center text-outline font-medium px-4">Robots.txt update</p>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-primary border-4 border-surface-container-lowest mb-3"></div>
+<p class="text-[10px] font-black text-on-surface-variant mb-1">ABR</p>
+<p class="text-[11px] text-center text-outline font-medium px-4">3 artículos blog</p>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-primary border-4 border-surface-container-lowest mb-3"></div>
+<p class="text-[10px] font-black text-on-surface-variant mb-1">JUN</p>
+<p class="text-[11px] text-center text-outline font-medium px-4">Migración CDN</p>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-primary border-4 border-surface-container-lowest mb-3"></div>
+<p class="text-[10px] font-black text-on-surface-variant mb-1">AGO</p>
+<p class="text-[11px] text-center text-outline font-medium px-4">Google Core Update</p>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-secondary border-4 border-surface-container-lowest mb-3"></div>
+<p class="text-[10px] font-black text-on-surface-variant mb-1">OCT</p>
+<p class="text-[11px] text-center text-outline font-medium px-4">Lanzamiento Social</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Grid of Sub-scores (3x2) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<!-- SEO Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">SEO</span>
+<span class="text-green-600 material-symbols-outlined">north_east</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">92</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 25 L20 20 L40 22 L60 10 L80 5 L100 2" fill="none" stroke="#1d9e75" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">Top keywords improved by 15%</p>
+</div>
+<!-- GEO Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">GEO</span>
+<span class="text-green-600 material-symbols-outlined">north_east</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">78</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 28 L20 25 L40 15 L60 18 L80 12 L100 8" fill="none" stroke="#1d9e75" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">Local citations +22 this month</p>
+</div>
+<!-- Paid Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">Paid</span>
+<span class="text-error material-symbols-outlined">south_east</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">64</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 5 L20 8 L40 15 L60 12 L80 18 L100 25" fill="none" stroke="#ba1a1a" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">CPC increase detected in Ads</p>
+</div>
+<!-- Social Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">Social</span>
+<span class="text-green-600 material-symbols-outlined">trending_up</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">81</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 25 L30 20 L60 10 L100 5" fill="none" stroke="#1d9e75" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">LinkedIn engagement peak</p>
+</div>
+<!-- Web Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">Web</span>
+<span class="text-on-surface-variant material-symbols-outlined">east</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">89</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 15 L100 15" fill="none" stroke="#737781" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">Uptime 99.9% - Stable</p>
+</div>
+<!-- Conversión Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-outline tracking-widest uppercase">Conversión</span>
+<span class="text-green-600 material-symbols-outlined">north_east</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<span class="text-3xl font-black text-on-surface">72</span>
+<div class="h-8 w-24">
+<svg class="w-full h-full" viewbox="0 0 100 30">
+<path d="M0 28 L25 22 L50 24 L75 10 L100 5" fill="none" stroke="#1d9e75" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<p class="text-[10px] font-medium text-on-surface-variant">New landing page boost +8%</p>
+</div>
+</div>
+<!-- Month-by-month Table -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/5">
+<div class="p-6 border-b border-surface-container-low flex justify-between items-center">
+<h3 class="text-lg font-black text-on-surface tracking-tight">Desglose de Métricas Mensuales</h3>
+<button class="text-xs font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">download</span>
+                    Exportar PDF para Reunión
+                </button>
+</div>
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Mes</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">Score</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">KW Top 10</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">Tráfico</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">GEO</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">PageSpeed</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">Bounce Rate</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low">
+<tr>
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Octubre 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">84.2</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">142</td>
+<td class="px-6 py-4 text-center text-sm font-medium">12.4k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-green-600">Alta</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold">98</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">42.1%</td>
+</tr>
+<tr class="bg-surface-container-low/30">
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Septiembre 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">81.5</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">138</td>
+<td class="px-6 py-4 text-center text-sm font-medium">11.9k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-green-600">Alta</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold">97</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">44.5%</td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Agosto 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-black">76.8</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">125</td>
+<td class="px-6 py-4 text-center text-sm font-medium">10.1k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-yellow-600">Media</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-[10px] font-bold">82</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">48.2%</td>
+</tr>
+<tr class="bg-surface-container-low/30">
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Julio 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">79.2</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">129</td>
+<td class="px-6 py-4 text-center text-sm font-medium">10.8k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-green-600">Alta</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold">91</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">46.7%</td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Junio 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-black">68.4</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">110</td>
+<td class="px-6 py-4 text-center text-sm font-medium">9.2k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-yellow-600">Media</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[10px] font-bold">65</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">55.2%</td>
+</tr>
+<tr class="bg-surface-container-low/30">
+<td class="px-6 py-4 font-bold text-sm text-on-surface">Mayo 23</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-black">72.1</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">118</td>
+<td class="px-6 py-4 text-center text-sm font-medium">9.8k</td>
+<td class="px-6 py-4 text-center text-sm font-medium text-yellow-600">Media</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-[10px] font-bold">78</span>
+</td>
+<td class="px-6 py-4 text-center text-sm font-medium">51.3%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</main>
+</body></html>

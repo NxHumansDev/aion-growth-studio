@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#d6e3ff",
+              "on-error": "#690005",
+              "outline": "#8d909b",
+              "surface-container-highest": "#333348",
+              "surface-container-high": "#28283d",
+              "surface": "#111125",
+              "primary": "#aac7ff",
+              "primary-fixed-dim": "#aac7ff",
+              "on-surface": "#e2e0fc",
+              "on-secondary": "#003912",
+              "tertiary-fixed": "#86f8c9",
+              "on-secondary-container": "#004317",
+              "outline-variant": "#434750",
+              "on-primary-fixed": "#001b3e",
+              "surface-bright": "#37374d",
+              "surface-tint": "#aac7ff",
+              "on-tertiary-fixed": "#002115",
+              "inverse-primary": "#325ea0",
+              "tertiary-container": "#00573e",
+              "tertiary-fixed-dim": "#68dbae",
+              "primary-container": "#1a4b8c",
+              "on-background": "#e2e0fc",
+              "inverse-surface": "#e2e0fc",
+              "surface-dim": "#111125",
+              "secondary-fixed": "#69ff87",
+              "on-tertiary-fixed-variant": "#00513a",
+              "on-tertiary-container": "#5dd1a4",
+              "error": "#ffb4ab",
+              "background": "#111125",
+              "on-primary-container": "#99bdff",
+              "surface-variant": "#333348",
+              "secondary": "#48e26e",
+              "on-secondary-fixed": "#002108",
+              "on-primary-fixed-variant": "#124687",
+              "secondary-fixed-dim": "#48e26e",
+              "surface-container-lowest": "#0c0c1f",
+              "surface-container-low": "#1a1a2e",
+              "error-container": "#93000a",
+              "on-primary": "#002f64",
+              "tertiary": "#68dbae",
+              "on-surface-variant": "#c3c6d2",
+              "inverse-on-surface": "#2f2e43",
+              "surface-container": "#1e1e32",
+              "on-error-container": "#ffdad6",
+              "on-tertiary": "#003827",
+              "on-secondary-fixed-variant": "#00531e",
+              "secondary-container": "#03bc4e"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #FCFAFF; /* Explicit requested light background */
+      }
+      .glass-nav {
+        background: rgba(17, 17, 37, 0.6);
+        backdrop-filter: blur(20px);
+      }
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased text-on-background selection:bg-secondary-fixed/30 min-h-[812px] max-w-[375px] mx-auto overflow-x-hidden relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-5 h-14 bg-[#111125]/60 dark:bg-[#111125]/60 backdrop-blur-xl z-50 no-border surface-container-low glassmorphism-blur">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#aac7ff]" data-icon="clinical_notes">clinical_notes</span>
+<span class="text-xl font-bold tracking-tighter text-[#aac7ff]">AION</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-[10px] font-bold tracking-[0.05em] uppercase text-[#e2e0fc]/70">vinissimus.com</span>
+<button class="bg-primary-container/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary border border-primary/20 hover:opacity-80 transition-opacity">
+                Exportar PDF
+            </button>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="pt-20 pb-28 px-5 overflow-y-auto h-full hide-scrollbar bg-[#FCFAFF]">
+<!-- Hero Section -->
+<section class="mb-10">
+<div class="flex items-end justify-between mb-2">
+<h1 class="text-4xl font-extrabold tracking-tight text-[#111125]">SEO Orgánico</h1>
+<div class="bg-secondary-fixed text-on-secondary-fixed px-3 py-1 rounded-full text-sm font-bold shadow-[0_0_20px_rgba(105,255,135,0.4)]">
+                    94/100
+                </div>
+</div>
+<p class="text-slate-500 text-sm leading-tight max-w-[280px]">Visibilidad editorial y dominancia en el sector vinícola.</p>
+</section>
+<!-- Bento Metric Grid -->
+<div class="grid grid-cols-2 gap-4 mb-8">
+<!-- Keywords Top 10 -->
+<div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between aspect-square">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keywords Top 10</span>
+<div>
+<div class="text-3xl font-extrabold text-[#111125] tracking-tighter">7.000</div>
+<div class="flex items-center text-secondary text-xs font-bold mt-1">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+<span>+12%</span>
+</div>
+</div>
+</div>
+<!-- Keywords Top 3 -->
+<div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between aspect-square">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keywords Top 3</span>
+<div>
+<div class="text-3xl font-extrabold text-[#111125] tracking-tighter">2.100</div>
+<div class="flex items-center text-secondary text-xs font-bold mt-1">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+<span>+8.4%</span>
+</div>
+</div>
+</div>
+<!-- Tráfico -->
+<div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between aspect-square">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tráfico Mensual</span>
+<div>
+<div class="text-3xl font-extrabold text-[#111125] tracking-tighter">287K</div>
+<div class="flex items-center text-secondary text-xs font-bold mt-1">
+<span class="material-symbols-outlined text-sm" data-icon="monitoring">monitoring</span>
+<span>+42K</span>
+</div>
+</div>
+</div>
+<!-- Valor -->
+<div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between aspect-square">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor de Mercado</span>
+<div>
+<div class="text-3xl font-extrabold text-[#111125] tracking-tighter">~350K</div>
+<div class="text-[10px] text-slate-400 font-bold mt-1 uppercase">EUR / Mes</div>
+</div>
+</div>
+</div>
+<!-- Featured Opportunity Card -->
+<div class="bg-white p-6 rounded-2xl border-2 border-secondary-fixed shadow-[0_20px_40px_rgba(0,0,0,0.05)] mb-12 relative overflow-hidden">
+<div class="absolute -right-4 -top-4 opacity-10">
+<span class="material-symbols-outlined text-8xl" data-icon="bolt">bolt</span>
+</div>
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-4">
+<span class="bg-secondary-fixed/20 text-on-secondary-fixed px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Oportunidad</span>
+</div>
+<h3 class="text-xl font-bold text-[#111125] mb-2 leading-tight">4.900 Keywords en el umbral del Top 3</h3>
+<p class="text-slate-500 text-sm mb-6">Palabras clave en posiciones 4-10 que requieren optimización de contenido técnica.</p>
+<div class="flex items-center gap-4">
+<div class="flex-1">
+<div class="text-2xl font-extrabold text-secondary-fixed-dim">+120K</div>
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Potencial de visitas</div>
+</div>
+<div class="w-12 h-12 bg-secondary-fixed rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-white" data-icon="arrow_forward">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SEO Benchmark -->
+<section class="mb-12">
+<h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Benchmark de Visibilidad (Keywords)</h4>
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-slate-700">Vinissimus</span>
+<span class="text-[#111125]">9.8K</span>
+</div>
+<div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-[#111125] rounded-full w-[98%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-slate-700">Bodeboca</span>
+<span class="text-[#111125]">7.0K</span>
+</div>
+<div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-slate-400 rounded-full w-[70%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-slate-700">Decántalo</span>
+<span class="text-[#111125]">3.2K</span>
+</div>
+<div class="h-4 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-slate-300 rounded-full w-[32%]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Top Keywords Table -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-4">
+<h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top 10 Keywords</h4>
+<span class="text-[10px] font-bold text-primary uppercase">Ver todas</span>
+</div>
+<div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+<table class="w-full text-left text-xs">
+<thead class="bg-slate-50 text-slate-500 uppercase font-bold tracking-tighter">
+<tr>
+<th class="px-4 py-3">Keyword</th>
+<th class="px-2 py-3 text-center">Pos</th>
+<th class="px-2 py-3 text-right">Vol</th>
+<th class="px-4 py-3 text-right">ETV</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr>
+<td class="px-4 py-4 font-bold text-[#111125]">Vino tinto Rioja</td>
+<td class="px-2 py-4 text-center text-secondary font-bold">1</td>
+<td class="px-2 py-4 text-right text-slate-500">22K</td>
+<td class="px-4 py-4 text-right font-bold text-[#111125]">2.4K €</td>
+</tr>
+<tr>
+<td class="px-4 py-4 font-bold text-[#111125]">Venta vino online</td>
+<td class="px-2 py-4 text-center text-secondary font-bold">2</td>
+<td class="px-2 py-4 text-right text-slate-500">18K</td>
+<td class="px-4 py-4 text-right font-bold text-[#111125]">1.9K €</td>
+</tr>
+<tr>
+<td class="px-4 py-4 font-bold text-[#111125]">Comprar Ribera</td>
+<td class="px-2 py-4 text-center text-secondary font-bold">3</td>
+<td class="px-2 py-4 text-right text-slate-500">12K</td>
+<td class="px-4 py-4 text-right font-bold text-[#111125]">1.1K €</td>
+</tr>
+<tr>
+<td class="px-4 py-4 font-bold text-[#111125]">Mejor Albariño</td>
+<td class="px-2 py-4 text-center text-slate-400 font-bold">5</td>
+<td class="px-2 py-4 text-right text-slate-500">8K</td>
+<td class="px-4 py-4 text-right font-bold text-[#111125]">680 €</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Insights CTR -->
+<div class="bg-[#1a4b8c] p-6 rounded-2xl text-white mb-12">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary-fixed text-2xl" data-icon="lightbulb">lightbulb</span>
+<div>
+<h5 class="font-bold text-lg mb-2">Impacto de CTR</h5>
+<p class="text-blue-100 text-sm leading-relaxed">Subir de la posición <span class="text-white font-bold">5 a la 1</span> en keywords estratégicas triplicaría el tráfico actual proyectando un crecimiento de <span class="text-secondary-fixed font-bold">+45% de conversión</span>.</p>
+</div>
+</div>
+</div>
+<!-- Bicolor Bar -->
+<section class="mb-12">
+<h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Distribución de Tráfico</h4>
+<div class="flex h-3 w-full rounded-full overflow-hidden mb-2">
+<div class="w-[65%] bg-[#1a4b8c]" title="Marca"></div>
+<div class="w-[35%] bg-secondary-fixed" title="Captación"></div>
+</div>
+<div class="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+<div class="flex items-center gap-1.5">
+<div class="w-2 h-2 rounded-full bg-[#1a4b8c]"></div>
+<span class="text-slate-500">Marca (65%)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<span class="text-slate-500">Captación (35%)</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar / Navigation Shell -->
+<nav class="fixed bottom-8 left-0 w-full z-50 flex justify-center items-center gap-3">
+<!-- Dots container -->
+<div class="flex items-center gap-2 bg-[#111125]/80 backdrop-blur-xl px-4 py-3 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#69FF87] scale-125 blur-[0.5px] text-[8px]" data-icon="fiber_manual_record" style="font-variation-settings: 'FILL' 1;">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="material-symbols-outlined text-[#333348]/50 text-[8px]" data-icon="fiber_manual_record">fiber_manual_record</span>
+</div>
+</nav>
+</body></html>

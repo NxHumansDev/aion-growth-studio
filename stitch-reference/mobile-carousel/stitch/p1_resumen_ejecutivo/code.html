@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-card {
+            background: rgba(51, 51, 72, 0.4);
+            backdrop-filter: blur(12px);
+        }
+        .text-glow-green {
+            text-shadow: 0 0 10px rgba(105, 255, 135, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#d6e3ff",
+                        "on-error": "#690005",
+                        "outline": "#8d909b",
+                        "surface-container-highest": "#333348",
+                        "surface-container-high": "#28283d",
+                        "surface": "#111125",
+                        "primary": "#aac7ff",
+                        "primary-fixed-dim": "#aac7ff",
+                        "on-surface": "#e2e0fc",
+                        "on-secondary": "#003912",
+                        "tertiary-fixed": "#86f8c9",
+                        "on-secondary-container": "#004317",
+                        "outline-variant": "#434750",
+                        "on-primary-fixed": "#001b3e",
+                        "surface-bright": "#37374d",
+                        "surface-tint": "#aac7ff",
+                        "on-tertiary-fixed": "#002115",
+                        "inverse-primary": "#325ea0",
+                        "tertiary-container": "#00573e",
+                        "tertiary-fixed-dim": "#68dbae",
+                        "primary-container": "#1a4b8c",
+                        "on-background": "#e2e0fc",
+                        "inverse-surface": "#e2e0fc",
+                        "surface-dim": "#111125",
+                        "secondary-fixed": "#69ff87",
+                        "on-tertiary-fixed-variant": "#00513a",
+                        "on-tertiary-container": "#5dd1a4",
+                        "error": "#ffb4ab",
+                        "background": "#111125",
+                        "on-primary-container": "#99bdff",
+                        "surface-variant": "#333348",
+                        "secondary": "#48e26e",
+                        "on-secondary-fixed": "#002108",
+                        "on-primary-fixed-variant": "#124687",
+                        "secondary-fixed-dim": "#48e26e",
+                        "surface-container-lowest": "#0c0c1f",
+                        "surface-container-low": "#1a1a2e",
+                        "error-container": "#93000a",
+                        "on-primary": "#002f64",
+                        "tertiary": "#68dbae",
+                        "on-surface-variant": "#c3c6d2",
+                        "inverse-on-surface": "#2f2e43",
+                        "surface-container": "#1e1e32",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary": "#003827",
+                        "on-secondary-fixed-variant": "#00531e",
+                        "secondary-container": "#03bc4e"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 min-h-[812px] w-[375px] mx-auto overflow-x-hidden relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-5 h-14 bg-[#111125]/60 dark:bg-[#111125]/60 backdrop-blur-xl z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#aac7ff]" data-icon="clinical_notes">clinical_notes</span>
+<span class="text-xl font-bold tracking-tighter text-[#aac7ff]">AION</span>
+</div>
+<button class="bg-primary-container text-on-primary-container px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity">
+            Exportar PDF
+        </button>
+</header>
+<main class="pt-16 pb-24 px-5 space-y-8">
+<!-- Metadata Header -->
+<section class="space-y-1">
+<div class="flex justify-between items-end">
+<span class="text-[10px] uppercase tracking-[0.1em] text-outline font-label">28 marzo 2026</span>
+<span class="text-[10px] uppercase tracking-[0.1em] text-secondary-fixed font-label">Negocio local</span>
+</div>
+<h2 class="text-2xl font-black tracking-tighter text-on-surface leading-none">bodeboca.com</h2>
+<p class="text-xs text-on-surface-variant/70 italic">E-commerce de bebidas alcohólicas</p>
+</section>
+<!-- Hero Score Section -->
+<section class="flex flex-col items-center py-4 bg-surface-container-low rounded-3xl relative overflow-hidden">
+<!-- Background Decorative Blur -->
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-secondary-fixed/10 blur-[60px] rounded-full"></div>
+<div class="relative w-[140px] h-[140px] flex items-center justify-center">
+<!-- SVG Gauge -->
+<svg class="w-full h-full -rotate-90" viewbox="0 0 100 100">
+<circle class="text-surface-container-highest" cx="50" cy="50" fill="transparent" r="44" stroke="currentColor" stroke-width="8"></circle>
+<circle cx="50" cy="50" fill="transparent" r="44" stroke="url(#gradient)" stroke-dasharray="276.46" stroke-dashoffset="102" stroke-linecap="round" stroke-width="8"></circle>
+<defs>
+<lineargradient id="gradient" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#69FF87"></stop>
+<stop offset="100%" stop-color="#5dd1a4"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-4xl font-black tracking-tighter text-on-surface leading-none">63</span>
+<span class="text-[10px] uppercase tracking-widest text-outline font-bold">Score</span>
+</div>
+</div>
+<div class="mt-4 px-4 py-1 bg-secondary-fixed/10 border border-secondary-fixed/20 rounded-full">
+<span class="text-secondary-fixed font-bold text-xs uppercase tracking-widest text-glow-green">Bien</span>
+</div>
+<h1 class="mt-6 text-xl font-bold tracking-tight text-center px-6">En desarrollo — bodeboca.com</h1>
+</section>
+<!-- Executive Bullets -->
+<section class="space-y-4">
+<div class="flex gap-4 items-start group">
+<div class="mt-1 w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_#69FF87]"></div>
+<p class="text-sm leading-relaxed text-on-surface-variant">
+                    Presencia en Google <span class="text-on-surface font-semibold">~287K visitas</span>, invisible en ecosistemas IA (ChatGPT, Perplexity).
+                </p>
+</div>
+<div class="flex gap-4 items-start">
+<div class="mt-1 w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#aac7ff]"></div>
+<p class="text-sm leading-relaxed text-on-surface-variant">
+                    Web carga en <span class="text-on-surface font-semibold">13.2s</span>, detectada buena base estructural para conversión.
+                </p>
+</div>
+<div class="flex gap-4 items-start">
+<div class="mt-1 w-2 h-2 rounded-full bg-error shadow-[0_0_8px_#ffb4ab]"></div>
+<p class="text-sm leading-relaxed text-on-surface-variant">
+                    Posicionamiento actual <span class="text-error font-semibold">debajo de Vinissimus</span> (423K visitas mensuales).
+                </p>
+</div>
+</section>
+<!-- Horizontal Bento Sections -->
+<section class="grid grid-cols-3 gap-3">
+<div class="bg-surface-container-highest p-3 rounded-2xl flex flex-col items-center text-center space-y-2">
+<span class="text-[9px] uppercase tracking-tighter text-outline font-bold">Visibilidad</span>
+<span class="text-lg font-bold text-on-surface">61<span class="text-[10px] text-outline">/100</span></span>
+</div>
+<div class="bg-surface-container-highest p-3 rounded-2xl flex flex-col items-center text-center space-y-2">
+<span class="text-[9px] uppercase tracking-tighter text-outline font-bold">Benchmark</span>
+<span class="text-lg font-bold text-on-surface">55<span class="text-[10px] text-outline">/100</span></span>
+</div>
+<div class="bg-surface-container-highest p-3 rounded-2xl flex flex-col items-center text-center space-y-2">
+<span class="text-[9px] uppercase tracking-tighter text-outline font-bold">Web &amp; Conv.</span>
+<span class="text-lg font-bold text-on-surface">64<span class="text-[10px] text-outline">/100</span></span>
+</div>
+</section>
+<!-- Compact Area Status -->
+<section class="bg-surface-container-low rounded-3xl p-5 space-y-4">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-black text-outline pb-2 border-b border-outline-variant/10">Estado por área</h3>
+<div class="space-y-3">
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">SEO Orgánico</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-secondary-fixed">7K kw</span>
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Visibilidad IA</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-error">Sin datos</span>
+<div class="w-2 h-2 rounded-full bg-error"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Reputación</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-error">Crítico</span>
+<div class="w-2 h-2 rounded-full bg-error animate-pulse"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Benchmark</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-primary">3 competidores</span>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Rendimiento Web</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-secondary-fixed">67/100</span>
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Conversión</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-secondary-fixed">72/100</span>
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Medición Analytics</span>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-primary">GA4 Activo</span>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Disclaimer -->
+<footer class="pb-10 pt-4">
+<p class="text-[10px] leading-relaxed text-outline text-center px-4 italic opacity-60">
+                Este informe es un resumen ejecutivo preliminar basado en datos de rastreo público y herramientas de terceros. Sujeto a cambios tras auditoría técnica profunda.
+            </p>
+</footer>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-8 left-0 w-full z-50 flex justify-center items-center gap-2">
+<!-- 8 Dots Pagination -->
+<div class="flex items-center gap-2.5 px-5 py-3 glass-card rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed scale-125 blur-[0.5px]"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest opacity-50"></div>
+</div>
+</nav>
+</body></html>

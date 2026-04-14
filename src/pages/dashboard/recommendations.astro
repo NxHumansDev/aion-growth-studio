@@ -28,6 +28,21 @@ const proposed = [...proposedRaw].sort((a: any, b: any) => {
   return (impactOrder[a.impact] ?? 1) - (impactOrder[b.impact] ?? 1);
 });
 
+// Group proposed recommendations into 3 priority buckets based on businessImpact.
+// CEOs need triage at a glance, not a long flat list. Items without an impact
+// fall into "Secundarias" by default.
+const priorityRecs = proposed.filter((r: any) => r.impact === 'high');
+const secondaryRecs = proposed.filter((r: any) => r.impact === 'medium' || !r.impact);
+const niceToHaveRecs = proposed.filter((r: any) => r.impact === 'low');
+
+// Count proposed recommendations per pillar for the executive intro.
+const pillarOrder = ['seo', 'geo', 'web', 'conversion', 'content', 'reputation'] as const;
+const pillarCounts: Record<string, number> = {};
+for (const r of proposed as any[]) {
+  const p = r.pillar || 'other';
+  pillarCounts[p] = (pillarCounts[p] || 0) + 1;
+}
+
 const inProgress = actionPlan.filter(a => a.status === 'in_progress');
 const pending = actionPlan.filter(a => a.status === 'pending');
 
@@ -70,7 +85,7 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- SECTION 1: PROPOSED RECOMMENDATIONS                        -->
+  <!-- SECTION 1: PROPOSED RECOMMENDATIONS — 3 priority buckets   -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {proposed.length > 0 && (
     <section>
@@ -78,92 +93,205 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
         <span class="material-symbols-outlined" style="font-size:20px;color:#BA7517;">lightbulb</span>
         <h2 style="font-size:15px;font-weight:800;color:#BA7517;">Recomendaciones de AION</h2>
       </div>
-      <div style="background:#FFF8EE;border-radius:10px;padding:14px 18px;margin-bottom:16px;border-left:3px solid #BA7517;">
-        <p style="font-size:13px;color:#7a5a1a;line-height:1.5;">
-          Estas son acciones que nuestro sistema ha identificado como oportunidades para tu negocio, basandose en tus datos actuales y la evolucion de tus KPIs.
-          <strong>Revisalas y decide cuales incluir en tu Plan de Accion.</strong> Las que descartes podemos volver a proponerlas mas adelante si siguen siendo relevantes.
+
+      <!-- Executive intro: counts by priority + pillar breakdown -->
+      <div style="background:#FFF8EE;border-radius:10px;padding:18px 20px;margin-bottom:20px;border-left:3px solid #BA7517;">
+        <p style="font-size:13px;color:#7a5a1a;line-height:1.5;margin-bottom:14px;">
+          {proposed.length} {proposed.length === 1 ? 'oportunidad detectada' : 'oportunidades detectadas'} en tu negocio.
+          Las hemos triado por impacto para que sepas dónde poner el foco primero.
+          <strong>Revisa, acepta las que entren en tu plan, descarta las que no apliquen.</strong>
         </p>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        {proposed.map(rec => {
-          const impact = impactColor[(rec as any).impact || 'medium'];
-          const recData = (rec.data as any) || {};
-          const rank = recData.rank;
-          const expectedOutcome = recData.expectedOutcome;
-          const effort = recData.effort;
-          const timeframe = recData.timeframe;
-          const rationale = recData.rationale;
-          const pillar = (rec as any).pillar;
-          const pillarBadge = pillar ? pillarLabels[pillar] : null;
-          return (
-            <div class="rec-card" style="background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-start;">
-              <div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:#FFF8EE;display:flex;align-items:center;justify-content:center;position:relative;">
-                <span class="material-symbols-outlined" style="font-size:20px;color:#BA7517;">auto_awesome</span>
-                {rank != null && (
-                  <span style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#1A4B8C;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.15);">{rank}</span>
-                )}
-              </div>
-              <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-                  {pillarBadge && (
-                    <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${pillarBadge.bg};color:${pillarBadge.fg};`}>
-                      {pillarBadge.label}
-                    </span>
-                  )}
-                  <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>
-                    Impacto {impact.label}
-                  </span>
-                  {effort && (
-                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:#f1f5f9;color:#475569;">
-                      Esfuerzo {effort === 'high' ? 'alto' : effort === 'medium' ? 'medio' : 'bajo'}
-                    </span>
-                  )}
-                  {timeframe && (
-                    <span style="font-size:10px;color:#94a3b8;font-weight:600;">· {timeframe}</span>
-                  )}
-                  {(rec.times_proposed ?? 1) > 1 && (
-                    <span style="font-size:10px;color:#BA7517;font-weight:600;">Propuesta {rec.times_proposed}x</span>
-                  )}
-                </div>
-                <h4 id={`detail-${rec.id}`} style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
-                {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
-                {expectedOutcome && (
-                  <p style="font-size:12px;color:#1D9E75;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:4px;">
-                    <span class="material-symbols-outlined" style="font-size:14px;">trending_up</span>
-                    Resultado esperado: {expectedOutcome}
-                  </p>
-                )}
-                {rationale && (
-                  <p style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">↳ {rationale}</p>
-                )}
-                {recData?.detail && (
-                  <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
-                    <summary style="font-size:12px;font-weight:700;color:#1A4B8C;display:flex;align-items:center;gap:4px;list-style:none;">
-                      <span class="material-symbols-outlined" style="font-size:16px;">info</span>
-                      Saber más — guía paso a paso
-                    </summary>
-                    <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
-                      {recData.detail.replace(/\*\*(.*?)\*\*/g, '$1')}
-                    </div>
-                  </details>
-                )}
-              </div>
-              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
-                <button class="btn-accept" data-rec-id={rec.id}
-                  style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                  <span class="material-symbols-outlined" style="font-size:16px;">add_task</span>
-                  Incluir en Plan
-                </button>
-                <button class="btn-reject" data-rec-id={rec.id}
-                  style="background:#f0f0f0;color:#64748b;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                  <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-                  Descartar
-                </button>
-              </div>
+
+        <!-- Counts by priority bucket -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          {priorityRecs.length > 0 && (
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#FCEBEB;color:#E24B4A;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;">
+              <span class="material-symbols-outlined" style="font-size:14px;">priority_high</span>
+              {priorityRecs.length} {priorityRecs.length === 1 ? 'prioritaria' : 'prioritarias'}
             </div>
-          );
-        })}
+          )}
+          {secondaryRecs.length > 0 && (
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#FAEEDA;color:#BA7517;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;">
+              <span class="material-symbols-outlined" style="font-size:14px;">trending_up</span>
+              {secondaryRecs.length} {secondaryRecs.length === 1 ? 'secundaria' : 'secundarias'}
+            </div>
+          )}
+          {niceToHaveRecs.length > 0 && (
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#E1F5EE;color:#1D9E75;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;">
+              <span class="material-symbols-outlined" style="font-size:14px;">favorite</span>
+              {niceToHaveRecs.length} nice-to-have
+            </div>
+          )}
+        </div>
+
+        <!-- Counts by pillar -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;align-self:center;margin-right:4px;">por pilar:</span>
+          {pillarOrder.map(p => {
+            const count = pillarCounts[p] || 0;
+            if (count === 0) return null;
+            const meta = pillarLabels[p];
+            return (
+              <span style={`display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:${meta.bg};color:${meta.fg};`}>
+                {meta.label} <strong>{count}</strong>
+              </span>
+            );
+          })}
+        </div>
       </div>
+
+      <!-- Render all 3 buckets sequentially with the same card markup -->
+      {[
+        { key: 'priority', recs: priorityRecs, color: '#E24B4A', bg: '#FCEBEB', icon: 'priority_high', label: 'Prioritarias', subtitle: 'mayor impacto, atácalas primero', collapsed: false },
+        { key: 'secondary', recs: secondaryRecs, color: '#BA7517', bg: '#FAEEDA', icon: 'trending_up', label: 'Secundarias', subtitle: 'impacto medio, en cuanto cierres las prioritarias', collapsed: false },
+        { key: 'nicetohave', recs: niceToHaveRecs, color: '#1D9E75', bg: '#E1F5EE', icon: 'favorite', label: 'Nice-to-have', subtitle: 'impacto bajo, opcionales', collapsed: true },
+      ].filter(b => b.recs.length > 0).map(bucket => (
+        bucket.collapsed ? (
+          <details style="margin-bottom:24px;">
+            <summary style="display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;padding:8px 0;">
+              <span class="material-symbols-outlined" style={`font-size:18px;color:${bucket.color};`}>{bucket.icon}</span>
+              <h3 style={`font-size:14px;font-weight:800;color:${bucket.color};text-transform:uppercase;letter-spacing:0.04em;margin:0;`}>{bucket.label} ({bucket.recs.length})</h3>
+              <span style="font-size:11px;color:#94a3b8;">— click para ver · {bucket.subtitle}</span>
+            </summary>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+              {bucket.recs.map(rec => {
+                const impact = impactColor[(rec as any).impact || 'medium'];
+                const recData = (rec.data as any) || {};
+                const rank = recData.rank;
+                const expectedOutcome = recData.expectedOutcome;
+                const effort = recData.effort;
+                const timeframe = recData.timeframe;
+                const rationale = recData.rationale;
+                const pillar = (rec as any).pillar;
+                const pillarBadge = pillar ? pillarLabels[pillar] : null;
+                return (
+                  <div class="rec-card" style={`background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-start;border-left:3px solid ${bucket.color};`}>
+                    <div style={`flex-shrink:0;width:40px;height:40px;border-radius:10px;background:${bucket.bg};display:flex;align-items:center;justify-content:center;position:relative;`}>
+                      <span class="material-symbols-outlined" style={`font-size:20px;color:${bucket.color};`}>auto_awesome</span>
+                      {rank != null && (
+                        <span style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#1A4B8C;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.15);">{rank}</span>
+                      )}
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+                        {pillarBadge && (
+                          <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${pillarBadge.bg};color:${pillarBadge.fg};`}>{pillarBadge.label}</span>
+                        )}
+                        <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>Impacto {impact.label}</span>
+                        {effort && (
+                          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:#f1f5f9;color:#475569;">Esfuerzo {effort === 'high' ? 'alto' : effort === 'medium' ? 'medio' : 'bajo'}</span>
+                        )}
+                        {timeframe && <span style="font-size:10px;color:#94a3b8;font-weight:600;">· {timeframe}</span>}
+                        {(rec.times_proposed ?? 1) > 1 && <span style="font-size:10px;color:#BA7517;font-weight:600;">Propuesta {rec.times_proposed}x</span>}
+                      </div>
+                      <h4 id={`detail-${rec.id}`} style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
+                      {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
+                      {expectedOutcome && (
+                        <p style="font-size:12px;color:#1D9E75;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:4px;">
+                          <span class="material-symbols-outlined" style="font-size:14px;">trending_up</span>
+                          Resultado esperado: {expectedOutcome}
+                        </p>
+                      )}
+                      {rationale && <p style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">↳ {rationale}</p>}
+                      {recData?.detail && (
+                        <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
+                          <summary style="font-size:12px;font-weight:700;color:#1A4B8C;display:flex;align-items:center;gap:4px;list-style:none;">
+                            <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+                            Saber más — guía paso a paso
+                          </summary>
+                          <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                            {recData.detail.replace(/\*\*(.*?)\*\*/g, '$1')}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
+                      <button class="btn-accept" data-rec-id={rec.id} style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                        <span class="material-symbols-outlined" style="font-size:16px;">add_task</span>Incluir en Plan
+                      </button>
+                      <button class="btn-reject" data-rec-id={rec.id} style="background:#f0f0f0;color:#64748b;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                        <span class="material-symbols-outlined" style="font-size:16px;">close</span>Descartar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : (
+          <div style="margin-bottom:24px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span class="material-symbols-outlined" style={`font-size:18px;color:${bucket.color};`}>{bucket.icon}</span>
+              <h3 style={`font-size:14px;font-weight:800;color:${bucket.color};text-transform:uppercase;letter-spacing:0.04em;margin:0;`}>{bucket.label}</h3>
+              <span style="font-size:11px;color:#94a3b8;">— {bucket.subtitle}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              {bucket.recs.map(rec => {
+                const impact = impactColor[(rec as any).impact || 'medium'];
+                const recData = (rec.data as any) || {};
+                const rank = recData.rank;
+                const expectedOutcome = recData.expectedOutcome;
+                const effort = recData.effort;
+                const timeframe = recData.timeframe;
+                const rationale = recData.rationale;
+                const pillar = (rec as any).pillar;
+                const pillarBadge = pillar ? pillarLabels[pillar] : null;
+                return (
+                  <div class="rec-card" style={`background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-start;border-left:3px solid ${bucket.color};`}>
+                    <div style={`flex-shrink:0;width:40px;height:40px;border-radius:10px;background:${bucket.bg};display:flex;align-items:center;justify-content:center;position:relative;`}>
+                      <span class="material-symbols-outlined" style={`font-size:20px;color:${bucket.color};`}>auto_awesome</span>
+                      {rank != null && (
+                        <span style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#1A4B8C;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.15);">{rank}</span>
+                      )}
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+                        {pillarBadge && (
+                          <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${pillarBadge.bg};color:${pillarBadge.fg};`}>{pillarBadge.label}</span>
+                        )}
+                        <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>Impacto {impact.label}</span>
+                        {effort && (
+                          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:#f1f5f9;color:#475569;">Esfuerzo {effort === 'high' ? 'alto' : effort === 'medium' ? 'medio' : 'bajo'}</span>
+                        )}
+                        {timeframe && <span style="font-size:10px;color:#94a3b8;font-weight:600;">· {timeframe}</span>}
+                        {(rec.times_proposed ?? 1) > 1 && <span style="font-size:10px;color:#BA7517;font-weight:600;">Propuesta {rec.times_proposed}x</span>}
+                      </div>
+                      <h4 id={`detail-${rec.id}`} style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{rec.title}</h4>
+                      {rec.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{rec.description}</p>}
+                      {expectedOutcome && (
+                        <p style="font-size:12px;color:#1D9E75;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:4px;">
+                          <span class="material-symbols-outlined" style="font-size:14px;">trending_up</span>
+                          Resultado esperado: {expectedOutcome}
+                        </p>
+                      )}
+                      {rationale && <p style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">↳ {rationale}</p>}
+                      {recData?.detail && (
+                        <details class="rec-detail" style="margin-top:10px;cursor:pointer;">
+                          <summary style="font-size:12px;font-weight:700;color:#1A4B8C;display:flex;align-items:center;gap:4px;list-style:none;">
+                            <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+                            Saber más — guía paso a paso
+                          </summary>
+                          <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                            {recData.detail.replace(/\*\*(.*?)\*\*/g, '$1')}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
+                      <button class="btn-accept" data-rec-id={rec.id} style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                        <span class="material-symbols-outlined" style="font-size:16px;">add_task</span>Incluir en Plan
+                      </button>
+                      <button class="btn-reject" data-rec-id={rec.id} style="background:#f0f0f0;color:#64748b;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                        <span class="material-symbols-outlined" style="font-size:16px;">close</span>Descartar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
+      ))}
     </section>
   )}
 

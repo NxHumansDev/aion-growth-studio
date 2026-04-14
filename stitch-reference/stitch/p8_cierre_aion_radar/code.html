@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#d6e3ff",
+              "on-error": "#690005",
+              "outline": "#8d909b",
+              "surface-container-highest": "#333348",
+              "surface-container-high": "#28283d",
+              "surface": "#111125",
+              "primary": "#aac7ff",
+              "primary-fixed-dim": "#aac7ff",
+              "on-surface": "#e2e0fc",
+              "on-secondary": "#003912",
+              "tertiary-fixed": "#86f8c9",
+              "on-secondary-container": "#004317",
+              "outline-variant": "#434750",
+              "on-primary-fixed": "#001b3e",
+              "surface-bright": "#37374d",
+              "surface-tint": "#aac7ff",
+              "on-tertiary-fixed": "#002115",
+              "inverse-primary": "#325ea0",
+              "tertiary-container": "#00573e",
+              "tertiary-fixed-dim": "#68dbae",
+              "primary-container": "#1a4b8c",
+              "on-background": "#e2e0fc",
+              "inverse-surface": "#e2e0fc",
+              "surface-dim": "#111125",
+              "secondary-fixed": "#69ff87",
+              "on-tertiary-fixed-variant": "#00513a",
+              "on-tertiary-container": "#5dd1a4",
+              "error": "#ffb4ab",
+              "background": "#111125",
+              "on-primary-container": "#99bdff",
+              "surface-variant": "#333348",
+              "secondary": "#48e26e",
+              "on-secondary-fixed": "#002108",
+              "on-primary-fixed-variant": "#124687",
+              "secondary-fixed-dim": "#48e26e",
+              "surface-container-lowest": "#0c0c1f",
+              "surface-container-low": "#1a1a2e",
+              "error-container": "#93000a",
+              "on-primary": "#002f64",
+              "tertiary": "#68dbae",
+              "on-surface-variant": "#c3c6d2",
+              "inverse-on-surface": "#2f2e43",
+              "surface-container": "#1e1e32",
+              "on-error-container": "#ffdad6",
+              "on-tertiary": "#003827",
+              "on-secondary-fixed-variant": "#00531e",
+              "secondary-container": "#03bc4e"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      body {
+        background-color: #1a1a2e; /* Per user request background */
+        color: #e2e0fc;
+        font-family: 'Inter', sans-serif;
+      }
+      .glass-card {
+        background: rgba(51, 51, 72, 0.4);
+        backdrop-filter: blur(12px);
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex items-center justify-center min-h-screen p-0 m-0 overflow-hidden">
+<!-- Main Viewport (375x812) -->
+<div class="relative w-[375px] h-[812px] bg-[#1a1a2e] overflow-y-auto overflow-x-hidden scrollbar-hide flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-5 h-14 bg-[#111125]/60 dark:bg-[#111125]/60 backdrop-blur-xl z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#aac7ff]" data-icon="clinical_notes">clinical_notes</span>
+<span class="text-xl font-bold tracking-tighter text-[#aac7ff]">AION</span>
+</div>
+<button class="text-[#aac7ff] dark:text-[#aac7ff] hover:opacity-80 transition-opacity flex items-center gap-1 active:scale-95 duration-150">
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold">Exportar PDF</span>
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+</button>
+</header>
+<!-- Content Canvas -->
+<main class="flex-1 pt-20 px-5 pb-32">
+<!-- Hero Section -->
+<section class="mb-8">
+<h1 class="text-3xl font-extrabold tracking-tight text-on-surface leading-[1.1] mb-3">
+                    Este diagnóstico es una foto. ¿Quieres ver la película?
+                </h1>
+<p class="text-primary font-medium text-sm tracking-wide flex items-center gap-2">
+<span class="material-symbols-outlined text-xs" data-icon="radar">radar</span>
+                    AION RADAR (GA4 + GROWTH ADVISOR)
+                </p>
+</section>
+<!-- Bento Grid Metrics -->
+<div class="grid grid-cols-2 gap-3 mb-10">
+<div class="col-span-2 glass-card rounded-xl p-5 border border-outline-variant/10 flex flex-col justify-between">
+<span class="text-label text-[10px] uppercase tracking-[0.05em] text-on-surface-variant mb-4">Potencial de Crecimiento</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-extrabold tracking-tighter text-secondary-fixed">4.900</span>
+<span class="text-sm font-medium text-on-surface/70">keywords a punto</span>
+</div>
+</div>
+<div class="glass-card rounded-xl p-4 border border-outline-variant/10">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-error text-xl" data-icon="search_insights">search_insights</span>
+</div>
+<div class="text-2xl font-bold text-on-surface">0%</div>
+<div class="text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold">visibilidad IA</div>
+</div>
+<div class="glass-card rounded-xl p-4 border border-outline-variant/10">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="speed">speed</span>
+</div>
+<div class="text-2xl font-bold text-on-surface">13.2s</div>
+<div class="text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold">carga</div>
+</div>
+</div>
+<!-- List Features -->
+<div class="space-y-4 mb-10">
+<div class="flex items-center gap-4 group">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary-fixed">
+<span class="material-symbols-outlined text-lg" data-icon="update">update</span>
+</div>
+<span class="text-on-surface text-sm font-medium">Mismo análisis cada mes</span>
+</div>
+<div class="flex items-center gap-4 group">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary-fixed">
+<span class="material-symbols-outlined text-lg" data-icon="trending_up">trending_up</span>
+</div>
+<span class="text-on-surface text-sm font-medium">Evolución tendencias</span>
+</div>
+<div class="flex items-center gap-4 group">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary-fixed">
+<span class="material-symbols-outlined text-lg" data-icon="person_search">person_search</span>
+</div>
+<span class="text-on-surface text-sm font-medium">Growth Advisor humano</span>
+</div>
+</div>
+<!-- Pricing & CTA -->
+<div class="mt-auto flex flex-col items-center">
+<div class="mb-6 text-center">
+<span class="text-display-lg text-4xl font-extrabold tracking-tighter text-on-surface">149 EUR</span>
+<span class="text-on-surface-variant text-sm">/mes</span>
+</div>
+<button class="w-full h-14 bg-secondary-fixed text-on-secondary-fixed rounded-full font-bold text-lg mb-4 flex items-center justify-center shadow-[0_0_20px_rgba(105,255,135,0.3)] hover:scale-[1.02] active:scale-95 transition-all">
+                    Activar AION Radar
+                </button>
+<a class="text-on-surface font-medium text-sm underline underline-offset-4 decoration-outline-variant hover:text-primary transition-colors mb-6" href="#">
+                    Ver todos los planes
+                </a>
+<p class="text-[10px] text-center text-on-surface-variant leading-relaxed max-w-[280px]">
+                    Incluye análisis automatizado de Signals/Levers para maximizar el ROI de tu estrategia digital.
+                </p>
+</div>
+</main>
+<!-- Bottom Navigation Shell (Pagination Dots) -->
+<nav class="fixed bottom-8 left-0 w-full z-50 flex justify-center items-center gap-2">
+<!-- Active Style Logic: 8th dot active -->
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-highest/50"></div>
+<!-- Active Dot -->
+<div class="w-2.5 h-2.5 rounded-full bg-[#69FF87] scale-125 blur-[1px] shadow-[0_0_8px_rgba(105,255,135,0.8)]"></div>
+</nav>
+<!-- Background Decor -->
+<div class="absolute top-[-10%] right-[-20%] w-[300px] h-[300px] bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
+<div class="absolute bottom-[20%] left-[-20%] w-[250px] h-[250px] bg-secondary-fixed/5 rounded-full blur-[100px] pointer-events-none"></div>
+</div>
+</body></html>

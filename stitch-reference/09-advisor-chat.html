@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AION Growth Studio | Advisor Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e0fc; border-radius: 10px; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "on-primary-fixed": "#001b3e",
+                "inverse-primary": "#aac7ff",
+                "tertiary-fixed-dim": "#ffb785",
+                "on-secondary-container": "#003a7a",
+                "on-background": "#1a1a2e",
+                "tertiary": "#572900",
+                "background": "#fcf8ff",
+                "primary-fixed": "#d6e3ff",
+                "outline-variant": "#c3c6d2",
+                "surface-container-high": "#e8e5ff",
+                "secondary": "#205db0",
+                "primary-container": "#1a4b8c",
+                "on-secondary-fixed": "#001b3f",
+                "on-surface-variant": "#434750",
+                "outline": "#737781",
+                "surface-container-low": "#f5f2ff",
+                "surface-container-highest": "#e2e0fc",
+                "on-tertiary-container": "#ffa96a",
+                "surface-tint": "#325ea0",
+                "surface-dim": "#dad7f3",
+                "surface-bright": "#fcf8ff",
+                "tertiary-container": "#793b00",
+                "tertiary-fixed": "#ffdcc6",
+                "surface-variant": "#e2e0fc",
+                "secondary-fixed-dim": "#abc7ff",
+                "primary-fixed-dim": "#aac7ff",
+                "error-container": "#ffdad6",
+                "inverse-surface": "#2f2e43",
+                "on-tertiary-fixed-variant": "#713700",
+                "on-primary-container": "#99bdff",
+                "secondary-fixed": "#d7e3ff",
+                "surface-container-lowest": "#ffffff",
+                "surface-container": "#efecff",
+                "surface": "#fcf8ff",
+                "on-secondary": "#ffffff",
+                "error": "#ba1a1a",
+                "on-primary": "#ffffff",
+                "on-tertiary": "#ffffff",
+                "on-secondary-fixed-variant": "#00458f",
+                "on-primary-fixed-variant": "#124687",
+                "on-tertiary-fixed": "#301400",
+                "on-error": "#ffffff",
+                "primary": "#00346d",
+                "secondary-container": "#73a6fe",
+                "inverse-on-surface": "#f2efff",
+                "on-surface": "#1a1a2e",
+                "on-error-container": "#93000a"
+              },
+              fontFamily: {
+                "headline": ["Inter"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface overflow-hidden">
+<!-- Sidebar Navigation (Predicted Component: SideNavBar) -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-slate-950 flex flex-col z-50">
+<div class="p-6">
+<div class="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-400" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+                AION Growth
+            </div>
+<p class="text-[10px] text-slate-500 font-medium tracking-widest mt-1 uppercase">Marketing Intel</p>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-lg">radar</span>
+<span class="font-sans text-sm tracking-tight font-medium">Radar</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-white bg-white/10 rounded-lg border-l-2 border-blue-500" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">sensors</span>
+<span class="font-sans text-sm tracking-tight font-medium">Señales</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">auto_awesome</span>
+<span class="font-sans text-sm tracking-tight font-medium">Palancas</span>
+</a>
+</nav>
+<div class="p-4 mt-auto border-t border-white/10">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+<span class="text-sm font-medium">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 h-screen flex flex-col">
+<!-- Top Navigation (Predicted Component: TopNavBar) -->
+<header class="h-16 flex justify-between items-center px-8 bg-white/80 backdrop-blur-md border-b border-slate-200/20 z-40">
+<div class="flex items-center gap-8">
+<h1 class="text-lg font-black text-slate-900 tracking-wide">Advisor Chat</h1>
+<nav class="hidden md:flex gap-6">
+<a class="text-slate-500 hover:text-slate-900 text-sm font-semibold tracking-wide" href="#">Client Dashboard</a>
+<a class="text-blue-600 border-b-2 border-blue-600 pb-1 text-sm font-semibold tracking-wide" href="#">Strategic Overview</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer p-2 rounded-full hover:bg-surface-container-low transition-colors">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</div>
+<div class="flex items-center gap-2 pl-4 border-l border-outline-variant/20">
+<img alt="Advisor Avatar" class="w-8 h-8 rounded-full object-cover" data-alt="Professional portrait of a male business executive in a dark suit with a clean office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_f9JGSMWfow2z9j96yXCEjOYJw0QzeBMAmJEd_ZhCdt62il9t5u07nJEGdN9AyV4eH7wEtEuvRCF7ageUHhhjHuQjKMZ2R2WEVk7LAWl6TJCF3ThIngE9e3YGGG3RJtUBBFqvg149u93kRJNxAQAVHqfKdCfR2myJ9EmvHZlqm1cgZ68tFHbEfjTx-pmLS-6ngkyL_73eMx0LQUgxEnIG83wOEFNvULg_oCUk54gORn0xL7eP7qIzpDkr7FXayUiyAL8ChyZKjbk"/>
+<span class="text-sm font-semibold text-on-surface">Alex Thompson</span>
+</div>
+</div>
+</header>
+<!-- 3-Panel Content -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Panel 1: Client List (220px) -->
+<section class="w-[220px] bg-surface-container-low flex flex-col border-r border-outline-variant/10">
+<div class="p-4 bg-surface-container-low">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
+<input class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest text-xs rounded-xl border-none ring-1 ring-outline-variant/20 focus:ring-primary transition-all" placeholder="Search clients..." type="text"/>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<!-- Client Item Active -->
+<div class="px-4 py-3 bg-surface-container-lowest border-l-4 border-primary cursor-pointer">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-primary tracking-widest uppercase">Tier 1</span>
+<div class="flex gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+</div>
+</div>
+<h3 class="text-sm font-bold text-on-surface leading-tight">Nebula Tech</h3>
+<div class="flex justify-between items-center mt-2">
+<span class="text-xs text-on-surface-variant">Score</span>
+<span class="text-xs font-bold text-primary">92/100</span>
+</div>
+</div>
+<!-- Client Item -->
+<div class="px-4 py-3 hover:bg-surface-container-high transition-colors cursor-pointer border-b border-outline-variant/5">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Tier 2</span>
+<div class="flex gap-1 opacity-0">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+</div>
+</div>
+<h3 class="text-sm font-semibold text-on-surface-variant leading-tight">Solaris Group</h3>
+<div class="flex justify-between items-center mt-2">
+<span class="text-xs text-on-surface-variant">Score</span>
+<span class="text-xs font-bold text-on-surface-variant">78/100</span>
+</div>
+</div>
+<!-- Client Item Red Flag -->
+<div class="px-4 py-3 hover:bg-surface-container-high transition-colors cursor-pointer border-b border-outline-variant/5">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Tier 1</span>
+<div class="flex gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+</div>
+</div>
+<h3 class="text-sm font-semibold text-on-surface-variant leading-tight">Quantum Leap</h3>
+<div class="flex justify-between items-center mt-2">
+<span class="text-xs text-on-surface-variant">Score</span>
+<span class="text-xs font-bold text-error">42/100</span>
+</div>
+</div>
+<!-- More Clients -->
+<div class="px-4 py-3 hover:bg-surface-container-high transition-colors cursor-pointer border-b border-outline-variant/5">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Tier 3</span>
+</div>
+<h3 class="text-sm font-semibold text-on-surface-variant leading-tight">Aether Solutions</h3>
+<div class="flex justify-between items-center mt-2">
+<span class="text-xs text-on-surface-variant">Score</span>
+<span class="text-xs font-bold text-on-surface-variant">85/100</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Panel 2: Chat Interface (Center) -->
+<section class="flex-1 flex flex-col bg-surface overflow-hidden">
+<!-- Chat Header -->
+<div class="p-6 bg-surface-container-lowest border-b border-outline-variant/10 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-lg">N</div>
+<div>
+<h2 class="text-base font-bold text-on-surface leading-none">Nebula Tech Intelligence</h2>
+<p class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                Live session • Strategy Review Q4
+                            </p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">videocam</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Chat Canvas -->
+<div class="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+<!-- System Message -->
+<div class="flex justify-center">
+<span class="px-3 py-1 bg-surface-container-low text-[10px] font-bold text-outline-variant rounded-full uppercase tracking-tighter">Session Started Oct 24, 09:12 AM</span>
+</div>
+<!-- Advisor Bubble -->
+<div class="flex flex-col items-start max-w-[80%]">
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-4 rounded-2xl rounded-tl-none shadow-sm">
+<p class="text-sm text-on-surface leading-relaxed">
+                                Hola equipo Nebula. He revisado los últimos datos del Radar. Hemos notado un incremento del 12% en el gasto de SEM de su competidor directo, Atlas. ¿Han sentido impacto en el CPA esta semana?
+                            </p>
+</div>
+<span class="text-[10px] text-outline mt-1 ml-1">Alex Thompson • 09:15 AM</span>
+</div>
+<!-- System Intel Bubble -->
+<div class="flex flex-col items-end self-end max-w-[80%]">
+<div class="bg-[#E6F1FB] p-4 rounded-2xl rounded-tr-none border border-blue-200/50">
+<div class="flex items-center gap-2 mb-2 text-primary">
+<span class="material-symbols-outlined text-sm">auto_awesome</span>
+<span class="text-[10px] font-extrabold uppercase tracking-wider">AION AI Insights</span>
+</div>
+<p class="text-sm text-on-secondary-container leading-relaxed">
+                                Detectando anomalía en la campaña "Black Friday Early Access". El CTR ha bajado de 2.4% a 1.1% en las últimas 4 horas. Se sugiere ajuste de puja.
+                            </p>
+</div>
+<span class="text-[10px] text-outline mt-1 mr-1">AION Engine • 09:18 AM</span>
+</div>
+<!-- Confirmation Block -->
+<div class="w-full bg-surface-container-highest/30 border-2 border-dashed border-primary-container/30 rounded-2xl p-6 my-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">cognition</span>
+</div>
+<div class="flex-1">
+<h4 class="text-sm font-bold text-on-surface tracking-tight">Cambios sugeridos detectados</h4>
+<p class="text-xs text-on-surface-variant mt-1">El sistema ha interpretado las siguientes acciones basadas en la conversación:</p>
+<div class="mt-4 space-y-3">
+<div class="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary text-sm">task_alt</span>
+<span class="text-xs font-medium text-on-surface">Acción completada: Auditoría de Atlas SEM</span>
+</div>
+<div class="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary text-sm">update</span>
+<span class="text-xs font-medium text-on-surface">Competidor actualizado: Presupuesto Atlas +12%</span>
+</div>
+</div>
+<div class="flex gap-3 mt-6">
+<button class="px-5 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:opacity-90 transition-opacity">Confirmar</button>
+<button class="px-5 py-2 bg-surface-container-lowest text-on-surface border border-outline-variant/30 rounded-xl text-xs font-bold hover:bg-surface-container-low transition-colors">Editar</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Advisor Bubble Typing -->
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-outline-variant rounded-full animate-pulse"></div>
+<div class="w-2 h-2 bg-outline-variant rounded-full animate-pulse delay-75"></div>
+<div class="w-2 h-2 bg-outline-variant rounded-full animate-pulse delay-150"></div>
+</div>
+</div>
+<!-- Chat Input -->
+<div class="p-6 bg-surface-container-lowest border-t border-outline-variant/10">
+<div class="flex items-center gap-3 bg-surface-container-low rounded-2xl p-2 pr-4 focus-within:ring-2 ring-primary-fixed transition-all">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<input class="flex-1 bg-transparent border-none text-sm focus:ring-0 placeholder:text-outline/60" placeholder="Type a message or use / to trigger actions..." type="text"/>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">mood</span>
+<button class="bg-primary text-on-primary w-10 h-10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-base">send</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Panel 3: Context Panel (240px) -->
+<section class="w-[240px] bg-surface-container-lowest flex flex-col border-l border-outline-variant/10">
+<div class="p-6 overflow-y-auto custom-scrollbar">
+<!-- Score Card -->
+<div class="mb-8">
+<h4 class="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Client Health</h4>
+<div class="flex items-end justify-between">
+<span class="text-4xl font-black text-on-surface leading-none">92</span>
+<div class="flex flex-col items-end">
+<span class="text-green-600 text-xs font-bold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+                                    +4.2
+                                </span>
+<span class="text-[10px] text-outline">Score Delta</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-4 overflow-hidden">
+<div class="bg-primary w-[92%] h-full"></div>
+</div>
+</div>
+<!-- System Flags -->
+<div class="mb-8">
+<div class="flex justify-between items-center mb-4">
+<h4 class="text-[10px] font-black text-outline uppercase tracking-widest">Flags del sistema</h4>
+<span class="px-1.5 py-0.5 bg-error-container text-on-error-container text-[8px] font-black rounded uppercase">Alert</span>
+</div>
+<div class="space-y-3">
+<div class="p-3 bg-surface-container-low rounded-xl">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-sm text-primary">lightbulb</span>
+<span class="text-xs font-bold text-on-surface">Insight nuevo</span>
+</div>
+<p class="text-[10px] text-on-surface-variant leading-tight">Patrón de abandono detectado en checkout móvil.</p>
+</div>
+<div class="p-3 bg-error-container/20 rounded-xl">
+<div class="flex items-center gap-2 mb-1 text-error">
+<span class="material-symbols-outlined text-sm">warning</span>
+<span class="text-xs font-bold">Score bajó</span>
+</div>
+<p class="text-[10px] text-on-surface-variant leading-tight">Retención mensual cayó por debajo del 85%.</p>
+</div>
+</div>
+</div>
+<!-- Pending Actions -->
+<div class="mb-8">
+<h4 class="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Acciones pendientes</h4>
+<ul class="space-y-3">
+<li class="flex items-start gap-3 group">
+<div class="w-4 h-4 rounded border border-outline-variant mt-0.5 flex-shrink-0 group-hover:border-primary transition-colors"></div>
+<span class="text-xs text-on-surface leading-tight">Enviar reporte trimestral Q3</span>
+</li>
+<li class="flex items-start gap-3 group">
+<div class="w-4 h-4 rounded border border-outline-variant mt-0.5 flex-shrink-0 group-hover:border-primary transition-colors"></div>
+<span class="text-xs text-on-surface leading-tight">Agendar sync con Growth Lead</span>
+</li>
+<li class="flex items-start gap-3 group">
+<div class="w-4 h-4 rounded border border-outline-variant mt-0.5 flex-shrink-0 group-hover:border-primary transition-colors"></div>
+<span class="text-xs text-on-surface leading-tight">Revisar propuesta creativa</span>
+</li>
+</ul>
+</div>
+<!-- Quick Links -->
+<div class="pt-6 border-t border-outline-variant/10">
+<h4 class="text-[10px] font-black text-outline uppercase tracking-widest mb-4">Documentación</h4>
+<div class="space-y-2">
+<a class="flex justify-between items-center p-2 rounded-lg hover:bg-surface-container-low transition-colors text-xs font-medium text-on-surface-variant" href="#">
+<span>Reporte de Impacto</span>
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</a>
+<a class="flex justify-between items-center p-2 rounded-lg hover:bg-surface-container-low transition-colors text-xs font-medium text-on-surface-variant" href="#">
+<span>Evolución Histórica</span>
+<span class="material-symbols-outlined text-sm">show_chart</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

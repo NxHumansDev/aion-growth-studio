@@ -1,8 +1,9 @@
 ---
 export const prerender = false;
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
-import { getClient, getLatestSnapshot, getAllSnapshots } from '../../../lib/db';
+import { getClient, getLatestSnapshot, getAllSnapshots, getRecommendationsByPillar } from '../../../lib/db';
 import type { Tier } from '../../../lib/demo-data';
+import PillarRecommendations from '../../../components/dashboard/PillarRecommendations.astro';
 
 const { key } = Astro.params;
 const validPillars = ['seo', 'geo', 'web', 'conversion', 'content', 'reputation'];
@@ -33,6 +34,17 @@ const pillarMeta: Record<string, { label: string; icon: string; color: string }>
   reputation: { label: 'Reputación', icon: 'star', color: '#DC2626' },
 };
 const meta = pillarMeta[key];
+
+// Light tints for the PillarRecommendations component (background).
+const pillarBg: Record<string, string> = {
+  seo: '#f0f4ff', geo: '#f5f0ff', web: '#ecfeff',
+  conversion: '#fff7ed', content: '#ecfdf5', reputation: '#fef2f2',
+};
+
+// Pull this pillar's recommendations (filtered by status='proposed' or similar
+// inside getRecommendationsByPillar — only pending ones, accepted/rejected
+// already appear in /dashboard/recommendations under their own bucket).
+const pillarRecs = await getRecommendationsByPillar(client.id, key);
 
 // ─── KPI extraction per pillar ────────────────────────────────────────────
 interface KPI { label: string; current: string | number; prev: string | number | null; unit?: string; better: 'up' | 'down'; }
@@ -789,6 +801,14 @@ const briefing = r.briefing;
       </Fragment>
     );
   })()}
+
+  <PillarRecommendations
+    pillar={key}
+    accentColor={meta.color}
+    accentBg={pillarBg[key] || '#f7f9ff'}
+    recs={pillarRecs}
+    pillarLabel={meta.label}
+  />
 
   <script>
     // Media "ver más" toggle

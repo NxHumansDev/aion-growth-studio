@@ -113,6 +113,10 @@ export async function runScore(
   }
 
   // ── Pilar 3: Web & técnico ───────────────────────────────────────
+  // PageSpeed (60%) — UX directa percibida por el usuario
+  // techChecks (25%) — SSL, schema, sitemap, canonical (HTML stack)
+  // techstackMaturity (15%) — analytics, GTM, CDN, monitoring (madurez técnica
+  //   que demuestra que el negocio invierte en su digital y mide)
   const psScore = pagespeed.mobile?.performance ?? 0;
   const techCheckDefs = isCrawlerBlocked
     ? [
@@ -128,14 +132,28 @@ export async function runScore(
         { label: 'Robots.txt', points: 5, applied: !!crawl.hasRobots },
       ];
   const techChecks = techCheckDefs.reduce((s, c) => s + (c.applied ? c.points : 0), 0);
-  const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
+  const techstackMaturity = (techstack.maturityScore != null && techstack.maturityScore > 0) ? techstack.maturityScore : null;
+
+  let webScore: number;
+  let webFormula: string;
+  if (techstackMaturity != null) {
+    webScore = Math.min(100, Math.round(psScore * 0.6 + techChecks * 0.25 + techstackMaturity * 0.15));
+    webFormula = `pagespeed(${psScore}) × 0.6 + techChecks(${techChecks}/100) × 0.25 + techstack(${techstackMaturity}/100) × 0.15 = ${webScore}`;
+  } else {
+    // No techstack data — redistribute: psScore 0.7 + techChecks 0.3 (legacy formula)
+    webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
+    webFormula = `pagespeed(${psScore}) × 0.7 + techChecks(${techChecks}/100) × 0.3 = ${webScore}`;
+  }
+  if (isCrawlerBlocked) webFormula += ' [checks limitados: crawler bloqueado]';
+
   computation.web = {
     pagespeedMobile: psScore,
     techChecks: techCheckDefs,
     techChecksTotal: techChecks,
-    formula: `pagespeed(${psScore}) × 0.7 + techChecks(${techChecks}/100) × 0.3 = ${webScore}${isCrawlerBlocked ? ' [checks limitados: crawler bloqueado]' : ''}`,
+    techstackMaturity,
+    formula: webFormula,
     final: webScore,
-  };
+  } as any;
 
   // ── Pilar 4: Conversión ───────────────────────────────────────────
   const conversionScore = isCrawlerBlocked ? null : Math.min(100, conversion.funnelScore ?? 20);
@@ -206,9 +224,8 @@ export async function runScore(
     });
   }
 
-  if (techstack.maturityScore != null && techstack.maturityScore > 0) {
-    repComponents.push({ label: `Techstack maturity`, value: techstack.maturityScore, weight: 0.10 });
-  }
+  // (techstack maturity moved to Web pillar — it's a measurement / engineering
+  // signal, not an external reputation signal.)
 
   let reputationScore: number | null = null;
   if (repComponents.length > 0) {
