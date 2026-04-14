@@ -43,7 +43,7 @@ const ctItems = snapshot.pipeline_output.competitor_traffic?.items || [];
               />
               <MetricCard
                 label="ROAS"
-                value={metaAds.roas || '—'}
+                value={metaAds.roas ?? '—'}
                 delta="+0.4"
                 deltaDir="up"
                 note="Retorno sobre inversión publicitaria."

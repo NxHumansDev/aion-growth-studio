@@ -61,7 +61,7 @@ const priorityConfig: Record<string, { bg: string; color: string; label: string 
                         <span style={`font-size:12px;font-weight:700;color:${diffColor};`}>{diff}</span>
                       </div>
                     </td>
-                    <td style="padding:14px 16px;text-align:center;color:#94a3b8;">{item.position || '—'}</td>
+                    <td style="padding:14px 16px;text-align:center;color:#94a3b8;">{item.position ?? '—'}</td>
                     <td style="padding:14px 16px;font-size:12px;color:#434750;">{item.competitor || '—'}</td>
                     <td style="padding:14px 16px;text-align:center;">
                       <span style={`padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:${impactBg};color:${impactColor};`}>{item.impact || 'medium'}</span>

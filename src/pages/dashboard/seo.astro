@@ -726,7 +726,7 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
                     <span style="text-transform:capitalize;">{kw.keyword}</span>
                   </td>
                   <td style="text-align:center;padding:12px 16px;">
-                    <span style="font-weight:800;font-size:15px;color:#1a1a2e;">{kw.position || '—'}</span>
+                    <span style="font-weight:800;font-size:15px;color:#1a1a2e;">{kw.position ?? '—'}</span>
                   </td>
                   <td style="text-align:center;padding:12px 16px;">
                     {change.text === 'new' ? (
@@ -735,10 +735,10 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
                       <span style={`font-weight:700;font-size:12px;color:${change.color};`}>{change.text}</span>
                     )}
                   </td>
-                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume != null ? kw.volume.toLocaleString() : '—'}</td>
                   <td style="text-align:center;padding:12px 16px;">
                     <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
-                      {kw.difficulty || '—'}
+                      {kw.difficulty ?? '—'}
                     </span>
                   </td>
                 </tr>
@@ -783,7 +783,7 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
                 <td style="text-align:center;padding:12px 16px;color:#434750;">{q.impressions != null ? q.impressions.toLocaleString() : '—'}</td>
                 <td style={`text-align:center;padding:12px 16px;font-weight:600;color:${q.ctr != null ? (q.ctr > 5 ? '#1D9E75' : q.ctr > 2 ? '#BA7517' : '#E24B4A') : '#94a3b8'};`}>{q.ctr != null ? `${q.ctr}%` : '—'}</td>
                 <td style="text-align:center;padding:12px 16px;">
-                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position || '—'}</span>
+                  <span style={`font-weight:800;color:${q.position <= 10 ? '#1D9E75' : q.position <= 20 ? '#BA7517' : '#E24B4A'};`}>{q.position ?? '—'}</span>
                 </td>
               </tr>
             ))}
@@ -869,10 +869,10 @@ const seoKeyFinding = seoAgentNarrative?.keyFinding;
               return (
                 <tr style={`border-bottom:1px solid #f0f0f0;${i % 2 === 1 ? 'background:#fafbfd;' : ''}`}>
                   <td style="padding:12px 24px;font-weight:600;color:#1a1a2e;">{kw.keyword}</td>
-                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume?.toLocaleString() || '—'}</td>
+                  <td style="text-align:center;padding:12px 16px;color:#434750;">{kw.volume != null ? kw.volume.toLocaleString() : '—'}</td>
                   <td style="text-align:center;padding:12px 16px;">
                     <span style={`display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;font-size:11px;font-weight:700;background:${diff.bg};color:${diff.fg};padding:0 8px;`}>
-                      {kw.difficulty || '—'}
+                      {kw.difficulty ?? '—'}
                     </span>
                   </td>
                   <td style="text-align:center;padding:12px 16px;font-size:12px;color:#64748b;">{kw.competitor || '—'}</td>
