@@ -427,12 +427,11 @@ export async function runReputation(
   ).hostname.replace(/^www\./, '');
 
   // Prefer crawl.companyName (already cleaned by crawl module) over title splitting.
-  // crawl.title splitting often produces long subtitles like "GROUP Andbank: Gestión de patrimonio..."
-  // because the split regex /-|/ only catches hyphens and pipes, not colons.
-  const rawName =
-    crawl.companyName?.trim() ||
-    crawl.title?.split(/[-–—|·:]/)[0]?.trim() ||
-    domain;
+  // Still apply the separator split: crawl.companyName is sometimes the full page
+  // title like "Kiko Gámez — Executive Director, Founder & AI Advisor" which
+  // kills DFS news queries. Split on common separators and take the first chunk.
+  const rawCandidate = crawl.companyName?.trim() || crawl.title?.trim() || domain;
+  const rawName = rawCandidate.split(/[-–—|·:]/)[0]?.trim() || rawCandidate;
 
   // Strip common legal entity prefixes (GROUP, GRUPO) and suffixes (S.A., S.L., etc.)
   // so Google News / GBP gets a clean brand name — e.g. "GROUP Andbank" → "Andbank"

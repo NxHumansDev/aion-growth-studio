@@ -8,7 +8,7 @@ import {
 export { type Client, type Snapshot, type Alert, type ContextEntry, type Tier };
 export { DEMO_USERS };
 
-export const IS_DEMO = !import.meta.env.SUPABASE_URL;
+export const IS_DEMO = !(import.meta.env?.SUPABASE_URL || process.env.SUPABASE_URL);
 
 // Tier access helpers (server-side freemium wall)
 const TIER_LEVEL: Record<Tier, number> = { radar: 0, señales: 1, palancas: 2 };
@@ -18,8 +18,8 @@ export function hasTierAccess(currentTier: Tier, requiredTier: Tier): boolean {
 }
 
 export function getSupabase() {
-  const url = import.meta.env.SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = import.meta.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  const url = import.meta.env?.SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = import.meta.env?.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) throw new Error('Supabase env vars missing');
   return createClient(url, key);
 }
