@@ -560,10 +560,47 @@ export interface Recommendation {
   updated_at?: string;
 }
 
-/** Create a new recommendation proposal */
+/** Create a new recommendation proposal.
+ *
+ *  Semantic dedup: if an existing NON-rejected recommendation for this client
+ *  in the same pillar is ≥70% similar by Jaccard on normalized tokens, we
+ *  skip the insert and bump `times_proposed` on the existing row instead.
+ *  This prevents the weekly regenerations from accumulating copies like
+ *  "Mejora tu PageSpeed móvil" / "Optimiza la velocidad móvil" under the
+ *  same pillar.
+ *
+ *  Rejected recommendations are NOT treated as duplicates — if the client
+ *  rejected one, the agent can re-propose a fresh variant later.
+ */
 export async function logRecommendation(rec: Omit<Recommendation, 'status'>): Promise<string | null> {
   if (IS_DEMO) return null;
   const sb = getSupabase();
+
+  // Dedup check — compare against existing proposed / accepted / in-plan
+  // rows for the same client. Lazy import to avoid a circular dependency.
+  try {
+    const { findSimilarRecommendation } = await import('./recommendations/dedupe');
+    const { data: existing } = await sb
+      .from('recommendations')
+      .select('id, pillar, title, times_proposed')
+      .eq('client_id', rec.client_id)
+      .neq('status', 'rejected');
+    if (existing && existing.length > 0) {
+      const dup = findSimilarRecommendation(
+        { pillar: rec.pillar ?? null, title: rec.title },
+        existing.map(r => ({ id: r.id, pillar: r.pillar, title: r.title, times_proposed: r.times_proposed })),
+      );
+      if (dup) {
+        const newCount = ((dup as any).times_proposed ?? 1) + 1;
+        await sb.from('recommendations').update({ times_proposed: newCount }).eq('id', dup.id);
+        console.log(`[recommendations] Dedup skipped "${rec.title.slice(0, 50)}" — similar to #${dup.id} (times_proposed → ${newCount})`);
+        return dup.id ?? null;
+      }
+    }
+  } catch (err) {
+    console.warn(`[recommendations] Dedup check failed (proceeding with insert): ${(err as Error).message}`);
+  }
+
   // NOTE: expected_kpis lives inside the `data` jsonb column (passed by callers
   // as `data: { expected_kpis: [...] }`) — NOT as a top-level column. The table
   // has no `expected_kpis` column, and inserting one breaks the call with

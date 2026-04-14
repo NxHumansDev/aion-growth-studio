@@ -181,35 +181,34 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
     }
 
     // 5. Seed recommendations (IMPORTANT — plan de acción needs these)
+    // Dedup (exact + semantic similarity ≥70% per pillar) is centralized
+    // in logRecommendation. No need for the caller to pre-filter.
     const allRecs = await getAllRecommendations(client.id);
+    const beforeCount = allRecs.length;
     if (pipelineGrowthAgent?.prioritizedActions?.length) {
       try {
-        const existingTitles = new Set(allRecs.map(r => r.title.toLowerCase()));
-        let newCount = 0;
         for (const action of pipelineGrowthAgent.prioritizedActions) {
-          if (!existingTitles.has(action.title.toLowerCase())) {
-            await logRecommendation({
-              client_id: client.id,
-              source: 'growth_agent',
-              pillar: action.pillar,
-              title: action.title,
-              description: action.description,
-              impact: action.businessImpact || 'high',
-              data: {
-                rank: action.rank,
-                detail: action.detail,
-                expectedOutcome: action.expectedOutcome,
-                effort: action.effort,
-                timeframe: action.timeframe,
-                rationale: action.rationale,
-                linkedGap: action.linkedGap,
-              },
-            });
-            newCount++;
-          }
+          await logRecommendation({
+            client_id: client.id,
+            source: 'growth_agent',
+            pillar: action.pillar,
+            title: action.title,
+            description: action.description,
+            impact: action.businessImpact || 'high',
+            data: {
+              rank: action.rank,
+              detail: action.detail,
+              expectedOutcome: action.expectedOutcome,
+              effort: action.effort,
+              timeframe: action.timeframe,
+              rationale: action.rationale,
+              linkedGap: action.linkedGap,
+            },
+          });
         }
-        result.newRecommendations = newCount;
-        console.log(`[radar] Seeded ${newCount} new recommendations for ${client.domain}`);
+        const afterRecs = await getAllRecommendations(client.id);
+        result.newRecommendations = afterRecs.length - beforeCount;
+        console.log(`[radar] Seeded ${result.newRecommendations} new recommendations for ${client.domain} (rest deduped)`);
       } catch (err) {
         console.error(`[radar] Recommendation seeding failed:`, (err as Error).message);
       }
