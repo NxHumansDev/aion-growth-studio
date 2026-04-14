@@ -1,0 +1,426 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClient } from '../../lib/db';
+import { clientHasEditorial, isSetupCompleted } from '../../lib/editorial/db';
+import { PLATFORM_DEFAULTS } from '../../lib/editorial/profile-defaults';
+
+const client = Astro.locals.client ?? await getClient();
+const tier = client.tier;
+
+const hasEditorial = await clientHasEditorial(client.id);
+const alreadySetup = hasEditorial ? await isSetupCompleted(client.id) : false;
+---
+
+<DashboardLayout
+  title="Editorial AI · Configuración"
+  currentPath="/editorial/setup"
+  tier={tier}
+  clientName={client.name}
+  domain={client.domain}
+  lastReportMonth={0}
+  lastReportDate=""
+>
+
+<div style="max-width:880px;margin:0 auto;padding:24px;">
+
+  <!-- Gating: no feature flag -->
+  {!hasEditorial && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#BA7517;">lock</span>
+      <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;margin:16px 0 8px;">Editorial AI aún no está activo</h1>
+      <p style="font-size:14px;color:#64748b;max-width:520px;margin:0 auto 24px;">
+        Editorial AI genera artículos profesionales optimizados para SEO y GEO con la voz de tu marca, fact-check automático y medición de impacto. Disponible en el tier Signals.
+      </p>
+      <a href="/pricing" style="display:inline-block;padding:12px 24px;background:#1A4B8C;color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Activar Signals</a>
+    </div>
+  )}
+
+  {hasEditorial && (
+  <Fragment>
+    <!-- Header -->
+    <div style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;margin-bottom:8px;">
+        <a href="/dashboard" style="color:#64748b;text-decoration:none;">Dashboard</a>
+        <span>/</span>
+        <span>Editorial AI</span>
+        <span>/</span>
+        <span style="color:#1a1a2e;font-weight:600;">Configuración</span>
+      </div>
+      <h1 style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">
+        {alreadySetup ? 'Reconfigurar Editorial AI' : 'Configura Editorial AI'}
+      </h1>
+      <p style="font-size:14px;color:#64748b;margin-top:4px;">
+        En 4 pasos. Tarda ~10 minutos. Todo lo que configures ahora puedes editarlo después en Ajustes.
+      </p>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="display:flex;gap:8px;margin-bottom:32px;" id="progress-bar">
+      <div class="step-dot" data-step="1" style="flex:1;height:4px;border-radius:2px;background:#1A4B8C;"></div>
+      <div class="step-dot" data-step="2" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0;"></div>
+      <div class="step-dot" data-step="3" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0;"></div>
+      <div class="step-dot" data-step="4" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0;"></div>
+    </div>
+
+    <!-- ══ STEP 1: Company profile ══ -->
+    <section data-step="1" class="wizard-step">
+      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="background:#1A4B8C;color:white;width:24px;height:24px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">1</span>
+          <h2 style="font-size:20px;font-weight:900;color:#1a1a2e;">Perfil de la empresa</h2>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;">La voz de la marca es compartida por todo el equipo. No es perfil personal.</p>
+
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Descripción de la empresa (2-3 frases)</label>
+            <textarea id="company_description" rows="3" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" placeholder="Ej: Somos una consultora de growth digital para pymes. Ayudamos a empresas de entre 10-50 empleados a multiplicar su visibilidad en Google y en las IAs generativas."></textarea>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Posicionamiento (qué os diferencia)</label>
+            <textarea id="positioning" rows="2" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" placeholder="Ej: Contrarios al marketing plantilla. Datos, no opiniones. Resultados medibles en 90 días o devolvemos el dinero."></textarea>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Áreas de expertise (separadas por comas)</label>
+            <input id="expertise_areas" type="text" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;" placeholder="Ej: SEO, CRO, contenido B2B, LinkedIn ads" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Idiomas de publicación</label>
+            <div style="display:flex;gap:12px;">
+              <label style="display:flex;align-items:center;gap:6px;padding:10px 16px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;" class="lang-chip">
+                <input type="checkbox" value="es" checked /> Español
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;padding:10px 16px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;" class="lang-chip">
+                <input type="checkbox" value="en" /> Inglés
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:32px;">
+          <button id="step1-next" style="padding:12px 24px;background:#1A4B8C;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Siguiente →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ STEP 2: Voice extraction ══ -->
+    <section data-step="2" class="wizard-step" style="display:none;">
+      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="background:#1A4B8C;color:white;width:24px;height:24px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</span>
+          <h2 style="font-size:20px;font-weight:900;color:#1a1a2e;">Enséñame cómo escribe la empresa</h2>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;">Pega 2-3 textos representativos de cómo ESCRIBE la marca (LinkedIn corporativo, blog, newsletter, email a clientes — no textos de otras empresas). Por cada idioma, muestras en ese idioma.</p>
+
+        <div id="voice-languages-container"></div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:32px;">
+          <button id="step2-back" class="wizard-back" style="padding:12px 24px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;">← Atrás</button>
+          <button id="step2-next" style="padding:12px 24px;background:#1A4B8C;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Extraer voz y continuar →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ STEP 3: References ══ -->
+    <section data-step="3" class="wizard-step" style="display:none;">
+      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="background:#1A4B8C;color:white;width:24px;height:24px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">3</span>
+          <h2 style="font-size:20px;font-weight:900;color:#1a1a2e;">Medios de referencia</h2>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;">Pega 2-3 URLs de artículos cuyo <strong>estilo</strong> os gustaría imitar (no el tema). El sistema los analiza y extrae los patrones útiles.</p>
+
+        <div id="references-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+
+        <button id="add-reference-btn" style="margin-top:12px;padding:10px 16px;background:transparent;color:#1A4B8C;border:1px dashed #1A4B8C;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;width:100%;">+ Añadir referencia</button>
+
+        <div style="display:flex;justify-content:space-between;margin-top:32px;">
+          <button class="wizard-back" style="padding:12px 24px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;">← Atrás</button>
+          <button id="step3-next" style="padding:12px 24px;background:#1A4B8C;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Siguiente →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ STEP 4: Publication profiles ══ -->
+    <section data-step="4" class="wizard-step" style="display:none;">
+      <div style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="background:#1A4B8C;color:white;width:24px;height:24px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">4</span>
+          <h2 style="font-size:20px;font-weight:900;color:#1a1a2e;">¿Dónde publica la empresa?</h2>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;">Selecciona todos los canales donde generarás contenido. Cada uno tiene reglas de formato propias (podrás editarlas después).</p>
+
+        <div id="profiles-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+          {Object.entries(PLATFORM_DEFAULTS).map(([platform, def]) => (
+            <label class="profile-chip" data-platform={platform} style="display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;">
+              <input type="checkbox" value={platform} style="margin-top:2px;" />
+              <div>
+                <p style="font-size:14px;font-weight:700;color:#1a1a2e;">{def.name}</p>
+                <p style="font-size:11px;color:#64748b;margin-top:2px;">
+                  {def.format_rules.target_length_min}-{def.format_rules.target_length_max} palabras
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:32px;">
+          <button class="wizard-back" style="padding:12px 24px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;">← Atrás</button>
+          <button id="step4-complete" style="padding:12px 24px;background:#1D9E75;color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Guardar configuración</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,27,53,0.7);z-index:100;align-items:center;justify-content:center;">
+      <div style="background:white;padding:32px;border-radius:16px;text-align:center;max-width:400px;">
+        <div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#1A4B8C;border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite;"></div>
+        <p id="loading-text" style="font-size:14px;color:#1a1a2e;font-weight:600;">Procesando…</p>
+      </div>
+    </div>
+
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .profile-chip:has(input:checked) {
+        border-color:#1A4B8C;
+        background:#f0f4ff;
+      }
+      .lang-chip:has(input:checked) {
+        border-color:#1A4B8C;
+        background:#f0f4ff;
+      }
+    </style>
+
+    <script>
+      // Wizard state
+      const state = {
+        step: 1,
+        company_description: '',
+        positioning: '',
+        expertise_areas: [],
+        supported_languages: ['es'],
+        voice_by_language: {},
+        style_rules: [],
+        references: [],
+        profiles: [],
+      };
+
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+      const overlay = $('#loading-overlay');
+
+      function setLoading(show, text) {
+        overlay.style.display = show ? 'flex' : 'none';
+        if (text) $('#loading-text').textContent = text;
+      }
+
+      function goToStep(n) {
+        state.step = n;
+        $$('.wizard-step').forEach(el => {
+          el.style.display = Number(el.dataset.step) === n ? 'block' : 'none';
+        });
+        $$('#progress-bar .step-dot').forEach(el => {
+          el.style.background = Number(el.dataset.step) <= n ? '#1A4B8C' : '#e2e8f0';
+        });
+        window.scrollTo(0, 0);
+      }
+
+      // ── Step 1 → 2 ────────────────────────────────────────────────
+      $('#step1-next').addEventListener('click', () => {
+        state.company_description = $('#company_description').value.trim();
+        state.positioning = $('#positioning').value.trim();
+        state.expertise_areas = $('#expertise_areas').value.split(',').map(s => s.trim()).filter(Boolean);
+        state.supported_languages = $$('.lang-chip input:checked').map(i => i.value);
+
+        if (!state.company_description) return alert('Añade una descripción de la empresa');
+        if (!state.positioning) return alert('Añade el posicionamiento');
+        if (state.supported_languages.length === 0) return alert('Selecciona al menos un idioma');
+
+        renderStep2();
+        goToStep(2);
+      });
+
+      // ── Step 2: render text areas per language ────────────────────
+      function renderStep2() {
+        const container = $('#voice-languages-container');
+        container.innerHTML = '';
+        state.supported_languages.forEach(lang => {
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'margin-bottom:24px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;';
+          wrap.innerHTML = `
+            <p style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px;">
+              Muestras en ${lang === 'es' ? 'Español' : 'Inglés'}
+            </p>
+            <textarea rows="10" data-lang="${lang}" class="voice-sample" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;" placeholder="Pega aquí 2-3 textos representativos separados por líneas en blanco. Mínimo 100 caracteres cada uno."></textarea>
+          `;
+          container.appendChild(wrap);
+        });
+      }
+
+      $('#step2-next').addEventListener('click', async () => {
+        setLoading(true, 'Extrayendo la voz de la marca…');
+        try {
+          for (const ta of $$('.voice-sample')) {
+            const lang = ta.dataset.lang;
+            const raw = ta.value.trim();
+            if (!raw) continue;
+            const samples = raw.split(/\n\s*\n+/).map(s => s.trim()).filter(s => s.length >= 100);
+            if (samples.length === 0) {
+              alert(`Añade al menos 1 muestra de >100 caracteres en ${lang === 'es' ? 'Español' : 'Inglés'}`);
+              setLoading(false);
+              return;
+            }
+
+            const res = await fetch('/api/editorial/setup/extract-voice', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ samples, language: lang }),
+            });
+            if (!res.ok) {
+              const err = await res.json();
+              alert(`Error extrayendo voz (${lang}): ${err.error}`);
+              setLoading(false);
+              return;
+            }
+            const extracted = await res.json();
+            state.voice_by_language[lang] = {
+              tone_descriptors: extracted.tone_descriptors || [],
+              structural_patterns: extracted.structural_patterns || [],
+              vocabulary_fingerprint: extracted.vocabulary_fingerprint || [],
+            };
+            // Add proposed rules (all selected by default)
+            (extracted.proposed_rules || []).forEach(r => {
+              state.style_rules.push({
+                rule_type: r.rule_type,
+                content: r.content,
+                priority: r.priority,
+                language: lang,
+              });
+            });
+          }
+
+          if (Object.keys(state.voice_by_language).length === 0) {
+            alert('Debes aportar muestras en al menos un idioma');
+            setLoading(false);
+            return;
+          }
+
+          setLoading(false);
+          goToStep(3);
+          renderReferences();
+        } catch (e) {
+          alert('Error: ' + (e.message || e));
+          setLoading(false);
+        }
+      });
+
+      // ── Step 3: references ────────────────────────────────────────
+      function renderReferences() {
+        const list = $('#references-list');
+        list.innerHTML = '';
+        state.references.forEach((ref, idx) => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding:14px;border:1px solid #e2e8f0;border-radius:10px;background:#f7f9ff;';
+          div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+              <div style="flex:1;">
+                <p style="font-size:13px;font-weight:700;color:#1a1a2e;">${ref.name || ref.url}</p>
+                ${ref.why_reference ? `<p style="font-size:12px;color:#64748b;margin-top:4px;">${ref.why_reference}</p>` : ''}
+                ${ref.notes ? `<p style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">${ref.notes}</p>` : ''}
+              </div>
+              <button data-idx="${idx}" class="remove-ref" style="background:transparent;border:none;color:#E24B4A;cursor:pointer;font-size:18px;">×</button>
+            </div>
+          `;
+          list.appendChild(div);
+        });
+        $$('.remove-ref').forEach(b => {
+          b.addEventListener('click', () => {
+            state.references.splice(Number(b.dataset.idx), 1);
+            renderReferences();
+          });
+        });
+      }
+
+      $('#add-reference-btn').addEventListener('click', async () => {
+        const url = prompt('URL del artículo de referencia:');
+        if (!url) return;
+        setLoading(true, 'Analizando estilo de la referencia…');
+        try {
+          const res = await fetch('/api/editorial/setup/analyze-reference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            alert(`Error: ${err.error}`);
+            setLoading(false);
+            return;
+          }
+          const ref = await res.json();
+          state.references.push({
+            name: ref.name,
+            url: ref.url,
+            why_reference: ref.why_reference,
+            notes: ref.notes,
+            language: ref.detected_language || null,
+          });
+          renderReferences();
+          setLoading(false);
+        } catch (e) {
+          alert('Error: ' + (e.message || e));
+          setLoading(false);
+        }
+      });
+
+      $('#step3-next').addEventListener('click', () => goToStep(4));
+
+      // ── Step 4: profiles ──────────────────────────────────────────
+      $('#step4-complete').addEventListener('click', async () => {
+        const selected = $$('#profiles-grid input:checked').map(i => i.value);
+        if (selected.length === 0) return alert('Selecciona al menos un canal de publicación');
+        state.profiles = selected.map(platform => ({ platform }));
+
+        setLoading(true, 'Guardando configuración…');
+        try {
+          const res = await fetch('/api/editorial/setup/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              company_description: state.company_description,
+              positioning: state.positioning,
+              expertise_areas: state.expertise_areas,
+              supported_languages: state.supported_languages,
+              voice_by_language: state.voice_by_language,
+              style_rules: state.style_rules,
+              references: state.references,
+              profiles: state.profiles,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            alert(`Error: ${err.error}`);
+            setLoading(false);
+            return;
+          }
+          setLoading(false);
+          window.location.href = '/editorial?setup=complete';
+        } catch (e) {
+          alert('Error: ' + (e.message || e));
+          setLoading(false);
+        }
+      });
+
+      // Back buttons
+      $$('.wizard-back').forEach(b => b.addEventListener('click', () => goToStep(state.step - 1)));
+    </script>
+  </Fragment>
+  )}
+
+</div>
+</DashboardLayout>
