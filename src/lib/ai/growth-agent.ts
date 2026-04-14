@@ -19,6 +19,10 @@ import { AION_SYSTEM_PROMPT } from './system-prompt';
 import type { ClientOnboarding, PriorityKeyword, KeywordStrategy } from '../db';
 import { computeOnPageIssues } from '../audit/on-page-issues';
 import { logAiGeneration, estimateAiCost } from '../data/ai-log';
+import { resolveProfile } from '../benchmarks/resolve-profile';
+import { getProfile } from '../benchmarks/profiles';
+import { getGeoMultipliers } from '../benchmarks/geo-multipliers';
+import { resolveThresholds } from '../benchmarks/score-with-profile';
 
 const ANTHROPIC_API_KEY = import.meta.env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-4-6';
@@ -151,6 +155,16 @@ export interface GrowthAgentInput {
     inProgress: Array<{ title: string; impact?: string }>;
     rejected: Array<{ title: string; reason?: string }>;
   };
+
+  // When omitted, the agent resolves it internally from sector.ts inference
+  // inside pipelineOutput. Pass explicitly when the caller already has the
+  // resolved profile (e.g. run-radar uses confirmed onboarding values).
+  resolvedProfile?: {
+    profile: string;          // one of 8 BusinessProfile keys
+    geoScope: string;         // one of 4 GeoScope keys
+    source: 'onboarding' | 'sector-inference' | 'fallback';
+    confidence: number;
+  };
 }
 
 // ─── System prompt extension (growth-agent specific) ───────────────────
@@ -170,21 +184,16 @@ Las reglas de voz y persona ya están arriba — aquí solo añado lo específic
 
 Tienes que saber explicar por qué cada pilar tiene el score que tiene. El cliente puede preguntártelo y necesitas darle una respuesta concreta basada en la fórmula real (no inventes ni aproximes).
 
-**Score global (0-100)**: media ponderada de los pilares activos. Pesos base:
-- SEO: 35%
-- GEO (visibilidad IA): 25%
-- Web & técnico: 15%
-- Conversión: 15%
-- Reputación: 10%
+**Score global (0-100)**: media ponderada de los pilares activos. Los pesos NO son globales — dependen del perfil de benchmark resuelto para este cliente (sección "PERFIL DE BENCHMARK" en el contexto). Un ecommerce pesa conversión más fuerte; un freelance pesa reputación más fuerte; un SaaS pesa SEO más fuerte. Usa los pesos reales que recibes en el contexto, nunca asumas 35/25/15/15/10 por defecto.
 
 Si un pilar no tiene datos (ej: no hay audit GEO), los pesos se redistribuyen entre los pilares activos — no penaliza. El total nunca castiga por falta de datos.
 
-**Pilar SEO (35%)** — escala logarítmica:
-- \`kwScore = logScore(keywordsTop10, 2000)\` · 2000 kw en top 10 = 100 puntos. 69 kw = ~56. 500 kw = ~82.
-- \`trafficScore = logScore(organicTrafficEstimate, 5_000_000)\` · 5M visitas/mes = 100. 1K = ~43. 50K = ~67.
+**Pilar SEO** — escala logarítmica:
+- \`kwScore = logScore(keywordsTop10, CEILING)\` donde CEILING es el techo del perfil de benchmark (ver sección "PERFIL DE BENCHMARK" arriba). Para un freelance el techo son ~200 kw; para un SaaS son ~2K; para un media-education son ~5K. A mayor ambición del perfil, más kw hacen falta para 100 puntos.
+- \`trafficScore = logScore(organicTrafficEstimate, CEILING_TRAFICO)\` · mismo criterio: el techo depende del perfil + ámbito geo.
 - \`seoScore = kwScore × 0.6 + trafficScore × 0.4\`
 - Bonus top-3: hasta +8 puntos si muchas keywords están en top 3 (señal de autoridad real).
-- La escala logarítmica significa que el primer tramo (de 0 a 100 kw) da muchos puntos rápido, y después hace falta mucho trabajo para ganar cada punto adicional. Es coherente con el esfuerzo real de SEO.
+- La escala logarítmica significa que el primer tramo da muchos puntos rápido, y después hace falta mucho trabajo para ganar cada punto. Coherente con el esfuerzo real de SEO.
 
 **Pilar GEO / Visibilidad IA (25%)**:
 - \`geoScore = geo.mentionRate\` directamente — ya viene en escala 0-100 (% de queries donde la IA menciona a la marca).
@@ -215,12 +224,13 @@ El \`detectedModel\` viene del crawler (solo analiza la homepage). Puede fallar 
 
 **Google Shopping**: si el cliente o sus competidores aparecen en resultados de Shopping, eso es dato real. Si la competencia invierte en Shopping y el cliente no, eso puede ser una oportunidad. Si ni el cliente ni la competencia usan Shopping, no lo recomiendes — el mercado no lo demanda.
 
-**Pilar Reputación (10%)** — composite de señales disponibles, pesos renormalizados según cuáles existen:
-- GBP rating (33%): \`((gbp.rating - 2) / 3) × 100\` + bonus por reviewCount. Rating 4.0 = 67 puntos. 4.5 = 83. 5.0 = 100.
-- Prensa / Google News (27%): \`newsCount × 8\` (capped 100). 3 menciones = 24 pts. 10 = 80.
-- Blog activo (20%): solo si hay blog. 2+ posts/mes = 100, 1/mes = 70, 1 cada 3 meses = 40.
-- LinkedIn followers (20%): solo si se scrapeó. Logarítmico ceiling 50K.
+**Pilar Reputación** — composite de señales disponibles, pesos renormalizados según cuáles existen. Los umbrales vienen del perfil de benchmark (sección "PERFIL DE BENCHMARK" del contexto), NO son globales:
+- GBP rating: \`((gbp.rating - 2) / 3) × 100\` + bonus por reviewCount (el techo del bonus usa el GBP reviews ceiling del perfil). Rating 4.0★ = 67 puntos, 4.5★ = 83, 5.0★ = 100 (escala universal, no cambia por perfil).
+- Prensa / Google News: escalado por los umbrales del perfil (débil / aceptable / bueno / excelente) × ámbito geo. Para un freelance 5 menciones/90d = bueno; para un SaaS global 5 = aceptable. **Usa los umbrales del contexto, no inventes**.
+- Blog activo: stepped score contra los umbrales de posts/mes del perfil. Un media-education necesita 10+ posts/mes para "bueno"; un freelance con 2 posts/mes ya está "bueno".
+- LinkedIn followers: logarítmico con ceiling del perfil × geo. Freelance ceiling = 10K (así 1.5K seguidores ya puntúa fuerte); SaaS ceiling = 50K (mismos 1.5K puntúan bajo). Misma lógica para Instagram.
 - Si una señal no existe (ej: no encontramos GBP), ese componente simplemente no pesa — los demás se renormalizan.
+- **REGLA OBLIGATORIA**: cuando valores un número cita el perfil ("para un consultor independiente...", "para un ecommerce B2C nacional..."). NUNCA uses adjetivos absolutos ("débil", "escaso") sin el marco del perfil.
 
 **Pilar Contenido (informacional, no cuenta en total)**:
 - Calculado en \`computeContentScore\` a partir de cadencia del blog, Instagram, LinkedIn, y el sector.
@@ -487,6 +497,20 @@ Si el cliente no tiene priority keywords configuradas, devuelve \`onPageAuditCon
 function buildInputContext(input: GrowthAgentInput): string {
   const { clientName, domain, sector, onboarding: ob, pipelineOutput: r, priorSnapshot, priorityKeywords, keywordStrategy, integrations, actionHistory } = input;
 
+  // Resolve the benchmark profile so the prompt can tell the model what "good"
+  // looks like FOR THIS KIND OF BUSINESS rather than using global numbers.
+  const resolved = input.resolvedProfile || resolveProfile({
+    onboarding: ob ? { business_profile: (ob as any).business_profile ?? null, geo_scope: ob.geo_scope ?? null } : null,
+    sectorResult: {
+      businessProfile: (r.sector as any)?.businessProfile,
+      geoScope: (r.sector as any)?.geoScope,
+      confidence: (r.sector as any)?.confidence,
+    },
+  });
+  const profile = getProfile(resolved.profile);
+  const multipliers = getGeoMultipliers(resolved.geoScope as any);
+  const th = resolveThresholds(profile, multipliers);
+
   const crawl = r.crawl || {};
   const seo = r.seo || {};
   const geo = r.geo || {};
@@ -515,6 +539,39 @@ Arquitectura URLs: ${ob?.url_architecture || 'URL única'}${ob?.url_detail ? ` �
 Presupuesto marketing: ${formatBudget(ob?.monthly_budget)}
 Equipo: ${formatTeam(ob?.team_size)}
 Competidores declarados: ${(ob?.competitors || []).map(c => c.url).join(', ') || 'ninguno'}`);
+
+  // ─── Benchmark profile context — CRITICAL for calibrated valoraciones ─
+  // The scoring system uses per-profile thresholds. The agent MUST base every
+  // "bien / mal / insuficiente" statement on these numbers, not on intuition.
+  sections.push(`## PERFIL DE BENCHMARK (obligatorio para valorar KPIs)
+
+**Perfil**: \`${resolved.profile}\` — ${profile.playbook.label}
+**Ámbito geográfico**: \`${resolved.geoScope}\`
+**Fuente**: ${resolved.source === 'onboarding' ? 'confirmado por el cliente' : resolved.source === 'sector-inference' ? `inferido por sector.ts (confianza ${Math.round(resolved.confidence * 100)}%)` : 'fallback seguro'}
+
+**Descripción**: ${profile.playbook.description}
+
+**Ejemplos de clientes similares**: ${profile.playbook.exampleClients.join(', ')}
+
+**Señales que SÍ importan para este perfil** (valora positivamente cuando existan):
+${profile.playbook.valueSignals.map(s => `- ${s}`).join('\n')}
+
+**Señales que NO debes evaluar ni penalizar** (no son relevantes para este perfil):
+${profile.playbook.ignoreSignals.map(s => `- ${s}`).join('\n')}
+
+**Umbrales contextuales aplicados al scoring** (ya multiplicados por el ámbito geo):
+- Keywords top 10: el techo "100 = excelente" para este perfil+ámbito es ${Math.round(th.keywordsTop10Ceiling)} kw
+- Tráfico orgánico mensual: techo ${Math.round(th.trafficCeiling).toLocaleString('es-ES')} visitas/mes
+- Seguidores Instagram: techo ${Math.round(th.instagramCeiling).toLocaleString('es-ES')}
+- Seguidores LinkedIn: techo ${Math.round(th.linkedinCeiling).toLocaleString('es-ES')}
+- Menciones en prensa (90d): ${th.pressThresholds.weak ?? 0}→débil · ${th.pressThresholds.ok ?? 0}→aceptable · ${th.pressThresholds.good ?? 0}→bueno · ${th.pressThresholds.strong ?? 0}→excelente
+- Posts blog/mes: ${th.blogThresholds.weak ?? 0}→débil · ${th.blogThresholds.ok ?? 0}→aceptable · ${th.blogThresholds.good ?? 0}→bueno · ${th.blogThresholds.strong ?? 0}→excelente
+- GBP reviews: techo ${Math.round(th.gbpReviewsCeiling)} reviews
+
+**Pesos de pilares para este perfil** (distintos de la media global):
+- SEO ${Math.round(profile.weights.seo * 100)}%, GEO ${Math.round(profile.weights.geo * 100)}%, Web ${Math.round(profile.weights.web * 100)}%, Conversión ${Math.round(profile.weights.conversion * 100)}%, Reputación ${Math.round(profile.weights.reputation * 100)}%
+
+**REGLA**: al describir un KPI usa el lenguaje "para un ${profile.playbook.label}...". Ejemplo correcto: "Para un consultor independiente con actividad nacional, 895 seguidores en Instagram están dentro del rango esperado (techo 10K)". Ejemplo INCORRECTO: "Tu presencia en Instagram es débil" (absoluto, sin contexto).`);
 
   // ─── Integrations already connected (NEVER re-suggest these) ─────────
   if (integrations) {
@@ -888,9 +945,19 @@ export async function runGrowthAgent(input: GrowthAgentInput): Promise<GrowthAna
   }
 
   // ── Step 3: Opus QA review (catches subtle factual/coherence issues) ──
+  // Resolve profile once so the same context is used for Sonnet draft and Opus QA.
+  const resolvedForQA = input.resolvedProfile || resolveProfile({
+    onboarding: input.onboarding ? { business_profile: (input.onboarding as any).business_profile ?? null, geo_scope: input.onboarding.geo_scope ?? null } : null,
+    sectorResult: {
+      businessProfile: (input.pipelineOutput.sector as any)?.businessProfile,
+      geoScope: (input.pipelineOutput.sector as any)?.geoScope,
+      confidence: (input.pipelineOutput.sector as any)?.confidence,
+    },
+  });
+
   let qa;
   try {
-    qa = await runQAReview(draft, input.pipelineOutput);
+    qa = await runQAReview(draft, input.pipelineOutput, resolvedForQA);
   } catch (err) {
     console.error('[growth-agent] QA threw, skipping:', (err as Error).message);
     qa = { approved: true, corrections: [], summary: 'QA crashed' };

@@ -97,6 +97,7 @@ export function validateStructural(analysis: GrowthAnalysis): StructuralCheck {
 export async function runQAReview(
   analysis: GrowthAnalysis,
   pipelineOutput: Record<string, any>,
+  resolvedProfile?: { profile: string; geoScope: string; source: string; confidence: number } | null,
 ): Promise<QAResult> {
   if (!ANTHROPIC_API_KEY) {
     return { approved: true, corrections: [], summary: 'QA skipped — no API key' };
@@ -112,6 +113,19 @@ export async function runQAReview(
   const cc = pipelineOutput.content_cadence || {};
   const comps = pipelineOutput.competitors?.competitors || [];
   const ct = pipelineOutput.competitor_traffic?.items || [];
+
+  // Resolve benchmark profile so QA can validate that the draft's valoraciones
+  // are calibrated to the right business type (not global absolutes).
+  const { resolveProfile } = await import('../benchmarks/resolve-profile');
+  const { getProfile } = await import('../benchmarks/profiles');
+  const resolved = resolvedProfile || resolveProfile({
+    sectorResult: {
+      businessProfile: (pipelineOutput.sector as any)?.businessProfile,
+      geoScope: (pipelineOutput.sector as any)?.geoScope,
+      confidence: (pipelineOutput.sector as any)?.confidence,
+    },
+  });
+  const profile = getProfile(resolved.profile);
 
   // Minimal fact sheet for QA — only the numbers it needs to cross-check
   const facts = JSON.stringify({
@@ -146,6 +160,25 @@ export async function runQAReview(
   const prompt = `Eres el Director de Calidad de AION Growth Studio. 15 años de experiencia en growth marketing. Tu trabajo es GARANTIZAR que cada análisis que sale de AION sea IMPECABLE antes de llegar al cliente.
 
 Este análisis va a verse en el dashboard del cliente, en el informe público del audit, y alimentará el chat del advisor. Lo leerán CEOs y CMOs que tomarán decisiones de inversión basándose en él. Si algo no es coherente, correcto o valioso, TÚ lo corriges. No señalas — devuelves correcciones quirúrgicas.
+
+═══════════════════════════════════════════════
+PERFIL DEL CLIENTE (marco de valoración obligatorio)
+═══════════════════════════════════════════════
+
+Perfil: ${resolved.profile} — ${profile.playbook.label}
+Ámbito geográfico: ${resolved.geoScope}
+Descripción: ${profile.playbook.description}
+Ejemplos similares: ${profile.playbook.exampleClients.join(', ')}
+
+**Señales que SÍ importan** para este perfil:
+${profile.playbook.valueSignals.map(s => `- ${s}`).join('\n')}
+
+**Señales que NO se deben evaluar/penalizar** para este perfil:
+${profile.playbook.ignoreSignals.map(s => `- ${s}`).join('\n')}
+
+Durante la revisión, si el análisis valora un KPI usando adjetivos absolutos ("débil", "escaso", "bajo") sin citar el perfil o sin comparar contra los umbrales razonables PARA ESTE TIPO DE NEGOCIO, eso es un error de calibración. Por ejemplo: decir "895 seguidores en Instagram es débil" es INCORRECTO para un freelance (el techo del perfil son 10K). Corrige a "para un consultor independiente, 895 seguidores están dentro del rango esperado".
+
+Si el análisis evalúa métricas del "ignoreSignals" (ej: habla de "necesita carrito de compra" a un freelance consultor), corrige eliminando la valoración irrelevante.
 
 ═══════════════════════════════════════════════
 DATOS REALES DEL AUDIT (la única fuente de verdad)
