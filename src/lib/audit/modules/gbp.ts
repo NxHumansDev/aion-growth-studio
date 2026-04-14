@@ -104,7 +104,7 @@ function normalize(s: string): string {
  * ≥3 chars to avoid rejecting everything. For concatenated single-word
  * brands (e.g. "kikogamez"), also try 2-way splits.
  */
-function nameLooksLikeBrand(placeName: string, queryName: string): boolean {
+export function nameLooksLikeBrand(placeName: string, queryName: string): boolean {
   if (!queryName) return true;
   const place = normalize(placeName);
   const query = normalize(queryName);
@@ -114,11 +114,13 @@ function nameLooksLikeBrand(placeName: string, queryName: string): boolean {
   if (place.includes(query)) return true;
 
   // Spacing-insensitive match: "Laeuropea" stored in DB vs "La Europea"
-  // returned by Places, or vice versa. If the squashed forms are equal
-  // (or one contains the other), treat as same brand.
+  // returned by Places, or vice versa. We require BOTH sides ≥5 chars (when
+  // squashed) so that a 4-letter place name like "Kiko" doesn't match a
+  // longer query like "Kikogamez" by being a substring of the squashed form.
   const querySquashed = query.replace(/\s+/g, '');
   const placeSquashed = place.replace(/\s+/g, '');
-  if (querySquashed.length >= 5 && (placeSquashed.includes(querySquashed) || querySquashed.includes(placeSquashed))) return true;
+  const shorter = Math.min(querySquashed.length, placeSquashed.length);
+  if (shorter >= 5 && (placeSquashed.includes(querySquashed) || querySquashed.includes(placeSquashed))) return true;
 
   const allWords = query.split(/[\s\-_.]+/).filter(w => w.length >= 3);
   if (allWords.length === 0) return false;

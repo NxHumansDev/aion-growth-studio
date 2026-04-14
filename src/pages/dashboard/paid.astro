@@ -81,8 +81,8 @@ const ctItems = snapshot.pipeline_output.competitor_traffic?.items || [];
               {ctItems.map((c: any) => (
                 <div style="padding:20px;border:1px solid #e8e5ff;border-radius:10px;">
                   <p style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px;">{c.domain}</p>
-                  <p style="font-size:12px;color:#434750;">Tráfico est.: <strong>{c.organicTrafficEstimate?.toLocaleString('es-ES') || '—'}</strong></p>
-                  <p style="font-size:12px;color:#434750;margin-top:4px;">Keywords top 10: <strong>{c.keywordsTop10 || '—'}</strong></p>
+                  <p style="font-size:12px;color:#434750;">Tráfico est.: <strong>{c.organicTrafficEstimate != null ? c.organicTrafficEstimate.toLocaleString('es-ES') : '—'}</strong></p>
+                  <p style="font-size:12px;color:#434750;margin-top:4px;">Keywords top 10: <strong>{c.keywordsTop10 ?? '—'}</strong></p>
                 </div>
               ))}
             </div>

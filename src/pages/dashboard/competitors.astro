@@ -249,7 +249,7 @@ const competitorRows = rows.slice(1);
                   {trDelta && <span style={`display:block;font-size:10px;font-weight:700;color:${trDelta.color};`}>{trDelta.text}</span>}
                 </td>
                 <td style="text-align:center;padding:14px 16px;">
-                  <span style={`font-weight:700;color:${row.paidKeywords ? '#1a1a2e' : '#cbd5e1'};`}>{row.paidKeywords || '—'}</span>
+                  <span style={`font-weight:700;color:${row.paidKeywords ? '#1a1a2e' : '#cbd5e1'};`}>{row.paidKeywords ?? '—'}</span>
                 </td>
                 <td style="text-align:center;padding:14px 16px;">
                   {row.mobilePerf != null ? (
