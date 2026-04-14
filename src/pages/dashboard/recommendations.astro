@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import GenerateArticleButton from '../../components/editorial/GenerateArticleButton.astro';
 import { getClient, getLatestSnapshot, getProposedRecommendations, getRejectedRecommendations, getActionPlan, getCompletedActions } from '../../lib/db';
 import type { Tier } from '../../lib/demo-data';
 
@@ -355,6 +356,13 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
                 </div>
                 <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{action.title}</h4>
                 {action.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{action.description}</p>}
+
+                {actData.contentGeneration?.topic && actData.contentGeneration?.type && (
+                  <GenerateArticleButton
+                    contentGeneration={actData.contentGeneration}
+                    sourceActionId={action.id}
+                  />
+                )}
 
                 {subtasks.length > 0 && (
                   <div style="margin-top:10px;">

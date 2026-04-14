@@ -64,6 +64,25 @@ export interface PrioritizedAction {
   timeframe: string;                         // "2 semanas", "1 mes"
   rationale: string;                         // why THIS rank (references critical gaps / pillar findings)
   linkedGap?: string;                        // which criticalGap or keyFinding this action addresses
+  /**
+   * When this action is about writing content (blog post, LinkedIn post,
+   * newsletter, article), the Growth Agent fills this field so the dashboard
+   * can render a "Generar automáticamente" CTA that opens Editorial AI with
+   * the brief pre-filled. Omit for actions that aren't about writing.
+   */
+  contentGeneration?: {
+    type: 'article_blog' | 'linkedin_post' | 'linkedin_article' | 'newsletter';
+    topic: string;
+    primary_keyword?: string;
+    secondary_keywords?: string[];
+    funnel_stage?: 'TOFU' | 'MOFU' | 'BOFU';
+    language?: 'es' | 'en';
+    rationale: string;
+    /** When true, this is a refresh of an existing article rather than new content. */
+    isRefresh?: boolean;
+    /** article_id of the existing article to update (if isRefresh=true). */
+    refreshArticleId?: string;
+  };
 }
 
 /**
@@ -356,6 +375,10 @@ Por eso la **coherencia es no negociable**:
 
 8. Cuantifica el upside siempre que puedas: "podrías pasar de X visitas/mes a Y-Z en N meses si ejecutas el plan". Si no tienes datos para cuantificar, devuelve \`upsidePotential: null\`.
 
+9. **Acciones de contenido → rellena \`contentGeneration\`**: si la acción es "escribir un artículo de blog", "publicar en LinkedIn", "crear newsletter" o similar, DEBES rellenar el campo \`contentGeneration\` con un brief listo para el redactor (topic concreto, primary_keyword derivada de las priority_keywords del cliente si encaja, funnel_stage, idioma). El dashboard lo usa para mostrar un botón "Generar automáticamente" que abre Editorial AI con el brief pre-llenado. Si la acción NO es de contenido escrito (ej: "añadir schema.org", "optimizar PageSpeed"), OMITE el campo completo.
+
+10. **Content refresh**: si detectas en \`actionHistory\` o \`articlePerformance\` que un artículo publicado hace >3 meses está perdiendo posición en su tracking_keyword (>5 posiciones de caída), recomienda refresh en vez de crear uno nuevo: \`contentGeneration.isRefresh = true\` + \`refreshArticleId\` del artículo existente.
+
 ## Formato de respuesta
 
 Responde con JSON válido siguiendo EXACTAMENTE este schema (sin texto adicional fuera del JSON):
@@ -395,7 +418,17 @@ Responde con JSON válido siguiendo EXACTAMENTE este schema (sin texto adicional
       "effort": "low|medium|high",
       "timeframe": "2 semanas | 1 mes | 2-3 meses",
       "rationale": "Por qué esta acción es la #1 (referencia al criticalGap o keyFinding que resuelve)",
-      "linkedGap": "texto exacto del criticalGap del executiveSummary que esta acción resuelve (si aplica)"
+      "linkedGap": "texto exacto del criticalGap del executiveSummary que esta acción resuelve (si aplica)",
+      "contentGeneration": {
+        "type": "article_blog | linkedin_post | linkedin_article | newsletter",
+        "topic": "Topic concreto listo para brief — 1 frase accionable",
+        "primary_keyword": "Keyword objetivo (de priority_keywords si encaja)",
+        "secondary_keywords": ["2-4 keywords adicionales relacionadas"],
+        "funnel_stage": "TOFU | MOFU | BOFU",
+        "language": "es | en",
+        "rationale": "Por qué este topic + keyword en este canal aporta valor (dato concreto del audit)",
+        "isRefresh": false
+      }
     }
   ],
   "auditSummaries": {
@@ -1062,6 +1095,24 @@ function validateAndNormalize(parsed: any, input: GrowthAgentInput): GrowthAnaly
           timeframe: a.timeframe || '',
           rationale: a.rationale || '',
           linkedGap: a.linkedGap || undefined,
+          contentGeneration: (() => {
+            const cg = a.contentGeneration;
+            if (!cg || typeof cg !== 'object') return undefined;
+            const validTypes = ['article_blog', 'linkedin_post', 'linkedin_article', 'newsletter'];
+            if (!validTypes.includes(cg.type)) return undefined;
+            if (!cg.topic || typeof cg.topic !== 'string') return undefined;
+            return {
+              type: cg.type,
+              topic: cg.topic,
+              primary_keyword: typeof cg.primary_keyword === 'string' ? cg.primary_keyword : undefined,
+              secondary_keywords: Array.isArray(cg.secondary_keywords) ? cg.secondary_keywords.filter((s: any) => typeof s === 'string') : undefined,
+              funnel_stage: ['TOFU', 'MOFU', 'BOFU'].includes(cg.funnel_stage) ? cg.funnel_stage : undefined,
+              language: ['es', 'en'].includes(cg.language) ? cg.language : undefined,
+              rationale: typeof cg.rationale === 'string' ? cg.rationale : '',
+              isRefresh: cg.isRefresh === true,
+              refreshArticleId: typeof cg.refreshArticleId === 'string' ? cg.refreshArticleId : undefined,
+            };
+          })(),
         }))
         .sort((a: PrioritizedAction, b: PrioritizedAction) => a.rank - b.rank)
         .slice(0, 8)

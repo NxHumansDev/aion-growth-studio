@@ -1,0 +1,239 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClient } from '../../lib/db';
+import { clientHasEditorial, isSetupCompleted, listPublicationProfiles } from '../../lib/editorial/db';
+import { getQuotaStatus } from '../../lib/editorial/quota';
+
+const client = Astro.locals.client ?? await getClient();
+const tier = client.tier;
+
+const hasEditorial = await clientHasEditorial(client.id);
+const setupDone = hasEditorial ? await isSetupCompleted(client.id) : false;
+const profiles = setupDone ? await listPublicationProfiles(client.id) : [];
+const quota = hasEditorial ? await getQuotaStatus(client.id) : null;
+
+// Pre-fill from query params (coming from GenerateArticleButton click)
+const url = Astro.url;
+const prefill = {
+  topic: url.searchParams.get('topic') ?? '',
+  type: url.searchParams.get('type') ?? 'article_blog',
+  primary_keyword: url.searchParams.get('primary_keyword') ?? '',
+  secondary_keywords: url.searchParams.get('secondary_keywords')?.split(',').filter(Boolean) ?? [],
+  funnel_stage: url.searchParams.get('funnel_stage') ?? '',
+  language: url.searchParams.get('language') ?? 'es',
+  source_action_id: url.searchParams.get('source_action') ?? '',
+  refresh_article_id: url.searchParams.get('refresh_article_id') ?? '',
+};
+
+// Map content_type to the best matching profile by platform
+const typeToPlatform: Record<string, string> = {
+  article_blog: 'blog',
+  linkedin_post: 'linkedin_post',
+  linkedin_article: 'linkedin_article',
+  newsletter: 'newsletter',
+};
+const preselectedPlatform = typeToPlatform[prefill.type] ?? 'blog';
+const preselectedProfile = profiles.find(p => p.platform === preselectedPlatform) ?? profiles[0];
+---
+
+<DashboardLayout
+  title="Editorial AI · Nuevo artículo"
+  currentPath="/editorial/new"
+  tier={tier}
+  clientName={client.name}
+  domain={client.domain}
+  lastReportMonth={0}
+  lastReportDate=""
+>
+
+<div style="max-width:780px;margin:0 auto;padding:24px;">
+
+  {!hasEditorial && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#BA7517;">lock</span>
+      <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;margin:16px 0 8px;">Editorial AI no está activo</h1>
+      <a href="/pricing" style="display:inline-block;padding:12px 24px;background:#1A4B8C;color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Activar Señales</a>
+    </div>
+  )}
+
+  {hasEditorial && !setupDone && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#1A4B8C;">rocket_launch</span>
+      <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;margin:16px 0 8px;">Configura Editorial AI primero</h1>
+      <p style="font-size:14px;color:#64748b;max-width:460px;margin:0 auto 24px;">Antes de generar artículos necesitas configurar la voz de la marca, las referencias y los canales. Tarda ~10 minutos.</p>
+      <a href="/editorial/setup" style="display:inline-block;padding:12px 24px;background:#1A4B8C;color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Iniciar configuración →</a>
+    </div>
+  )}
+
+  {hasEditorial && setupDone && quota && quota.current.generated >= quota.max.generated && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#BA7517;">hourglass_empty</span>
+      <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;margin:16px 0 8px;">Cuota mensual alcanzada</h1>
+      <p style="font-size:14px;color:#64748b;max-width:460px;margin:0 auto 24px;">Has generado {quota.current.generated} de {quota.max.generated} artículos este mes. La cuota se reinicia el {quota.resets_on}.</p>
+      <a href="/editorial/articles" style="display:inline-block;padding:12px 24px;background:#1A4B8C;color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Ver mis artículos →</a>
+    </div>
+  )}
+
+  {hasEditorial && setupDone && profiles.length === 0 && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <h1 style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:12px;">No hay canales configurados</h1>
+      <a href="/editorial/setup" style="color:#1A4B8C;">Volver a la configuración</a>
+    </div>
+  )}
+
+  {hasEditorial && setupDone && profiles.length > 0 && quota && quota.current.generated < quota.max.generated && (
+  <Fragment>
+    <!-- Header -->
+    <div style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;margin-bottom:8px;">
+        <a href="/dashboard" style="color:#64748b;text-decoration:none;">Dashboard</a>
+        <span>/</span>
+        <a href="/editorial" style="color:#64748b;text-decoration:none;">Editorial AI</a>
+        <span>/</span>
+        <span style="color:#1a1a2e;font-weight:600;">Nuevo artículo</span>
+      </div>
+      <h1 style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">Nuevo artículo</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:4px;">Revisa el brief y pulsa "Generar". El redactor tarda 2-4 minutos, luego el editor jefe lo verifica con búsqueda web.</p>
+      <div style="margin-top:8px;font-size:11px;color:#64748b;">
+        Cuota este mes: {quota.current.generated} / {quota.max.generated} generados · {quota.current.approved} / {quota.max.approved} aprobados
+      </div>
+    </div>
+
+    <!-- Brief form -->
+    <form id="brief-form" style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Canal de publicación</label>
+          <select id="profile_id" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;background:white;">
+            {profiles.map(p => (
+              <option value={p.id} selected={preselectedProfile && p.id === preselectedProfile.id}>
+                {p.name} · {p.platform}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Topic</label>
+          <input id="topic" type="text" value={prefill.topic} style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;" placeholder="Ej: Cómo adaptar tu web para ser citada por ChatGPT" />
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Brief adicional (opcional)</label>
+          <textarea id="brief" rows="3" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" placeholder="Contexto extra para el redactor: ángulo concreto, público objetivo, puntos que quieres cubrir, etc."></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Primary keyword</label>
+            <input id="primary_keyword" type="text" value={prefill.primary_keyword} style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;" placeholder="(opcional — se infiere del topic)" />
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Idioma</label>
+            <select id="language" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;background:white;">
+              <option value="es" selected={prefill.language === 'es'}>Español</option>
+              <option value="en" selected={prefill.language === 'en'}>English</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Keywords secundarias (separadas por comas)</label>
+          <input id="secondary_keywords" type="text" value={prefill.secondary_keywords.join(', ')} style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;" placeholder="(opcional — el sistema sugerirá de tu estrategia)" />
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Etapa de funnel</label>
+          <div style="display:flex;gap:8px;">
+            {['', 'TOFU', 'MOFU', 'BOFU'].map(stage => (
+              <label style="display:flex;align-items:center;gap:4px;padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">
+                <input type="radio" name="funnel_stage" value={stage} checked={stage === prefill.funnel_stage} />
+                {stage || 'Sin definir'}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {prefill.source_action_id && (
+          <input type="hidden" id="source_action_id" value={prefill.source_action_id} />
+        )}
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+          <a href="/editorial" style="padding:12px 20px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;">Cancelar</a>
+          <button id="generate-btn" type="submit" style="padding:12px 24px;background:linear-gradient(135deg,#000e41,#001f70);color:white;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+            <span class="material-symbols-outlined" style="font-size:18px;color:#69ff87;">auto_awesome</span>
+            Generar artículo
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Loading overlay -->
+    <div id="generating-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,27,53,0.72);z-index:100;align-items:center;justify-content:center;">
+      <div style="background:white;padding:32px;border-radius:16px;text-align:center;max-width:400px;">
+        <div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#1A4B8C;border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite;"></div>
+        <p style="font-size:14px;color:#1a1a2e;font-weight:600;">Creando tu artículo…</p>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">Serás redirigido a la página del artículo en cuanto empiece el redactor.</p>
+      </div>
+    </div>
+
+    <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+
+    <script>
+      const form = document.getElementById('brief-form');
+      const overlay = document.getElementById('generating-overlay');
+      const btn = document.getElementById('generate-btn');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btn.disabled = true;
+        overlay.style.display = 'flex';
+
+        const body = {
+          profile_id: document.getElementById('profile_id').value,
+          topic: document.getElementById('topic').value.trim(),
+          brief: document.getElementById('brief').value.trim() || undefined,
+          primary_keyword: document.getElementById('primary_keyword').value.trim() || undefined,
+          secondary_keywords: document.getElementById('secondary_keywords').value.split(',').map(s => s.trim()).filter(Boolean),
+          language: document.getElementById('language').value,
+          funnel_stage: (document.querySelector('input[name="funnel_stage"]:checked') || {}).value || undefined,
+          source_action_id: (document.getElementById('source_action_id') || {}).value || undefined,
+        };
+
+        if (!body.topic) {
+          alert('El topic es obligatorio');
+          btn.disabled = false;
+          overlay.style.display = 'none';
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/editorial/articles/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(`Error: ${data.error || 'generación fallida'}`);
+            btn.disabled = false;
+            overlay.style.display = 'none';
+            return;
+          }
+          // Redirect to the article page (S8 renders it; for now just show the id)
+          window.location.href = `/editorial/articles/${data.article_id}`;
+        } catch (err) {
+          alert('Error de red: ' + err.message);
+          btn.disabled = false;
+          overlay.style.display = 'none';
+        }
+      });
+    </script>
+  </Fragment>
+  )}
+
+</div>
+</DashboardLayout>
