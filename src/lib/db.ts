@@ -720,7 +720,17 @@ export async function acceptRecommendation(recId: string, clientId: string, acce
     .update({ status: 'accepted', updated_at: new Date().toISOString() })
     .eq('id', recId);
 
-  // 3. Create action_plan entry
+  // 3. Build action.data — copy rec.data verbatim + parse subtasks from the
+  // `detail` markdown so the client gets a checklist they can tick off.
+  // If the caller later overrides data.subtasks (e.g. manual task with its
+  // own subtasks) we never parse over it.
+  const recData = (rec.data || {}) as Record<string, any>;
+  const { parseSubtasks } = await import('./recommendations/parse-subtasks');
+  const subtasks = Array.isArray(recData.subtasks) && recData.subtasks.length > 0
+    ? recData.subtasks
+    : parseSubtasks(recData.detail);
+
+  // 4. Create action_plan entry
   const { data: action, error } = await sb.from('action_plan').insert({
     client_id: clientId,
     recommendation_id: recId,
@@ -729,7 +739,7 @@ export async function acceptRecommendation(recId: string, clientId: string, acce
     impact: rec.impact,
     source: rec.source || 'radar',
     status: 'pending',
-    data: { ...(rec.data || {}), accepted_by: acceptedBy || null },
+    data: { ...recData, subtasks, accepted_by: acceptedBy || null },
   }).select('id').single();
 
   if (error) { console.error('[action_plan] Insert failed:', error.message); return null; }

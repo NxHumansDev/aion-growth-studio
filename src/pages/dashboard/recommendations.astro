@@ -327,6 +327,11 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
         {[...inProgress, ...pending].map(action => {
           const impact = impactColor[action.impact || 'medium'];
           const isActive = action.status === 'in_progress';
+          const actData: any = (action as any).data || {};
+          const subtasks: any[] = Array.isArray(actData.subtasks) ? actData.subtasks : [];
+          const doneCount = subtasks.filter(s => s.done).length;
+          const progressPct = subtasks.length > 0 ? Math.round((doneCount / subtasks.length) * 100) : 0;
+          const hasDetail = !!(actData.detail || actData.rationale || actData.expectedOutcome || actData.effort || actData.timeframe);
           return (
             <div style={`background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:3px solid ${isActive ? '#0e7c5f' : '#1A4B8C'};display:flex;gap:16px;align-items:flex-start;`}>
               <div style={`flex-shrink:0;width:40px;height:40px;border-radius:10px;background:${isActive ? '#d1fae5' : '#f0f4ff'};display:flex;align-items:center;justify-content:center;`}>
@@ -334,19 +339,35 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
                   {isActive ? 'pending' : 'task_alt'}
                 </span>
               </div>
-              <div style="flex:1;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
                   <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;${isActive ? 'background:#d1fae5;color:#0e7c5f;' : 'background:#d6e3ff;color:#1A4B8C;'}`}>
                     {isActive ? 'En marcha' : 'Pendiente'}
                   </span>
                   <span style={`font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;background:${impact.bg};color:${impact.fg};`}>
                     Impacto {impact.label}
                   </span>
+                  {subtasks.length > 0 && (
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:#f1f5f9;color:#475569;">
+                      {doneCount}/{subtasks.length} subtareas
+                    </span>
+                  )}
                 </div>
                 <h4 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">{action.title}</h4>
                 {action.description && <p style="font-size:13px;color:#434750;line-height:1.5;">{action.description}</p>}
+
+                {subtasks.length > 0 && (
+                  <div style="margin-top:10px;">
+                    <div style="height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
+                      <div class="progress-bar" data-action-id={action.id}
+                        style={`height:100%;background:${progressPct === 100 ? '#1D9E75' : '#1A4B8C'};width:${progressPct}%;transition:width 0.3s;`}></div>
+                    </div>
+                    <p class="progress-label" data-action-id={action.id} style="font-size:10px;color:#94a3b8;margin-top:4px;">{doneCount} de {subtasks.length} subtareas completadas · {progressPct}%</p>
+                  </div>
+                )}
+
                 {(action as any).expected_kpis?.length > 0 && (
-                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;">
                     <span style="font-size:10px;color:#94a3b8;margin-right:2px;">KPIs objetivo:</span>
                     {((action as any).expected_kpis as any[]).map((kpi: any) => (
                       <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#E1F5EE;color:#1D9E75;font-weight:600;">
@@ -355,7 +376,7 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
                     ))}
                   </div>
                 )}
-                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:#94a3b8;">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:11px;color:#94a3b8;">
                   {(action as any).accepted_by && (
                     <span>Aceptada por {(action as any).accepted_by}</span>
                   )}
@@ -369,6 +390,60 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
                     <span style="background:#e8e5ff;color:#434750;padding:1px 6px;border-radius:3px;font-weight:600;">Tarea propia</span>
                   )}
                 </div>
+
+                {(hasDetail || subtasks.length > 0) && (
+                  <details class="action-detail" style="margin-top:12px;cursor:pointer;">
+                    <summary style="font-size:12px;font-weight:700;color:#1A4B8C;display:flex;align-items:center;gap:4px;list-style:none;user-select:none;">
+                      <span class="material-symbols-outlined" style="font-size:16px;">unfold_more</span>
+                      Abrir detalle completo
+                    </summary>
+                    <div style="margin-top:12px;padding:16px;background:#f7f9ff;border-radius:10px;display:flex;flex-direction:column;gap:14px;">
+
+                      {(actData.expectedOutcome || actData.effort || actData.timeframe) && (
+                        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+                          {actData.expectedOutcome && (
+                            <div style="display:inline-flex;align-items:center;gap:4px;color:#1D9E75;font-weight:600;">
+                              <span class="material-symbols-outlined" style="font-size:14px;">trending_up</span>
+                              {actData.expectedOutcome}
+                            </div>
+                          )}
+                          {actData.effort && (
+                            <span style="padding:2px 8px;border-radius:4px;background:#f1f5f9;color:#475569;font-weight:600;">Esfuerzo {actData.effort === 'high' ? 'alto' : actData.effort === 'medium' ? 'medio' : 'bajo'}</span>
+                          )}
+                          {actData.timeframe && (
+                            <span style="color:#94a3b8;">· {actData.timeframe}</span>
+                          )}
+                        </div>
+                      )}
+                      {actData.rationale && (
+                        <p style="font-size:12px;color:#64748b;font-style:italic;line-height:1.5;margin:0;">↳ {actData.rationale}</p>
+                      )}
+
+                      {subtasks.length > 0 && (
+                        <div>
+                          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;margin:0 0 8px 0;">Subtareas</p>
+                          <ul class="subtask-list" data-action-id={action.id} style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
+                            {subtasks.map((st) => (
+                              <li style="display:flex;align-items:flex-start;gap:8px;">
+                                <input type="checkbox" class="subtask-checkbox"
+                                  data-action-id={action.id} data-subtask-id={st.id}
+                                  checked={st.done}
+                                  style="margin-top:3px;flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:#1A4B8C;" />
+                                <span style={`font-size:13px;line-height:1.5;${st.done ? 'color:#94a3b8;text-decoration:line-through;' : 'color:#1a1a2e;'}`}>{st.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {actData.detail && subtasks.length === 0 && (
+                        <div style="font-size:13px;color:#434750;line-height:1.7;white-space:pre-line;">
+                          {actData.detail.replace(/\*\*(.*?)\*\*/g, '$1')}
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
               </div>
               <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:center;">
                 {!isActive && (
@@ -540,6 +615,48 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
     btn.addEventListener('click', () => {
       const id = (btn as HTMLElement).dataset.actionId;
       if (id) callAPI({ actionId: id, status: 'done' });
+    });
+  });
+
+  // Subtask checkboxes — toggle via /api/dashboard/toggle-subtask and
+  // update the progress bar + counter in place (no full page reload).
+  document.querySelectorAll('.subtask-checkbox').forEach(box => {
+    box.addEventListener('change', async () => {
+      const cb = box as HTMLInputElement;
+      const actionId = cb.dataset.actionId;
+      const subtaskId = cb.dataset.subtaskId;
+      if (!actionId || !subtaskId) return;
+      cb.disabled = true;
+      try {
+        const res = await fetch('/api/dashboard/toggle-subtask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionId, subtaskId, done: cb.checked }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+        const { done, total, pct } = body.progress || {};
+        // Update progress bar + label for this action
+        const bar = document.querySelector(`.progress-bar[data-action-id="${actionId}"]`) as HTMLElement | null;
+        const label = document.querySelector(`.progress-label[data-action-id="${actionId}"]`) as HTMLElement | null;
+        if (bar) {
+          bar.style.width = `${pct}%`;
+          bar.style.background = pct === 100 ? '#1D9E75' : '#1A4B8C';
+        }
+        if (label) label.textContent = `${done} de ${total} subtareas completadas · ${pct}%`;
+        // Strike-through the text next to the checkbox
+        const textEl = cb.nextElementSibling as HTMLElement | null;
+        if (textEl) {
+          textEl.style.color = cb.checked ? '#94a3b8' : '#1a1a2e';
+          textEl.style.textDecoration = cb.checked ? 'line-through' : '';
+        }
+      } catch (err) {
+        console.error('[subtask] toggle failed', err);
+        cb.checked = !cb.checked; // revert
+        alert('No se pudo guardar el cambio. Reintenta.');
+      } finally {
+        cb.disabled = false;
+      }
     });
   });
 
