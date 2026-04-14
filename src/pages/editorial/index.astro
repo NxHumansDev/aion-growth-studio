@@ -1,0 +1,188 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClient } from '../../lib/db';
+import {
+  clientHasEditorial, isSetupCompleted, listArticles, listPublicationProfiles,
+} from '../../lib/editorial/db';
+import { getQuotaStatus } from '../../lib/editorial/quota';
+
+const client = Astro.locals.client ?? await getClient();
+const tier = client.tier;
+
+const hasEditorial = await clientHasEditorial(client.id);
+const setupDone = hasEditorial ? await isSetupCompleted(client.id) : false;
+const [recentArticles, profiles, quota] = setupDone
+  ? await Promise.all([
+      listArticles(client.id, { limit: 6 }),
+      listPublicationProfiles(client.id),
+      getQuotaStatus(client.id),
+    ])
+  : [[], [], null];
+
+// Query-param banner
+const justSetup = Astro.url.searchParams.get('setup') === 'complete';
+
+function statusLabel(s: string): { text: string; color: string; bg: string } {
+  if (s.startsWith('queued_') || s.startsWith('processing_'))
+    return { text: 'Procesando', color: '#BA7517', bg: '#fef3c7' };
+  if (s === 'ready_for_review')
+    return { text: 'Listo para revisar', color: '#1D9E75', bg: '#d1fae5' };
+  if (s === 'published')
+    return { text: 'Publicado', color: '#1A4B8C', bg: '#dbeafe' };
+  if (s === 'approved_salvaged')
+    return { text: 'Salvado', color: '#BA7517', bg: '#fef3c7' };
+  if (s === 'needs_human')
+    return { text: 'Requiere intervención', color: '#E24B4A', bg: '#fee2e2' };
+  if (s === 'rejected')
+    return { text: 'Descartado', color: '#64748b', bg: '#f1f5f9' };
+  if (s.startsWith('error_'))
+    return { text: 'Error', color: '#E24B4A', bg: '#fee2e2' };
+  return { text: s, color: '#64748b', bg: '#f1f5f9' };
+}
+---
+
+<DashboardLayout
+  title="Editorial AI"
+  currentPath="/editorial"
+  tier={tier}
+  clientName={client.name}
+  domain={client.domain}
+  lastReportMonth={0}
+  lastReportDate=""
+>
+
+<div style="max-width:1100px;margin:0 auto;padding:24px;">
+
+  {!hasEditorial && (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#BA7517;">auto_awesome</span>
+      <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;margin:16px 0 8px;">Editorial AI</h1>
+      <p style="font-size:14px;color:#64748b;max-width:520px;margin:0 auto 24px;">
+        Genera artículos profesionales con la voz de tu marca, optimizados para SEO y GEO, con fact-check automático y medición de impacto real. Disponible en el tier Señales.
+      </p>
+      <a href="/pricing" style="display:inline-block;padding:12px 24px;background:#1A4B8C;color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Activar Señales</a>
+    </div>
+  )}
+
+  {hasEditorial && !setupDone && (
+    <div style="background:linear-gradient(135deg,#000e41,#001f70);border-radius:16px;padding:40px;text-align:center;color:white;">
+      <span class="material-symbols-outlined" style="font-size:48px;color:#69ff87;">rocket_launch</span>
+      <h1 style="font-size:26px;font-weight:900;margin:16px 0 8px;letter-spacing:-0.02em;">Configura Editorial AI</h1>
+      <p style="font-size:14px;color:#cbd5e1;max-width:520px;margin:0 auto 24px;line-height:1.6;">
+        En 4 pasos le enseñas al sistema la voz de tu marca, los medios que quieres imitar y los canales donde publicas. ~10 minutos.
+      </p>
+      <a href="/editorial/setup" style="display:inline-block;padding:14px 28px;background:#69ff87;color:#000e41;border-radius:10px;text-decoration:none;font-weight:800;font-size:14px;">Iniciar configuración →</a>
+    </div>
+  )}
+
+  {hasEditorial && setupDone && (
+  <Fragment>
+    {justSetup && (
+      <div style="background:#d1fae5;border:1px solid #1D9E75;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+        <span class="material-symbols-outlined" style="color:#1D9E75;">check_circle</span>
+        <p style="font-size:14px;color:#065f46;font-weight:600;">Configuración guardada. Ya puedes generar artículos.</p>
+      </div>
+    )}
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:16px;">
+      <div>
+        <h1 style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">Editorial AI</h1>
+        <p style="font-size:14px;color:#64748b;margin-top:4px;">Genera, revisa y publica artículos con la voz de tu marca.</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/editorial/articles" style="padding:10px 18px;background:transparent;color:#1A4B8C;border:1px solid #1A4B8C;border-radius:10px;text-decoration:none;font-weight:600;font-size:13px;">Ver todos los artículos</a>
+        <a href="/editorial/new" style="padding:10px 18px;background:linear-gradient(135deg,#000e41,#001f70);color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;color:#69ff87;">auto_awesome</span>
+          Nuevo artículo
+        </a>
+      </div>
+    </div>
+
+    <!-- Quota card -->
+    {quota && (
+      <section style="background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+          <div>
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.06em;margin-bottom:8px;">Generados este mes</p>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+              <span style="font-size:32px;font-weight:900;color:#1a1a2e;">{quota.current.generated}</span>
+              <span style="font-size:14px;color:#64748b;">/ {quota.max.generated}</span>
+            </div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+              <div style={`height:100%;width:${Math.round((quota.current.generated / quota.max.generated) * 100)}%;background:${quota.current.generated >= quota.max.generated ? '#E24B4A' : '#1A4B8C'};border-radius:3px;`}></div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.06em;margin-bottom:8px;">Aprobados este mes</p>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+              <span style="font-size:32px;font-weight:900;color:#1D9E75;">{quota.current.approved}</span>
+              <span style="font-size:14px;color:#64748b;">/ {quota.max.approved}</span>
+            </div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+              <div style={`height:100%;width:${Math.round((quota.current.approved / quota.max.approved) * 100)}%;background:#1D9E75;border-radius:3px;`}></div>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-top:16px;">Reinicio de cuota: {quota.resets_on}</p>
+      </section>
+    )}
+
+    <!-- Recent articles -->
+    <section style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;">Últimos artículos</h2>
+        <a href="/editorial/articles" style="font-size:12px;color:#1A4B8C;text-decoration:none;font-weight:600;">Ver todos →</a>
+      </div>
+
+      {recentArticles.length === 0 ? (
+        <div style="text-align:center;padding:32px;background:#f7f9ff;border-radius:10px;">
+          <p style="font-size:14px;color:#64748b;margin-bottom:12px;">Aún no has generado ningún artículo.</p>
+          <a href="/editorial/new" style="color:#1A4B8C;font-weight:700;font-size:13px;">Crear el primero →</a>
+        </div>
+      ) : (
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          {recentArticles.map(a => {
+            const label = statusLabel(a.status);
+            const profile = profiles.find(p => p.id === a.profile_id);
+            return (
+              <a href={`/editorial/articles/${a.id}`}
+                 style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;background:#f7f9ff;border-radius:10px;text-decoration:none;transition:background 0.15s;"
+                 onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#f7f9ff'">
+                <div style="flex:1;min-width:0;">
+                  <p style="font-size:14px;font-weight:700;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{a.topic}</p>
+                  <div style="display:flex;gap:10px;font-size:11px;color:#64748b;margin-top:4px;flex-wrap:wrap;">
+                    {profile && <span>{profile.name}</span>}
+                    <span>{a.language === 'es' ? 'ES' : 'EN'}</span>
+                    {a.primary_keyword && <span>kw: {a.primary_keyword}</span>}
+                    <span>{new Date(a.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                  </div>
+                </div>
+                <span style={`padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${label.bg};color:${label.color};white-space:nowrap;`}>{label.text}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </section>
+
+    <!-- Settings links -->
+    <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:20px;">
+      {[
+        { href: '/editorial/setup', icon: 'settings', label: 'Reconfigurar' },
+        { href: '/editorial/articles', icon: 'list_alt', label: 'Todos los artículos' },
+      ].map(l => (
+        <a href={l.href} style="display:flex;align-items:center;gap:10px;padding:16px 20px;background:white;border-radius:12px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:transform 0.15s;"
+           onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          <span class="material-symbols-outlined" style="color:#1A4B8C;">{l.icon}</span>
+          <span style="font-size:13px;font-weight:600;color:#1a1a2e;">{l.label}</span>
+        </a>
+      ))}
+    </section>
+  </Fragment>
+  )}
+
+</div>
+</DashboardLayout>

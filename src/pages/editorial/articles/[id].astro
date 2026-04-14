@@ -1,0 +1,495 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { getClient } from '../../../lib/db';
+import { getArticle, getPublicationProfile, clientHasEditorial } from '../../../lib/editorial/db';
+
+const client = Astro.locals.client ?? await getClient();
+const tier = client.tier;
+const articleId = Astro.params.id as string;
+
+if (!(await clientHasEditorial(client.id))) {
+  return Astro.redirect('/editorial');
+}
+
+const article = await getArticle(articleId);
+if (!article || article.client_id !== client.id) {
+  return new Response('Not found', { status: 404 });
+}
+const profile = await getPublicationProfile(article.profile_id);
+
+const isTerminal = ['published', 'rejected', 'needs_human'].includes(article.status)
+  || article.status.startsWith('error_');
+const isInFlight = article.status.startsWith('queued_') || article.status.startsWith('processing_');
+const isReady = article.status === 'ready_for_review' || article.status === 'approved_salvaged';
+---
+
+<DashboardLayout
+  title="Editorial AI · Artículo"
+  currentPath={`/editorial/articles/${articleId}`}
+  tier={tier}
+  clientName={client.name}
+  domain={client.domain}
+  lastReportMonth={0}
+  lastReportDate=""
+>
+
+<div style="max-width:1280px;margin:0 auto;padding:24px;">
+
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;margin-bottom:8px;">
+    <a href="/dashboard" style="color:#64748b;text-decoration:none;">Dashboard</a>
+    <span>/</span>
+    <a href="/editorial" style="color:#64748b;text-decoration:none;">Editorial AI</a>
+    <span>/</span>
+    <a href="/editorial/articles" style="color:#64748b;text-decoration:none;">Artículos</a>
+    <span>/</span>
+    <span style="color:#1a1a2e;font-weight:600;">{article.topic.slice(0, 40)}{article.topic.length > 40 ? '…' : ''}</span>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <h1 style="font-size:24px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">{article.topic}</h1>
+    <div style="display:flex;gap:10px;font-size:11px;color:#64748b;margin-top:6px;flex-wrap:wrap;">
+      {profile && <span>{profile.name}</span>}
+      <span>·</span>
+      <span>{article.language === 'es' ? 'Español' : 'English'}</span>
+      {article.primary_keyword && <Fragment><span>·</span><span>kw: {article.primary_keyword}</span></Fragment>}
+      <span>·</span>
+      <span>Coste: ${(article.cost_usd ?? 0).toFixed(3)}</span>
+      <span>·</span>
+      <span id="tracking-id">ID: {article.tracking_id}</span>
+    </div>
+  </div>
+
+  <!-- Status pipeline visualizer -->
+  <section id="status-section" data-current-status={article.status}
+    style="background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div id="status-icon" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+        <span class="material-symbols-outlined" id="status-icon-glyph" style="font-size:20px;">edit_note</span>
+      </div>
+      <div style="flex:1;">
+        <p id="status-headline" style="font-size:15px;font-weight:800;color:#1a1a2e;">—</p>
+        <p id="status-sub" style="font-size:12px;color:#64748b;margin-top:2px;">—</p>
+      </div>
+      <button id="advance-btn" type="button" style="display:none;padding:10px 18px;background:#1A4B8C;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">Continuar</button>
+    </div>
+
+    <!-- Pipeline steps -->
+    <div style="display:flex;gap:4px;">
+      {['write', 'review', 'rewrite', 'salvage', 'ready'].map(step => (
+        <div class="pipeline-step" data-step={step}
+          style="flex:1;padding:8px 10px;border-radius:6px;background:#f1f5f9;font-size:10px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:center;">
+          {step === 'write' ? 'Redactar'
+            : step === 'review' ? 'Revisar'
+            : step === 'rewrite' ? 'Corregir'
+            : step === 'salvage' ? 'Salvage'
+            : 'Listo'}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- 3-panel layout -->
+  {(article.draft_content || article.revised_content || article.editor_verdict) && (
+    <section style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;" id="panels">
+      <!-- Panel 1: Draft -->
+      <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.06em;margin-bottom:12px;">
+          <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px;">edit_note</span>
+          Borrador original
+        </h3>
+        <div id="panel-draft" style="font-size:12px;color:#434750;line-height:1.6;white-space:pre-wrap;max-height:500px;overflow-y:auto;padding-right:8px;">
+          {article.draft_content ?? '(Aún no generado)'}
+        </div>
+      </div>
+
+      <!-- Panel 2: Verdict -->
+      <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.06em;margin-bottom:12px;">
+          <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px;">fact_check</span>
+          Veredicto del editor
+        </h3>
+        <div id="panel-verdict" style="max-height:500px;overflow-y:auto;padding-right:8px;">
+          {article.editor_verdict ? (
+            <Fragment>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div style="background:#f0f4ff;border-radius:8px;padding:10px;">
+                  <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">SEO</p>
+                  <p style={`font-size:22px;font-weight:900;color:${article.editor_verdict.seo_score >= 80 ? '#1D9E75' : article.editor_verdict.seo_score >= 60 ? '#BA7517' : '#E24B4A'};`}>{article.editor_verdict.seo_score}</p>
+                </div>
+                <div style="background:#f0f4ff;border-radius:8px;padding:10px;">
+                  <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">GEO</p>
+                  <p style={`font-size:22px;font-weight:900;color:${article.editor_verdict.geo_score >= 75 ? '#1D9E75' : article.editor_verdict.geo_score >= 55 ? '#BA7517' : '#E24B4A'};`}>{article.editor_verdict.geo_score}</p>
+                </div>
+              </div>
+
+              {article.editor_verdict.verified_claims?.length > 0 && (
+                <details open style="margin-bottom:10px;">
+                  <summary style="font-size:11px;font-weight:700;color:#1D9E75;cursor:pointer;">
+                    ✓ {article.editor_verdict.verified_claims.length} afirmaciones verificadas
+                  </summary>
+                  <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:11px;color:#434750;">
+                    {article.editor_verdict.verified_claims.slice(0, 5).map(c => (
+                      <li style="padding:4px 0;border-left:2px solid #d1fae5;padding-left:8px;margin-bottom:3px;">{c.claim}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {article.editor_verdict.incorrect_claims?.length > 0 && (
+                <details open style="margin-bottom:10px;">
+                  <summary style="font-size:11px;font-weight:700;color:#E24B4A;cursor:pointer;">
+                    ✗ {article.editor_verdict.incorrect_claims.length} incorrectas
+                  </summary>
+                  <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:11px;color:#434750;">
+                    {article.editor_verdict.incorrect_claims.slice(0, 5).map(c => (
+                      <li style="padding:4px 0;border-left:2px solid #fee2e2;padding-left:8px;margin-bottom:3px;">
+                        <strong>{c.claim}</strong><br/>
+                        <span style="color:#64748b;">{c.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {article.editor_verdict.unsourced_claims?.length > 0 && (
+                <details style="margin-bottom:10px;">
+                  <summary style="font-size:11px;font-weight:700;color:#BA7517;cursor:pointer;">
+                    ⚠ {article.editor_verdict.unsourced_claims.length} sin fuente
+                  </summary>
+                  <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:11px;color:#434750;">
+                    {article.editor_verdict.unsourced_claims.slice(0, 5).map(c => (
+                      <li style="padding:4px 0;border-left:2px solid #fef3c7;padding-left:8px;margin-bottom:3px;">{c.claim}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {article.editor_verdict.plagiarism_warnings?.length > 0 && (
+                <details style="margin-bottom:10px;">
+                  <summary style="font-size:11px;font-weight:700;color:#E24B4A;cursor:pointer;">
+                    ⚠ {article.editor_verdict.plagiarism_warnings.length} alertas de plagio
+                  </summary>
+                </details>
+              )}
+
+              {article.editor_verdict.recommendations?.length > 0 && (
+                <details style="margin-bottom:10px;">
+                  <summary style="font-size:11px;font-weight:700;color:#1A4B8C;cursor:pointer;">
+                    {article.editor_verdict.recommendations.length} recomendaciones
+                  </summary>
+                  <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:11px;color:#434750;">
+                    {article.editor_verdict.recommendations.slice(0, 5).map(r => (
+                      <li style="padding:4px 0;border-left:2px solid #e0e7ff;padding-left:8px;margin-bottom:3px;">{r.issue}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </Fragment>
+          ) : (
+            <p style="font-size:12px;color:#94a3b8;">(Aún no evaluado)</p>
+          )}
+        </div>
+      </div>
+
+      <!-- Panel 3: Final -->
+      <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.06em;margin-bottom:12px;">
+          <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px;">check_circle</span>
+          Versión final
+        </h3>
+        {isReady && article.status === 'approved_salvaged' && article.salvage_metadata && (
+          <div style="background:#fef3c7;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#78350f;line-height:1.5;">
+            <strong>Salvage aplicado.</strong> Se eliminaron {article.salvage_metadata.removed_claims.length} afirmaciones no verificables. Superviviencia del texto: {Math.round(article.salvage_metadata.survival_ratio * 100)}%.
+          </div>
+        )}
+        {article.status === 'needs_human' && (
+          <div style="background:#fee2e2;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#991b1b;line-height:1.5;">
+            <strong>Requiere intervención.</strong> El editor no pudo verificar suficiente contenido. Considera aportar fuentes propias o reformular el brief.
+          </div>
+        )}
+        <textarea id="final-content" style={`width:100%;font-size:12px;color:#434750;line-height:1.6;border:1px solid #e2e8f0;border-radius:8px;padding:10px;resize:vertical;min-height:400px;font-family:inherit;white-space:pre-wrap;${isReady ? '' : 'background:#f7f9ff;pointer-events:none;'}`}>{article.final_user_content ?? article.revised_content ?? article.draft_content ?? ''}</textarea>
+      </div>
+    </section>
+  )}
+
+  <!-- Decision footer -->
+  {isReady && (
+    <section id="decision-section" style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <h3 style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:16px;">¿Qué vas a hacer con el artículo?</h3>
+
+      <!-- Publish form -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">URL publicada (cuando lo subas a tu CMS)</label>
+        <input id="published-url" type="url" placeholder="https://tu-dominio.com/blog/..." style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" />
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="btn-publish" type="button" style="padding:12px 20px;background:#1D9E75;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
+          Publicar
+        </button>
+        <button id="btn-reject" type="button" style="padding:12px 20px;background:transparent;color:#E24B4A;border:1px solid #E24B4A;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">
+          Descartar
+        </button>
+      </div>
+    </section>
+  )}
+
+  {article.status === 'published' && (
+    <section style="background:#d1fae5;border:1px solid #1D9E75;border-radius:12px;padding:16px 20px;margin-top:16px;">
+      <p style="font-size:14px;color:#065f46;font-weight:600;">
+        <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span>
+        Publicado {article.published_at && `el ${new Date(article.published_at).toLocaleDateString('es-ES')}`}
+        {article.published_url && (
+          <Fragment>
+            {' · '}
+            <a href={article.published_url} target="_blank" rel="noopener" style="color:#065f46;text-decoration:underline;">Ver en {new URL(article.published_url).hostname}</a>
+          </Fragment>
+        )}
+      </p>
+    </section>
+  )}
+
+  {article.status === 'rejected' && (
+    <section style="background:#f1f5f9;border-radius:12px;padding:16px 20px;margin-top:16px;">
+      <p style="font-size:13px;color:#64748b;">
+        Artículo descartado{article.publication_decision?.reason_category && ` — motivo: ${article.publication_decision.reason_category}`}
+      </p>
+    </section>
+  )}
+
+  {article.status.startsWith('error_') && article.error_message && (
+    <section style="background:#fee2e2;border:1px solid #E24B4A;border-radius:12px;padding:16px 20px;margin-top:16px;">
+      <p style="font-size:13px;font-weight:700;color:#991b1b;margin-bottom:4px;">Error en la fase {article.status.replace('error_', '')}:</p>
+      <p style="font-size:12px;color:#991b1b;">{article.error_message}</p>
+      <p style="font-size:11px;color:#991b1b;margin-top:8px;">Usa el botón "Reintentar" arriba para volver a intentarlo desde la cola.</p>
+    </section>
+  )}
+
+  <!-- Reject modal -->
+  <div id="reject-modal" style="display:none;position:fixed;inset:0;background:rgba(15,27,53,0.72);z-index:100;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:white;border-radius:16px;padding:28px;max-width:460px;width:100%;">
+      <h3 style="font-size:18px;font-weight:900;color:#1a1a2e;margin-bottom:12px;">¿Por qué lo descartas?</h3>
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Esto ayuda al sistema a mejorar las próximas generaciones.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        {[
+          { v: 'tone_not_my_voice', l: 'El tono no es mi voz' },
+          { v: 'factual_errors', l: 'Hay errores factuales que el editor no detectó' },
+          { v: 'topic_not_relevant', l: 'El tema no es relevante para mi audiencia' },
+          { v: 'structure', l: 'La estructura no me convence' },
+          { v: 'other', l: 'Otro motivo' },
+        ].map(r => (
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="reject-reason" value={r.v} />
+            {r.l}
+          </label>
+        ))}
+      </div>
+      <textarea id="reject-text" rows="3" placeholder="(Opcional) Detalles" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:16px;"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button id="reject-cancel" type="button" style="padding:10px 18px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button id="reject-confirm" type="button" style="padding:10px 20px;background:#E24B4A;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Descartar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script define:vars={{ articleId, initialStatus: article.status }}>
+  const TERMINAL = ['published', 'rejected', 'needs_human', 'approved_salvaged', 'ready_for_review'];
+  const ERROR = (s) => s.startsWith('error_');
+
+  let currentStatus = initialStatus;
+  let polling = false;
+  let advancing = false;
+
+  const els = {
+    icon: document.getElementById('status-icon'),
+    iconGlyph: document.getElementById('status-icon-glyph'),
+    headline: document.getElementById('status-headline'),
+    sub: document.getElementById('status-sub'),
+    advanceBtn: document.getElementById('advance-btn'),
+    steps: document.querySelectorAll('.pipeline-step'),
+  };
+
+  function renderStatus(status, nextEndpoint) {
+    const map = {
+      queued_writer:      { text: 'En cola: redactor', sub: 'Esperando arranque del writer', bg: '#fef3c7', color: '#BA7517', glyph: 'schedule', step: 'write' },
+      processing_writer:  { text: 'Redactando…',       sub: 'Opus 4.6 está escribiendo el draft (2-4 min)', bg: '#dbeafe', color: '#1A4B8C', glyph: 'edit_note', step: 'write' },
+      queued_editor:      { text: 'En cola: editor',   sub: 'Draft listo, esperando revisión',   bg: '#fef3c7', color: '#BA7517', glyph: 'schedule', step: 'review' },
+      processing_editor:  { text: 'Verificando…',      sub: 'Sonnet 4.6 hace fact-check con búsqueda web (2-4 min)', bg: '#dbeafe', color: '#1A4B8C', glyph: 'fact_check', step: 'review' },
+      queued_rewrite:     { text: 'En cola: reescritura', sub: 'Editor detectó errores — corrigiendo', bg: '#fef3c7', color: '#BA7517', glyph: 'schedule', step: 'rewrite' },
+      processing_rewrite: { text: 'Reescribiendo…',    sub: 'Buscando datos reales para sustituir errores', bg: '#dbeafe', color: '#1A4B8C', glyph: 'edit', step: 'rewrite' },
+      queued_salvage:     { text: 'En cola: salvage',  sub: 'Preparando última iteración (solo texto verificado)', bg: '#fef3c7', color: '#BA7517', glyph: 'schedule', step: 'salvage' },
+      processing_salvage: { text: 'Salvage…',          sub: 'Eliminando contenido no verificable', bg: '#dbeafe', color: '#1A4B8C', glyph: 'cleaning_services', step: 'salvage' },
+      ready_for_review:   { text: 'Listo para revisar', sub: 'El artículo ha superado fact-check y auditorías', bg: '#d1fae5', color: '#1D9E75', glyph: 'check_circle', step: 'ready' },
+      approved_salvaged:  { text: 'Aprobado (salvage)', sub: 'Versión verificada — más corta que el borrador original', bg: '#fef3c7', color: '#BA7517', glyph: 'check_circle', step: 'ready' },
+      needs_human:        { text: 'Requiere intervención', sub: 'No se pudo verificar suficiente contenido', bg: '#fee2e2', color: '#E24B4A', glyph: 'warning', step: 'ready' },
+      published:          { text: 'Publicado',         sub: 'El artículo está live', bg: '#dbeafe', color: '#1A4B8C', glyph: 'public', step: 'ready' },
+      rejected:           { text: 'Descartado',        sub: 'El usuario descartó el artículo', bg: '#f1f5f9', color: '#64748b', glyph: 'cancel', step: 'ready' },
+    };
+    const info = map[status] || (ERROR(status) ? { text: 'Error', sub: 'Revisa el mensaje abajo', bg: '#fee2e2', color: '#E24B4A', glyph: 'error', step: null } : map.queued_writer);
+
+    els.icon.style.background = info.bg;
+    els.iconGlyph.textContent = info.glyph;
+    els.iconGlyph.style.color = info.color;
+    els.headline.textContent = info.text;
+    els.sub.textContent = info.sub;
+
+    // Pipeline steps: mark reached + in progress
+    const sequence = ['write', 'review', 'rewrite', 'salvage', 'ready'];
+    let currentIdx = sequence.indexOf(info.step);
+    els.steps.forEach((el, idx) => {
+      if (idx < currentIdx) {
+        el.style.background = '#d1fae5'; el.style.color = '#1D9E75';
+      } else if (idx === currentIdx) {
+        el.style.background = '#1A4B8C'; el.style.color = 'white';
+      } else {
+        el.style.background = '#f1f5f9'; el.style.color = '#94a3b8';
+      }
+    });
+
+    // Advance button visible only when queued_* (admin can retry)
+    if (status.startsWith('queued_') && nextEndpoint) {
+      els.advanceBtn.style.display = 'inline-block';
+      els.advanceBtn.dataset.endpoint = nextEndpoint;
+      els.advanceBtn.textContent = status === 'queued_writer' ? 'Redactar'
+        : status === 'queued_editor' ? 'Revisar'
+        : status === 'queued_rewrite' ? 'Reescribir'
+        : status === 'queued_salvage' ? 'Salvage' : 'Continuar';
+    } else if (ERROR(status)) {
+      els.advanceBtn.style.display = 'inline-block';
+      els.advanceBtn.textContent = 'Reintentar';
+      els.advanceBtn.dataset.endpoint = 'retry';
+    } else {
+      els.advanceBtn.style.display = 'none';
+    }
+  }
+
+  async function triggerNext(endpoint) {
+    if (advancing) return;
+    advancing = true;
+    els.advanceBtn.disabled = true;
+    els.advanceBtn.style.opacity = '0.7';
+    try {
+      const res = await fetch(endpoint, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.warn('Phase trigger failed', res.status, err);
+      }
+    } catch (e) {
+      console.warn('Phase trigger error', e);
+    } finally {
+      advancing = false;
+      els.advanceBtn.disabled = false;
+      els.advanceBtn.style.opacity = '1';
+    }
+  }
+
+  async function poll() {
+    if (polling) return;
+    polling = true;
+    try {
+      const res = await fetch(`/api/editorial/articles/${articleId}/status`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const prevStatus = currentStatus;
+      currentStatus = data.status;
+      renderStatus(currentStatus, data.next_endpoint);
+
+      // Auto-advance when queued (each queued_* has a next_endpoint)
+      if (data.can_poll_next && data.next_endpoint && !advancing) {
+        triggerNext(data.next_endpoint);
+      }
+
+      // If terminal or state change needs a full reload (to render new content), refresh
+      if (data.is_terminal || data.is_ready) {
+        if (prevStatus !== currentStatus) {
+          // Full reload to render new content panels server-side
+          window.location.reload();
+          return;
+        }
+      }
+    } finally {
+      polling = false;
+    }
+  }
+
+  renderStatus(currentStatus, null);
+
+  const inFlight = currentStatus.startsWith('queued_') || currentStatus.startsWith('processing_');
+  if (inFlight) {
+    poll();
+    setInterval(poll, 2500);
+  }
+
+  els.advanceBtn.addEventListener('click', () => {
+    if (els.advanceBtn.dataset.endpoint === 'retry') {
+      // TODO: reset_stuck RPC then poll
+      window.location.reload();
+    } else if (els.advanceBtn.dataset.endpoint) {
+      triggerNext(els.advanceBtn.dataset.endpoint);
+      setTimeout(poll, 500);
+    }
+  });
+
+  // ── Publish / Reject ──────────────────────────────────────────────────
+  const btnPublish = document.getElementById('btn-publish');
+  const btnReject = document.getElementById('btn-reject');
+  const rejectModal = document.getElementById('reject-modal');
+
+  if (btnPublish) {
+    btnPublish.addEventListener('click', async () => {
+      btnPublish.disabled = true;
+      const publishedUrl = document.getElementById('published-url').value.trim();
+      const finalContent = document.getElementById('final-content').value;
+      const res = await fetch(`/api/editorial/articles/${articleId}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          published_url: publishedUrl || undefined,
+          final_user_content: finalContent,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert('Error al publicar: ' + (err.error || res.status));
+        btnPublish.disabled = false;
+        return;
+      }
+      window.location.reload();
+    });
+  }
+
+  if (btnReject) {
+    btnReject.addEventListener('click', () => {
+      rejectModal.style.display = 'flex';
+    });
+    document.getElementById('reject-cancel').addEventListener('click', () => {
+      rejectModal.style.display = 'none';
+    });
+    document.getElementById('reject-confirm').addEventListener('click', async () => {
+      const reason = document.querySelector('input[name="reject-reason"]:checked');
+      if (!reason) return alert('Selecciona un motivo');
+      const text = document.getElementById('reject-text').value.trim();
+      const res = await fetch(`/api/editorial/articles/${articleId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason_category: reason.value,
+          reason_text: text || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert('Error: ' + (err.error || res.status));
+        return;
+      }
+      window.location.reload();
+    });
+  }
+</script>
+
+</DashboardLayout>

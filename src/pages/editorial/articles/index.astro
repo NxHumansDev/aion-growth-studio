@@ -1,0 +1,159 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { getClient } from '../../../lib/db';
+import { listArticles, listPublicationProfiles, clientHasEditorial } from '../../../lib/editorial/db';
+
+const client = Astro.locals.client ?? await getClient();
+const tier = client.tier;
+
+if (!(await clientHasEditorial(client.id))) {
+  return Astro.redirect('/editorial');
+}
+
+const [articles, profiles] = await Promise.all([
+  listArticles(client.id, { limit: 200 }),
+  listPublicationProfiles(client.id),
+]);
+const profilesById = Object.fromEntries(profiles.map(p => [p.id, p]));
+
+function statusLabel(s: string): { text: string; color: string; bg: string } {
+  if (s.startsWith('queued_') || s.startsWith('processing_'))
+    return { text: 'Procesando', color: '#BA7517', bg: '#fef3c7' };
+  if (s === 'ready_for_review')
+    return { text: 'Listo para revisar', color: '#1D9E75', bg: '#d1fae5' };
+  if (s === 'published')
+    return { text: 'Publicado', color: '#1A4B8C', bg: '#dbeafe' };
+  if (s === 'approved_salvaged')
+    return { text: 'Salvado', color: '#BA7517', bg: '#fef3c7' };
+  if (s === 'needs_human')
+    return { text: 'Intervención', color: '#E24B4A', bg: '#fee2e2' };
+  if (s === 'rejected')
+    return { text: 'Descartado', color: '#64748b', bg: '#f1f5f9' };
+  if (s.startsWith('error_'))
+    return { text: 'Error', color: '#E24B4A', bg: '#fee2e2' };
+  return { text: s, color: '#64748b', bg: '#f1f5f9' };
+}
+---
+
+<DashboardLayout
+  title="Editorial AI · Artículos"
+  currentPath="/editorial/articles"
+  tier={tier}
+  clientName={client.name}
+  domain={client.domain}
+  lastReportMonth={0}
+  lastReportDate=""
+>
+
+<div style="max-width:1200px;margin:0 auto;padding:24px;">
+
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;margin-bottom:8px;">
+    <a href="/dashboard" style="color:#64748b;text-decoration:none;">Dashboard</a>
+    <span>/</span>
+    <a href="/editorial" style="color:#64748b;text-decoration:none;">Editorial AI</a>
+    <span>/</span>
+    <span style="color:#1a1a2e;font-weight:600;">Artículos</span>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+    <h1 style="font-size:28px;font-weight:900;color:#1a1a2e;letter-spacing:-0.03em;">Artículos ({articles.length})</h1>
+    <a href="/editorial/new" style="padding:10px 18px;background:linear-gradient(135deg,#000e41,#001f70);color:white;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
+      <span class="material-symbols-outlined" style="font-size:16px;color:#69ff87;">auto_awesome</span>
+      Nuevo artículo
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="filters">
+    {[
+      { key: 'all', label: 'Todos' },
+      { key: 'processing', label: 'En proceso' },
+      { key: 'ready_for_review', label: 'Listos' },
+      { key: 'published', label: 'Publicados' },
+      { key: 'approved_salvaged', label: 'Salvados' },
+      { key: 'needs_human', label: 'Intervención' },
+      { key: 'rejected', label: 'Descartados' },
+    ].map((f, i) => (
+      <button class="filter-chip" data-filter={f.key}
+        style={`padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:${i === 0 ? '#1A4B8C' : 'white'};color:${i === 0 ? 'white' : '#64748b'};font-size:12px;font-weight:600;cursor:pointer;`}>
+        {f.label}
+      </button>
+    ))}
+  </div>
+
+  {articles.length === 0 ? (
+    <div style="background:white;border-radius:16px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <span class="material-symbols-outlined" style="font-size:40px;color:#94a3b8;">auto_stories</span>
+      <p style="font-size:14px;color:#64748b;margin:12px 0;">Aún no has generado ningún artículo.</p>
+      <a href="/editorial/new" style="color:#1A4B8C;font-weight:700;font-size:13px;">Crear el primero →</a>
+    </div>
+  ) : (
+    <div style="background:white;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;" id="articles-table">
+        <thead>
+          <tr style="background:#f7f9ff;">
+            <th style="text-align:left;padding:12px 16px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Topic</th>
+            <th style="text-align:left;padding:12px 16px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Canal</th>
+            <th style="text-align:left;padding:12px 16px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Estado</th>
+            <th style="text-align:right;padding:12px 16px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Coste</th>
+            <th style="text-align:right;padding:12px 16px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          {articles.map(a => {
+            const label = statusLabel(a.status);
+            const profile = profilesById[a.profile_id];
+            return (
+              <tr class="article-row" data-status={a.status}
+                style="border-top:1px solid #f0f0f0;cursor:pointer;"
+                onclick={`window.location.href='/editorial/articles/${a.id}'`}>
+                <td style="padding:14px 16px;">
+                  <p style="font-size:13px;font-weight:600;color:#1a1a2e;">{a.topic}</p>
+                  {a.primary_keyword && <p style="font-size:10px;color:#64748b;margin-top:2px;">kw: {a.primary_keyword}</p>}
+                </td>
+                <td style="padding:14px 16px;font-size:12px;color:#434750;">
+                  {profile?.name ?? a.profile_id.slice(0, 8)}
+                  <p style="font-size:10px;color:#94a3b8;margin-top:2px;">{a.language === 'es' ? 'Español' : 'Inglés'}</p>
+                </td>
+                <td style="padding:14px 16px;">
+                  <span style={`padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;background:${label.bg};color:${label.color};`}>{label.text}</span>
+                </td>
+                <td style="text-align:right;padding:14px 16px;font-size:12px;color:#64748b;font-variant-numeric:tabular-nums;">
+                  ${(a.cost_usd ?? 0).toFixed(3)}
+                </td>
+                <td style="text-align:right;padding:14px 16px;font-size:11px;color:#64748b;white-space:nowrap;">
+                  {new Date(a.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+</div>
+
+<script is:inline>
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.filter;
+      document.querySelectorAll('.filter-chip').forEach(b => {
+        b.style.background = 'white'; b.style.color = '#64748b';
+      });
+      btn.style.background = '#1A4B8C'; btn.style.color = 'white';
+
+      document.querySelectorAll('.article-row').forEach(row => {
+        const status = row.dataset.status;
+        const show = f === 'all'
+          || (f === 'processing' && (status.startsWith('queued_') || status.startsWith('processing_')))
+          || status === f;
+        row.style.display = show ? '' : 'none';
+      });
+    });
+  });
+</script>
+
+</DashboardLayout>
