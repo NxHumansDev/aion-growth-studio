@@ -1155,31 +1155,35 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
       });
     });
 
-    // Regenerate Growth Agent analysis when current one is a fallback
-    const regenBtn = document.getElementById('regen-btn');
-    if (regenBtn) {
-      regenBtn.addEventListener('click', async () => {
-        const originalHtml = regenBtn.innerHTML;
-        (regenBtn as HTMLButtonElement).disabled = true;
-        regenBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">hourglass_empty</span> Regenerando... (30-60s)';
-        try {
-          const res = await fetch('/api/dashboard/generate-briefing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-            throw new Error(body.error || 'Error desconocido');
-          }
-          window.location.reload();
-        } catch (err) {
-          (regenBtn as HTMLButtonElement).disabled = false;
-          regenBtn.innerHTML = originalHtml;
-          const errMsg = (err as Error).message || 'Error';
-          alert('No se pudo regenerar: ' + errMsg);
-        }
-      });
-    }
   </script>
 )}
+
+<!-- Regen button handler — outside ternary so script hoists reliably -->
+<script>
+  document.addEventListener('click', async (e) => {
+    const target = e.target as Element | null;
+    const btn = target?.closest?.('#regen-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+    if (btn.disabled) return;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">hourglass_empty</span> Regenerando... (30-60s)';
+    try {
+      const res = await fetch('/api/dashboard/generate-briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      if (body?.growth_analysis?.model === 'fallback') {
+        throw new Error('El agente volvió a fallar (Sonnet/Opus). Revisa logs del servidor: puede ser timeout, rate limit o API key ausente.');
+      }
+      window.location.reload();
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      alert('No se pudo regenerar: ' + ((err as Error).message || 'Error'));
+    }
+  });
+</script>
 </DashboardLayout>
