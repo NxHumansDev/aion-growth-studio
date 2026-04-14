@@ -283,6 +283,7 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
         onboarding: null,
         pipelineOutput: results,
         priorSnapshot: null,
+        rejectedEditorialTopics: (audit as any).rejectedEditorialTopics || undefined,
       }, { skipQA: true });
       return analysis as any;
     }

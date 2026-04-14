@@ -1,7 +1,8 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { getArticle, updateArticle } from '../../../../../lib/editorial/db';
+import { getArticle, updateArticle, addRejectedTopic } from '../../../../../lib/editorial/db';
+import { embed } from '../../../../../lib/editorial/embeddings';
 
 /**
  * POST /api/editorial/articles/:id/reject
@@ -48,11 +49,41 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     },
   });
 
-  // NOTE: P7-S6 will consume this decision to feed the learning loops
-  // (topic_not_relevant → rejected_topics with embedding, tone_not_my_voice
-  // → nudge to re-extract voice, etc.).
+  // ── Loop 1: rejected topics with embedding ─────────────────────────────
+  // When the user marks the topic as not relevant, persist an embedding so
+  // future Growth Agent recommendations can filter semantically similar
+  // topics (cosine similarity > 0.85 with any rejected topic → suppress).
+  let learning_signal: 'topic_filter' | 'voice_nudge' | 'editor_alert' | null = null;
+  if (reason_category === 'topic_not_relevant') {
+    const topicText = `${current.topic}${current.brief ? ' — ' + current.brief : ''}`;
+    const emb = await embed(topicText);
+    if (emb.success && emb.embedding) {
+      await addRejectedTopic({
+        client_id: client.id,
+        topic_text: topicText,
+        topic_embedding: emb.embedding,
+        reason: body.reason_text,
+        article_id: articleId,
+      }).catch(() => { /* fire-and-forget — non-fatal */ });
+      learning_signal = 'topic_filter';
+    }
+  } else if (reason_category === 'tone_not_my_voice') {
+    // Loop 3 trigger: the UI will read this signal and offer to add more
+    // brand_voice samples by routing the user back to /editorial/setup
+    // Step 2 with prefilled context. (Implementation pending UI wiring.)
+    learning_signal = 'voice_nudge';
+  } else if (reason_category === 'factual_errors') {
+    // The editor passed something that shouldn't have. Future iterations
+    // could decrement editor confidence and increase searches per claim.
+    learning_signal = 'editor_alert';
+  }
 
-  return json({ ok: true, article_id: articleId, status: 'rejected' });
+  return json({
+    ok: true,
+    article_id: articleId,
+    status: 'rejected',
+    learning_signal,
+  });
 };
 
 function json(body: any, status = 200): Response {

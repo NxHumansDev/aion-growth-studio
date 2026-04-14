@@ -445,7 +445,13 @@ const isReady = article.status === 'ready_for_review' || article.status === 'app
       btnPublish.disabled = true;
       const publishedUrl = document.getElementById('published-url').value.trim();
       const finalContent = document.getElementById('final-content').value;
-      const res = await fetch(`/api/editorial/articles/${articleId}/publish`, {
+
+      // Compare against the original to decide whether to run the learning loop
+      const originalContent = document.getElementById('final-content').defaultValue;
+      const userModified = finalContent.trim() !== originalContent.trim()
+        && Math.abs(finalContent.length - originalContent.length) >= 20;
+
+      const publishRes = await fetch(`/api/editorial/articles/${articleId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -453,13 +459,136 @@ const isReady = article.status === 'ready_for_review' || article.status === 'app
           final_user_content: finalContent,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert('Error al publicar: ' + (err.error || res.status));
+      if (!publishRes.ok) {
+        const err = await publishRes.json().catch(() => ({}));
+        alert('Error al publicar: ' + (err.error || publishRes.status));
         btnPublish.disabled = false;
         return;
       }
+
+      // ── Learning loop: extract style rules from user's modifications ─────
+      if (userModified) {
+        await runLearningLoop();
+      }
+
       window.location.reload();
+    });
+  }
+
+  // ── Learning loop modal ────────────────────────────────────────────────
+  async function runLearningLoop() {
+    showLearningOverlay('Analizando tus cambios para aprender de ellos…');
+    let extractRes;
+    try {
+      const res = await fetch(`/api/editorial/articles/${articleId}/learn-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'extract' }),
+      });
+      extractRes = await res.json();
+      if (!res.ok || !extractRes.ok) {
+        hideLearningOverlay();
+        return;
+      }
+    } catch {
+      hideLearningOverlay();
+      return;
+    }
+
+    hideLearningOverlay();
+
+    if (!extractRes.significant || extractRes.proposed_rules.length === 0) return;
+
+    // Show the modal with proposed rules
+    const accepted = await showLearningModal(extractRes.proposed_rules);
+    if (!accepted || accepted.length === 0) return;
+
+    // Confirm the accepted rules
+    showLearningOverlay('Guardando reglas aprendidas…');
+    try {
+      await fetch(`/api/editorial/articles/${articleId}/learn-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'confirm', accepted_rules: accepted }),
+      });
+    } catch { /* non-fatal */ }
+    hideLearningOverlay();
+  }
+
+  function showLearningOverlay(text) {
+    let overlay = document.getElementById('learning-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'learning-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,27,53,0.72);z-index:200;display:flex;align-items:center;justify-content:center;';
+      overlay.innerHTML = `
+        <div style="background:white;padding:28px;border-radius:16px;text-align:center;max-width:380px;">
+          <div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#1A4B8C;border-radius:50%;margin:0 auto 14px;animation:spin 1s linear infinite;"></div>
+          <p id="learning-overlay-text" style="font-size:13px;color:#1a1a2e;font-weight:600;"></p>
+        </div>
+        <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+      `;
+      document.body.appendChild(overlay);
+    }
+    document.getElementById('learning-overlay-text').textContent = text;
+    overlay.style.display = 'flex';
+  }
+  function hideLearningOverlay() {
+    const o = document.getElementById('learning-overlay');
+    if (o) o.style.display = 'none';
+  }
+
+  function showLearningModal(rules) {
+    return new Promise((resolve) => {
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,27,53,0.72);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+      modal.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <span class="material-symbols-outlined" style="color:#1A4B8C;">school</span>
+            <h3 style="font-size:18px;font-weight:900;color:#1a1a2e;margin:0;">He detectado estos cambios — ¿quieres que aprenda?</h3>
+          </div>
+          <p style="font-size:13px;color:#64748b;margin:0 0 16px;">Marca las reglas que deba aplicar SIEMPRE en futuras generaciones. Las que no marques se quedarán como ajustes puntuales de este artículo.</p>
+          <div id="learning-rules-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button id="learning-skip" type="button" style="padding:10px 18px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-weight:600;cursor:pointer;">Saltar</button>
+            <button id="learning-confirm" type="button" style="padding:10px 20px;background:#1D9E75;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Aprender seleccionadas</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const list = modal.querySelector('#learning-rules-list');
+      rules.forEach((r, idx) => {
+        const card = document.createElement('label');
+        card.style.cssText = `display:flex;gap:10px;padding:14px;border:1px solid ${r.conflicts_with ? '#fcd34d' : '#e2e8f0'};border-radius:10px;cursor:pointer;background:${r.conflicts_with ? '#fffbeb' : 'white'};`;
+        card.innerHTML = `
+          <input type="checkbox" data-idx="${idx}" checked style="margin-top:3px;flex-shrink:0;" />
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${r.rule_type}</span>
+              <span style="font-size:10px;font-weight:700;color:#1A4B8C;">Prioridad ${r.priority}</span>
+              ${r.conflicts_with ? `<span style="font-size:10px;font-weight:700;color:#BA7517;background:#fef3c7;padding:2px 6px;border-radius:4px;">⚠ contradice una regla existente</span>` : ''}
+            </div>
+            <p style="font-size:13px;font-weight:600;color:#1a1a2e;margin:0 0 4px;">${r.content}</p>
+            ${r.rationale ? `<p style="font-size:11px;color:#64748b;margin:0 0 3px;font-style:italic;">${r.rationale}</p>` : ''}
+            ${r.example_change ? `<p style="font-size:10px;color:#94a3b8;margin:0;">${r.example_change}</p>` : ''}
+            ${r.conflicts_with ? `<p style="font-size:10px;color:#78350f;margin-top:6px;background:#fef3c7;padding:6px 8px;border-radius:4px;">Regla existente similar: "${r.conflicts_with.content}". Si la añades, quedará como pendiente de resolver por un admin.</p>` : ''}
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      modal.querySelector('#learning-skip').addEventListener('click', () => {
+        modal.remove();
+        resolve(null);
+      });
+      modal.querySelector('#learning-confirm').addEventListener('click', () => {
+        const checked = Array.from(modal.querySelectorAll('input[type=checkbox]:checked'))
+          .map(cb => rules[Number(cb.dataset.idx)]);
+        modal.remove();
+        resolve(checked);
+      });
     });
   }
 

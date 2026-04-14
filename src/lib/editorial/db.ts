@@ -268,6 +268,22 @@ export async function addRejectedTopic(params: {
   await sb.from('rejected_topics').insert(params);
 }
 
+/** Fetch the most recent N rejected topic texts for a client — used by the
+ *  Growth Agent as a no-go list when proposing content recommendations. */
+export async function listRecentRejectedTopicTexts(
+  clientId: string,
+  limit: number = 10,
+): Promise<string[]> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('rejected_topics')
+    .select('topic_text')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r: any) => r.topic_text).filter(Boolean);
+}
+
 /**
  * Find rejected topics similar to a new candidate embedding.
  * Returns topics with similarity > threshold (default 0.85, i.e. distance < 0.15).

@@ -176,6 +176,13 @@ export interface GrowthAgentInput {
     rejected: Array<{ title: string; reason?: string }>;
   };
 
+  // Editorial AI feedback loops (P7-S6):
+  //   - rejectedEditorialTopics: most recent topics the user marked as
+  //     "topic_not_relevant". The agent must avoid proposing similar topics
+  //     in contentGeneration. Caller (run-radar) should fetch the last
+  //     ~10 from rejected_topics and pass the topic_text strings.
+  rejectedEditorialTopics?: string[];
+
   // When omitted, the agent resolves it internally from sector.ts inference
   // inside pipelineOutput. Pass explicitly when the caller already has the
   // resolved profile (e.g. run-radar uses confirmed onboarding values).
@@ -832,6 +839,16 @@ ${(() => {
     if (hist.length > 0) {
       sections.push(`## HISTORIAL DE ACCIONES\n${hist.join('\n\n')}`);
     }
+  }
+
+  // ─── Editorial AI: rejected topics (loop 1 of P7-S6) ───────────────────
+  // When the user has rejected articles with reason 'topic_not_relevant',
+  // their topics are stored in rejected_topics with an embedding. We surface
+  // the most recent N as a no-go list so the Growth Agent doesn't propose
+  // contentGeneration actions on similar themes.
+  if (input.rejectedEditorialTopics?.length) {
+    const lines = input.rejectedEditorialTopics.slice(0, 10).map(t => `- ${t}`);
+    sections.push(`## TOPICS DE CONTENIDO RECHAZADOS (NO proponer en contentGeneration ni temas semánticamente similares)\n${lines.join('\n')}`);
   }
 
   return sections.join('\n\n');

@@ -72,6 +72,15 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
     const clientOnboarding = await getClientOnboarding(client.id);
     const compUrls = (clientOnboarding?.competitors || []).map(c => c.url).filter(Boolean);
 
+    // 0b. Load Editorial AI rejected topics (loop 1 of P7-S6). The Growth
+    // Agent uses this list to avoid proposing similar topics in new content
+    // recommendations. Non-fatal if query fails.
+    let rejectedEditorialTopics: string[] = [];
+    try {
+      const { listRecentRejectedTopicTexts } = await import('../editorial/db');
+      rejectedEditorialTopics = await listRecentRejectedTopicTexts(client.id, 10);
+    } catch { /* non-fatal */ }
+
     // 1. Create audit (or reuse existing for phased execution)
     let auditId: string;
     if (options?.existingAuditId) {
@@ -110,6 +119,10 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
             geo_scope: clientOnboarding.geo_scope ?? null,
           }
         : null;
+      // Editorial AI: pass rejected topic texts so growth_agent can filter
+      // similar content recommendations (P7-S6 loop 1).
+      (audit as any).rejectedEditorialTopics = rejectedEditorialTopics;
+      (audit as any).clientId = client.id;
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {
         // Phase execution (parallel steps)
