@@ -181,6 +181,15 @@ export interface SectorResult extends ModuleResult {
   keywords?: string[];
   rationale?: string;
   benchmarks?: SectorBenchmarks;
+  // Business profile inference — used by the benchmark scoring system.
+  // One of the 8 profiles defined in src/lib/benchmarks/profiles.ts.
+  businessProfile?: string;
+  // Geo scope inference — normalizes to the values used by
+  // src/lib/benchmarks/geo-multipliers.ts ('local' | 'national' | 'regional-multi' | 'global').
+  geoScope?: string;
+  // Short justification from the classifier — useful for the onboarding UI
+  // when we ask the user to confirm or change the inferred profile.
+  profileRationale?: string;
 }
 
 export interface ContentResult extends ModuleResult {
@@ -394,11 +403,17 @@ export interface ScoreComputation {
     final: number;
   };
   weights: {
-    base: Record<string, number>;         // BASE_WEIGHTS
+    base: Record<string, number>;         // resolved profile weights (was BASE_WEIGHTS)
     effective: Record<string, number>;    // normalized after dropping inactive pillars
     inactivePillars: string[];            // pillars that had no data → dropped
   };
   totalFormula: string;                   // e.g. "(seo 72 × 0.35 + geo 45 × 0.25 + ...) / 1.00"
+  profile?: {
+    profile: string;                      // BusinessProfile key used for this score
+    geoScope: string;                     // GeoScope key used for this score
+    source: 'onboarding' | 'sector-inference' | 'fallback';
+    confidence: number;                   // 0-1 (1 if user-confirmed)
+  };
 }
 
 export interface ScoreResult extends ModuleResult {
@@ -654,4 +669,10 @@ export interface AuditPageData {
   results: Record<string, ModuleResult>;
   /** Radar sets this to 3 for multi-sampling GEO queries (audit uses 1) */
   geoSamples?: number;
+  /** Confirmed onboarding fields (business_profile + geo_scope) when available.
+   *  Lets runScore prefer user-confirmed values over sector.ts inference. */
+  clientOnboarding?: {
+    business_profile?: string | null;
+    geo_scope?: string | null;
+  } | null;
 }

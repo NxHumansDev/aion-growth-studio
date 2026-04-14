@@ -69,12 +69,14 @@ const GENEROUS = 270_000; // 270s — leaves 30s headroom under the 300s Vercel 
 export const STEP_TIMEOUTS: Record<string, number> = {
   // Synthesis steps need less — they only run locally / on cached data
   score: 30_000,
-  // growth_agent: Sonnet draft (~30-50s) + structural (~1s) + Opus QA (~45-90s)
-  // + corrections. Complex sites with lots of data push this past 100s.
+  // growth_agent: Sonnet draft (~150-220s on full prompt with profile context)
+  // + structural (~1s) + Opus QA (~60-120s) + corrections. Observed sum
+  // reached 260s+ after adding the PROFILE benchmark context to the prompt.
   // Retry is disabled for this step (see runner retry guard), so a long
-  // timeout can't cascade into a Vercel 300s kill — worst case we eat the
-  // whole budget on a single attempt and the deterministic fallback runs.
-  growth_agent: 240_000,
+  // timeout can't cascade into a Vercel 300s kill. 290s leaves 10s headroom
+  // under the 300s ceiling — worst case Opus QA is aborted and the draft is
+  // returned as-is (still high quality, just not QA-verified).
+  growth_agent: 290_000,
 };
 const DEFAULT_TIMEOUT = GENEROUS;
 
@@ -266,7 +268,7 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
       return runConversion(url, results.crawl || {});
 
     case 'score':
-      return runScore(results);
+      return runScore(results, audit.clientOnboarding || null);
 
     case 'growth_agent': {
       // Unified analysis: Sonnet draft → structural validate → Opus QA → corrections.

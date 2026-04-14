@@ -102,6 +102,14 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       const audit = await getAuditPage(auditId);
       // Radar uses multi-sampling for GEO (3 samples per query×engine for stability)
       audit.geoSamples = 3;
+      // Forward confirmed onboarding (business_profile + geo_scope) so the
+      // score step can prefer user-confirmed values over sector.ts inference.
+      audit.clientOnboarding = clientOnboarding
+        ? {
+            business_profile: (clientOnboarding as any).business_profile ?? null,
+            geo_scope: clientOnboarding.geo_scope ?? null,
+          }
+        : null;
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {
         // Phase execution (parallel steps)

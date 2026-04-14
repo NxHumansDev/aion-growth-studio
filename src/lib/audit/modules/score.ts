@@ -1,24 +1,21 @@
 import type {
   ScoreResult, ScoreBreakdown, ScoreComputation, ModuleResult,
   CrawlResult, SSLResult, PageSpeedResult,
-  GeoResult, GBPResult, TrafficResult,
+  GeoResult, GBPResult,
   LinkedInResult, TechStackResult, ConversionResult, SEOResult,
 } from '../types';
+import { resolveProfile } from '../../benchmarks/resolve-profile';
+import { getProfile } from '../../benchmarks/profiles';
+import { getGeoMultipliers } from '../../benchmarks/geo-multipliers';
+import {
+  logScore, logScoreWithMultiplier, steppedScore, ratingToScore,
+  resolveThresholds, weightedTotal,
+} from '../../benchmarks/score-with-profile';
 
-/**
- * Logarithmic scale — values the journey, not absolute position.
- * ceiling is the value that maps to 100.
- * Examples with ceiling=2000: 10→32, 69→56, 500→82, 2000→100
- * Examples with ceiling=5_000_000: 1K→43, 7K→55, 50K→67, 500K→81
- */
-function logScore(value: number, ceiling: number): number {
-  if (value <= 0) return 0;
-  return Math.min(100, Math.round(
-    (Math.log10(value + 1) / Math.log10(ceiling + 1)) * 100,
-  ));
-}
-
-export async function runScore(results: Record<string, ModuleResult>): Promise<ScoreResult> {
+export async function runScore(
+  results: Record<string, ModuleResult>,
+  onboarding?: { business_profile?: string | null; geo_scope?: string | null } | null,
+): Promise<ScoreResult> {
   const crawl      = (results.crawl      || {}) as CrawlResult;
   const ssl        = (results.ssl        || {}) as SSLResult;
   const pagespeed  = (results.pagespeed  || {}) as PageSpeedResult;
@@ -31,34 +28,50 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
   const reputation = (results.reputation || {}) as any;
   const instagram  = (results.instagram  || {}) as any;
   const cc         = (results.content_cadence || {}) as any;
+  const sectorRes  = (results.sector     || {}) as any;
   const isCrawlerBlocked = !!(crawl as any).crawlerBlocked;
 
-  // Computation trace — captured alongside every pillar calc below so the
-  // Growth Agent can explain the number to the client with real values.
+  // ── Resolve benchmark profile + geo scope ────────────────────────
+  // Priority: confirmed onboarding → sector.ts inference → fallback.
+  const resolved = resolveProfile({
+    onboarding: onboarding || null,
+    sectorResult: {
+      businessProfile: sectorRes.businessProfile,
+      geoScope: sectorRes.geoScope,
+      confidence: sectorRes.confidence,
+    },
+  });
+  const profile = getProfile(resolved.profile);
+  const multipliers = getGeoMultipliers(resolved.geoScope);
+  const th = resolveThresholds(profile, multipliers);
+
   const computation: ScoreComputation = {
     weights: {
-      base: { seo: 0.35, geo: 0.25, web: 0.15, conversion: 0.15, reputation: 0.10 },
+      base: profile.weights,
       effective: {},
       inactivePillars: [],
     },
     totalFormula: '',
-  };
+    profile: {
+      profile: resolved.profile,
+      geoScope: resolved.geoScope,
+      source: resolved.source,
+      confidence: resolved.confidence,
+    },
+  } as any;
 
-  // ── Pilar 1: SEO orgánico (35%) — escala logarítmica ────────────
-  // Logarithmic scale removes the cliff-edge from competitor comparison.
-  // A domain with 69 kw gets ~56 (reasonable) not ~1 (penalized by Sabadell's 7K).
+  // ── Pilar 1: SEO orgánico ─────────────────────────────────────────
   let seoScore: number | null = null;
 
   if (!seo.skipped && (seo.keywordsTop10 != null || seo.organicTrafficEstimate != null)) {
     const kw  = seo.keywordsTop10 ?? 0;
     const etv = seo.organicTrafficEstimate ?? 0;
 
-    const kwScore      = logScore(kw, 2000);        // 2000 kw = perfect
-    const trafficScore = logScore(etv, 5_000_000);  // 5M visits/month = perfect
+    const kwScore      = logScore(kw, th.keywordsTop10Ceiling);
+    const trafficScore = logScore(etv, th.trafficCeiling);
 
     let s = Math.round(kwScore * 0.6 + trafficScore * 0.4);
 
-    // Top-3 bonus: strong positioning signals authority (up to +8 pts)
     const top3 = seo.keywordsTop3 ?? 0;
     let top3Bonus = 0;
     if (top3 > 0 && kw > 0) {
@@ -74,13 +87,12 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
       trafficScore,
       top3,
       top3Bonus,
-      formula: `kwScore(${kw} kw → ${kwScore}) × 0.6 + trafficScore(${etv} visits → ${trafficScore}) × 0.4${top3Bonus > 0 ? ` + top3Bonus(${top3}/${kw} → +${top3Bonus})` : ''} = ${s}`,
+      formula: `kwScore(${kw} kw → ${kwScore}, ceiling ${th.keywordsTop10Ceiling}) × 0.6 + trafficScore(${etv} visits → ${trafficScore}, ceiling ${th.trafficCeiling}) × 0.4${top3Bonus > 0 ? ` + top3Bonus(${top3}/${kw} → +${top3Bonus})` : ''} = ${s}`,
       final: s,
-    };
+    } as any;
   }
 
-  // ── Pilar 2: Visibilidad IA / GEO (25%) ─────────────────────────
-  // mentionRate is already 0-100 (% of queries the brand is mentioned)
+  // ── Pilar 2: GEO / visibilidad IA ─────────────────────────────────
   let geoScore: number | null = null;
   if (!geo.skipped && geo.mentionRate != null) {
     geoScore = geo.mentionRate;
@@ -100,12 +112,7 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     };
   }
 
-  // ── Pilar 3: Web & técnico (15%) ─────────────────────────────────
-  // PageSpeed is the dominant signal — users experience it directly.
-  // Technical checks (SSL, schema, sitemap, canonical) add reliability bonus.
-  // When crawler is blocked, techChecks (canonical, schema, robots meta) are unreliable
-  // because they were detected on the error page. Only SSL and sitemap/robots.txt
-  // (checked via direct HTTP HEAD) are valid. PageSpeed uses Google's API — always valid.
+  // ── Pilar 3: Web & técnico ───────────────────────────────────────
   const psScore = pagespeed.mobile?.performance ?? 0;
   const techCheckDefs = isCrawlerBlocked
     ? [
@@ -121,7 +128,6 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
         { label: 'Robots.txt', points: 5, applied: !!crawl.hasRobots },
       ];
   const techChecks = techCheckDefs.reduce((s, c) => s + (c.applied ? c.points : 0), 0);
-  // PageSpeed 70% + technical checks 30%
   const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
   computation.web = {
     pagespeedMobile: psScore,
@@ -131,62 +137,75 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     final: webScore,
   };
 
-  // ── Pilar 4: Conversión (15%) ────────────────────────────────────
-  // When crawler is blocked, funnelScore is unreliable (error page has 0 CTAs, 0 forms)
-  // → exclude from scoring by setting to null so the weight redistributes.
+  // ── Pilar 4: Conversión ───────────────────────────────────────────
   const conversionScore = isCrawlerBlocked ? null : Math.min(100, conversion.funnelScore ?? 20);
   computation.conversion = {
     funnelScore: isCrawlerBlocked ? 0 : (conversion.funnelScore ?? 20),
     final: conversionScore ?? 0,
   };
 
-  // ── Pilar 5: Reputación (10%) ─────────────────────────────────────
-  // Composite from available signals. LinkedIn is graceful — if Apify
-  // fails the score still runs, just slightly less precise.
+  // ── Pilar 5: Reputación ───────────────────────────────────────────
   const repComponents: Array<{ label: string; value: number; weight: number }> = [];
 
-  // Google Business Profile rating
   if (gbp.rating != null) {
-    // 2.0 → 0, 3.0 → 33, 4.0 → 67, 4.5 → 83, 5.0 → 100
-    const ratingScore = Math.min(100, Math.max(0, Math.round((gbp.rating - 2) / 3 * 100)));
-    const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? 0, 500) * 0.15);
-    repComponents.push({ label: `GBP rating ${gbp.rating}★ (${gbp.reviewCount ?? 0} reseñas)`, value: Math.min(100, ratingScore + reviewBonus), weight: 0.25 });
+    const ratingScore = ratingToScore(gbp.rating);
+    const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? 0, th.gbpReviewsCeiling) * 0.15);
+    repComponents.push({
+      label: `GBP rating ${gbp.rating}★ (${gbp.reviewCount ?? 0} reseñas)`,
+      value: Math.min(100, ratingScore + reviewBonus),
+      weight: 0.25,
+    });
   } else if (reputation.combinedRating != null) {
-    const ratingScore = Math.min(100, Math.max(0, Math.round((reputation.combinedRating - 2) / 3 * 100)));
-    repComponents.push({ label: `Rating combinado ${reputation.combinedRating}★`, value: ratingScore, weight: 0.25 });
+    const ratingScore = ratingToScore(reputation.combinedRating);
+    repComponents.push({
+      label: `Rating combinado ${reputation.combinedRating}★`,
+      value: ratingScore,
+      weight: 0.25,
+    });
   }
 
-  // Press / Google News
+  // Press — stepped score against profile thresholds (quarterly)
   const pressCount = reputation.newsCount ?? 0;
   if (pressCount > 0 || gbp.found || reputation.reputationLevel) {
-    // 0→0, 3→40, 5→60, 10→80, 20+→100
-    repComponents.push({ label: `Prensa (${pressCount} menciones)`, value: Math.min(100, pressCount * 8), weight: 0.20 });
+    const pressVal = steppedScore(pressCount, th.pressThresholds);
+    repComponents.push({
+      label: `Prensa (${pressCount} menciones)`,
+      value: pressVal,
+      weight: 0.20,
+    });
   }
 
-  // Blog activity — only include if blog detected (don't penalize for no blog)
+  // Blog posts per month — stepped against profile thresholds
   const hasBlog = !!(crawl.hasBlog || (cc.totalPosts ?? 0) >= 1);
   if (hasBlog) {
     const postsLast90 = cc.postsLast90Days ?? 0;
     const postsPerMonth = postsLast90 / 3;
-    const blogScore = postsPerMonth >= 2 ? 100 : postsPerMonth >= 1 ? 70 : postsPerMonth >= 0.33 ? 40 : 20;
-    repComponents.push({ label: `Blog (${postsLast90} posts 90d)`, value: blogScore, weight: 0.15 });
+    const blogVal = steppedScore(postsPerMonth, th.blogThresholds);
+    repComponents.push({
+      label: `Blog (${postsLast90} posts 90d)`,
+      value: blogVal,
+      weight: 0.15,
+    });
   }
 
-  // LinkedIn followers — ONLY if scraped successfully (never penalizes if Apify fails)
   if (!linkedin.skipped && linkedin.found && (linkedin.followers ?? 0) > 0) {
-    // <500→20, 1K→40, 5K→60, 10K→80, 50K+→100
-    const liScore = logScore(linkedin.followers!, 50000);
-    repComponents.push({ label: `LinkedIn (${linkedin.followers} seguidores)`, value: liScore, weight: 0.15 });
+    const liVal = logScore(linkedin.followers!, th.linkedinCeiling);
+    repComponents.push({
+      label: `LinkedIn (${linkedin.followers} seguidores)`,
+      value: liVal,
+      weight: 0.15,
+    });
   }
 
-  // Instagram followers — same logic as LinkedIn, relevant for personal brands,
-  // freelancers, hospitality, and B2C. Only included if Apify scraped successfully.
   if (!instagram.skipped && instagram.found && (instagram.followers ?? 0) > 0) {
-    const igScore = logScore(instagram.followers!, 50000);
-    repComponents.push({ label: `Instagram (${instagram.followers} seguidores)`, value: igScore, weight: 0.15 });
+    const igVal = logScore(instagram.followers!, th.instagramCeiling);
+    repComponents.push({
+      label: `Instagram (${instagram.followers} seguidores)`,
+      value: igVal,
+      weight: 0.15,
+    });
   }
 
-  // Tech stack maturity feeds into reputation (measurement = trustworthiness signal)
   if (techstack.maturityScore != null && techstack.maturityScore > 0) {
     repComponents.push({ label: `Techstack maturity`, value: techstack.maturityScore, weight: 0.10 });
   }
@@ -205,56 +224,30 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     };
   }
 
-  // ── Weighted total with normalized weights ───────────────────────
-  // Normalize so missing pillars don't penalize — they simply redistribute weight.
-  const BASE_WEIGHTS = { seo: 0.35, geo: 0.25, web: 0.15, conversion: 0.15, reputation: 0.10 };
-
-  const pillars: { key: keyof typeof BASE_WEIGHTS; value: number | null }[] = [
+  // ── Weighted total — uses profile.weights ────────────────────────
+  const pillars: Array<{ key: keyof typeof profile.weights; value: number | null }> = [
     { key: 'seo',        value: seoScore },
     { key: 'geo',        value: geoScore },
-    { key: 'web',        value: webScore },          // always present (PageSpeed is API-based)
-    { key: 'conversion', value: conversionScore },   // null when crawler blocked
+    { key: 'web',        value: webScore },
+    { key: 'conversion', value: conversionScore },
     { key: 'reputation', value: reputationScore },
   ];
 
-  const active = pillars.filter((p) => p.value !== null) as { key: keyof typeof BASE_WEIGHTS; value: number }[];
-  const inactive = pillars.filter((p) => p.value === null).map(p => p.key as string);
-  const totalWeight = active.reduce((s, p) => s + BASE_WEIGHTS[p.key], 0);
-  const total = totalWeight > 0
-    ? Math.round(active.reduce((s, p) => s + p.value * BASE_WEIGHTS[p.key], 0) / totalWeight)
-    : 0;
+  const { total, effective } = weightedTotal(pillars, profile.weights);
+  const inactive = pillars.filter(p => p.value == null || p.value <= 0).map(p => p.key as string);
 
-  // Populate computation trace with weight normalization
+  computation.weights.effective = effective as any;
   computation.weights.inactivePillars = inactive;
-  for (const p of active) {
-    computation.weights.effective[p.key] = Math.round((BASE_WEIGHTS[p.key] / totalWeight) * 1000) / 1000;
-  }
-  computation.totalFormula = `(${active.map(p => `${p.key} ${p.value} × ${BASE_WEIGHTS[p.key]}`).join(' + ')}) ÷ ${totalWeight.toFixed(2)} = ${total}`;
+  computation.totalFormula = `[${resolved.profile}/${resolved.geoScope}] ` +
+    `(${pillars.filter(p => p.value != null && p.value > 0).map(p => `${p.key} ${p.value} × ${profile.weights[p.key]}`).join(' + ')}) = ${total}`;
 
-  // Guardrail: if we get 0 with real data, something is wrong — use simple mean
-  if (total === 0 && active.length >= 2) {
-    const mean = Math.round(active.reduce((s, p) => s + p.value, 0) / active.length);
-    console.error('[SCORE BUG] Score 0 with data, using mean', JSON.stringify(active));
-    return {
-      total: mean,
-      breakdown: {
-        seo: seoScore ?? 0,
-        geo: geoScore ?? 0,
-        web: webScore,
-        conversion: conversionScore,
-        reputation: reputationScore ?? 0,
-      },
-      computation,
-    };
-  }
-
-  // ── Content pillar (informational — not in main total yet) ──────
+  // ── Content pillar (informational) ───────────────────────────────
   const { computeContentScore } = await import('../content-score');
   const contentScore = computeContentScore(
     { postsLast90Days: cc.postsLast90Days, lastPostDate: cc.lastPostDate, daysSinceLastPost: cc.daysSinceLastPost },
     { found: instagram.found, postsLast90Days: instagram.postsLast90Days, lastPostDate: instagram.lastPostDate, engagementRate: instagram.engagementRate, followers: instagram.followers },
     { found: linkedin.found, followers: linkedin.followers, postsLast90Days: linkedin.postsLast90Days, lastPostDate: linkedin.lastPostDate },
-    (results.sector as any)?.sector,
+    sectorRes.sector,
   );
 
   const breakdown: ScoreBreakdown = {
@@ -265,15 +258,11 @@ export async function runScore(results: Record<string, ModuleResult>): Promise<S
     reputation: reputationScore ?? 0,
   };
 
-  const activePillarCount = active.length;
-  const totalPillarCount = pillars.length;
-
   const result: ScoreResult = { total, breakdown, content: contentScore, computation };
 
-  // When crawler was blocked, annotate so the Growth Agent and report know
   if (isCrawlerBlocked) {
     (result as any).crawlerBlocked = true;
-    (result as any).crawlerNote = `Score calculado sobre ${activePillarCount} de ${totalPillarCount} pilares — las secciones que dependen del HTML (${pillars.filter(p => p.value === null).map(p => p.key).join(', ') || 'ninguna'}) no se incluyen porque el sitio bloqueo el acceso al crawler.`;
+    (result as any).crawlerNote = `Score calculado sobre los pilares accesibles — las secciones que dependen del HTML (${inactive.join(', ') || 'ninguna'}) no se incluyen porque el sitio bloqueó el acceso al crawler.`;
   }
 
   return result;

@@ -4,6 +4,12 @@ import {
   DEMO_RECOMMENDATIONS, DEMO_ONBOARDING, DEMO_USERS,
   type Client, type Snapshot, type Alert, type ContextEntry, type Tier,
 } from './demo-data';
+import {
+  logScore, steppedScore, ratingToScore, resolveThresholds, weightedTotal,
+} from './benchmarks/score-with-profile';
+import { getProfile } from './benchmarks/profiles';
+import { getGeoMultipliers } from './benchmarks/geo-multipliers';
+import { resolveProfile } from './benchmarks/resolve-profile';
 
 export { type Client, type Snapshot, type Alert, type ContextEntry, type Tier };
 export { DEMO_USERS };
@@ -40,14 +46,9 @@ export async function getClient(userId: string): Promise<Client> {
 // ─── Demo score hydration ────────────────────────────────────────────────
 // The demo snapshots don't ship with a precomputed score.breakdown inside
 // pipeline_output. Dashboard pages read r.score?.breakdown?.* as the single
-// source of truth, so we compute it on-the-fly using a simplified mirror of
-// src/lib/audit/modules/score.ts logic. Keeps all pages consistent in demo
-// mode without having to hardcode breakdowns into each snapshot.
-function logScore(value: number, ceiling: number): number {
-  if (value <= 0) return 0;
-  return Math.min(100, Math.round((Math.log10(value + 1) / Math.log10(ceiling + 1)) * 100));
-}
-
+// source of truth, so we compute it on-the-fly using the same benchmark
+// helpers as the pipeline. The profile is inferred from the pipeline_output
+// (sector.ts result) when present, defaulting to 'professional-services'.
 function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdown: Record<string, number> } {
   const seo = po.seo || {};
   const geo = po.geo || {};
@@ -60,16 +61,28 @@ function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdo
   const cc = po.content_cadence || {};
   const li = po.linkedin || {};
   const ig = po.instagram || {};
+  const sectorRes = po.sector || {};
 
-  // SEO — logScore(kw, 2000)*0.6 + logScore(traffic, 5M)*0.4
-  const kwScore = logScore(seo.keywordsTop10 ?? 0, 2000);
-  const trafficScore = logScore(seo.organicTrafficEstimate ?? 0, 5_000_000);
+  const resolved = resolveProfile({
+    sectorResult: {
+      businessProfile: sectorRes.businessProfile,
+      geoScope: sectorRes.geoScope,
+      confidence: sectorRes.confidence,
+    },
+  });
+  const profile = getProfile(resolved.profile);
+  const multipliers = getGeoMultipliers(resolved.geoScope);
+  const th = resolveThresholds(profile, multipliers);
+
+  // SEO
+  const kwScore = logScore(seo.keywordsTop10 ?? 0, th.keywordsTop10Ceiling);
+  const trafficScore = logScore(seo.organicTrafficEstimate ?? 0, th.trafficCeiling);
   const seoScore = Math.round(kwScore * 0.6 + trafficScore * 0.4);
 
-  // GEO — direct mentionRate
+  // GEO
   const geoScore = geo.mentionRate ?? geo.overallScore ?? 0;
 
-  // Web — ps mobile * 0.7 + techChecks * 0.3
+  // Web
   const psScore = ps.mobile?.performance ?? 0;
   let techChecks = 0;
   if (ssl.valid !== false) techChecks += 25;
@@ -79,45 +92,39 @@ function computeDemoBreakdown(po: Record<string, any>): { total: number; breakdo
   if (crawl.hasRobots) techChecks += 5;
   const webScore = Math.min(100, Math.round(psScore * 0.7 + techChecks * 0.3));
 
-  // Conversion — funnelScore direct
+  // Conversion
   const conversionScore = Math.min(100, conv.funnelScore ?? 20);
 
-  // Reputation — composite
+  // Reputation
   const repComponents: Array<{ value: number; weight: number }> = [];
   const rating = gbp.rating ?? rep.gbpRating;
   if (rating != null) {
-    const ratingScore = Math.min(100, Math.max(0, Math.round(((rating - 2) / 3) * 100)));
-    const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? rep.totalReviews ?? 0, 500) * 0.15);
+    const ratingScore = ratingToScore(rating);
+    const reviewBonus = Math.min(15, logScore(gbp.reviewCount ?? rep.totalReviews ?? 0, th.gbpReviewsCeiling) * 0.15);
     repComponents.push({ value: Math.min(100, ratingScore + reviewBonus), weight: 0.25 });
   }
   const news = rep.newsCount ?? 0;
-  if (news > 0 || gbp.found) repComponents.push({ value: Math.min(100, news * 8), weight: 0.20 });
+  if (news > 0 || gbp.found) repComponents.push({ value: steppedScore(news, th.pressThresholds), weight: 0.20 });
   const postsPerMonth = (cc.postsLast90Days ?? 0) / 3;
   if (cc.totalPosts) {
-    const blogScore = postsPerMonth >= 2 ? 100 : postsPerMonth >= 1 ? 70 : postsPerMonth >= 0.33 ? 40 : 20;
-    repComponents.push({ value: blogScore, weight: 0.15 });
+    repComponents.push({ value: steppedScore(postsPerMonth, th.blogThresholds), weight: 0.15 });
   }
-  if (li.followers) repComponents.push({ value: logScore(li.followers, 50000), weight: 0.15 });
-  if (ig.followers) repComponents.push({ value: logScore(ig.followers, 50000), weight: 0.15 });
+  if (li.followers) repComponents.push({ value: logScore(li.followers, th.linkedinCeiling), weight: 0.15 });
+  if (ig.followers) repComponents.push({ value: logScore(ig.followers, th.instagramCeiling), weight: 0.15 });
   let reputationScore = 0;
   if (repComponents.length > 0) {
     const totalW = repComponents.reduce((s, c) => s + c.weight, 0);
     reputationScore = Math.min(100, Math.round(repComponents.reduce((s, c) => s + c.value * c.weight, 0) / totalW));
   }
 
-  // Weighted total — same base weights as score.ts
-  const BW = { seo: 0.35, geo: 0.25, web: 0.15, conversion: 0.15, reputation: 0.10 };
-  const active = [
-    { k: 'seo', v: seoScore },
-    { k: 'geo', v: geoScore },
-    { k: 'web', v: webScore },
-    { k: 'conversion', v: conversionScore },
-    { k: 'reputation', v: reputationScore },
-  ].filter(p => p.v > 0);
-  const totalW = active.reduce((s, p) => s + (BW as any)[p.k], 0);
-  const total = totalW > 0
-    ? Math.round(active.reduce((s, p) => s + p.v * (BW as any)[p.k], 0) / totalW)
-    : 0;
+  // Weighted total using the profile's own weights
+  const { total } = weightedTotal([
+    { key: 'seo',        value: seoScore },
+    { key: 'geo',        value: geoScore },
+    { key: 'web',        value: webScore },
+    { key: 'conversion', value: conversionScore },
+    { key: 'reputation', value: reputationScore },
+  ], profile.weights);
 
   return {
     total,
