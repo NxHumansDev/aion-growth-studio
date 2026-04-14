@@ -24,3 +24,10 @@ pnpm-debug.log*
 # vscode setting folder
 .vscode/
 .vercel
+
+# Astro generated types
+.astro/
+
+# Playwright / test runner output
+test-results/
+playwright-report/
