@@ -338,20 +338,38 @@ async function fetchNewsPresence(
     // Accent-insensitive comparison — "Gámez" should match "Gamez" and vice versa
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Relevance filter: brand name found in title or snippet.
-    // For multi-word brands, accept if any distinctive word (length >= 5) matches —
-    // covers cases where press only uses the last name (e.g. "Gámez" for "Kiko Gámez").
+    // Build candidate brand-word sets. If the brand is a single concatenated word
+    // (e.g. "Kikogamez" from a one-word company field) but press writes it split
+    // ("Kiko Gámez"), we generate every 2-part split where each half is >= 3 chars
+    // and try them too. Relevance = any split whose parts all appear as whole words.
     const brandNormalized = normalize(brandName);
-    const brandWords = brandNormalized.split(/[\s\-_.]+/).filter(w => w.length >= 3);
-    const distinctiveWords = brandWords.filter(w => w.length >= 5);
+    const baseWords = brandNormalized.split(/[\s\-_.]+/).filter(w => w.length >= 3);
+    const wordSets: string[][] = [baseWords];
+    if (baseWords.length === 1 && baseWords[0].length >= 6) {
+      const w = baseWords[0];
+      for (let i = 3; i <= w.length - 3; i++) {
+        wordSets.push([w.slice(0, i), w.slice(i)]);
+      }
+    }
+    const distinctiveWords = baseWords.filter(w => w.length >= 5);
+
+    function containsWord(haystack: string, word: string): boolean {
+      return new RegExp(`\\b${word}\\b`).test(haystack);
+    }
 
     function isRelevant(title: string, snippet: string): boolean {
-      if (brandWords.length === 0) return true;
+      if (baseWords.length === 0) return true;
       const haystack = normalize(`${title} ${snippet}`);
       if (haystack.includes(brandNormalized)) return true;
-      if (distinctiveWords.some(w => haystack.includes(w))) return true;
-      const matchCount = brandWords.filter(w => haystack.includes(w)).length;
-      return brandWords.length >= 2 ? matchCount >= 2 : matchCount >= 1;
+      if (distinctiveWords.some(w => containsWord(haystack, w))) return true;
+      // Accept if any candidate word set has all its words present
+      for (const set of wordSets) {
+        if (set.length === 0) continue;
+        const matchCount = set.filter(w => containsWord(haystack, w)).length;
+        const required = set.length >= 2 ? 2 : 1;
+        if (matchCount >= required) return true;
+      }
+      return false;
     }
 
     const headlines: NewsHeadline[] = newsItems
