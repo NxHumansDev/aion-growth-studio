@@ -35,6 +35,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       business_description: body.business_description ?? existing?.business_description ?? null,
       primary_goal: body.primary_goal ?? existing?.primary_goal ?? null,
       goal_detail: body.goal_detail ?? existing?.goal_detail ?? null,
+      business_profile: body.business_profile ?? (existing as any)?.business_profile ?? null,
       geo_scope: body.geo_scope ?? existing?.geo_scope ?? null,
       geo_detail: body.geo_detail ?? existing?.geo_detail ?? null,
       url_architecture: body.url_architecture ?? existing?.url_architecture ?? null,

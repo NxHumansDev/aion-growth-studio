@@ -13,6 +13,38 @@ const prefillIG = existing?.instagram_handle || (auditResults?.instagram as any)
 const prefillLI = existing?.linkedin_url
   || (auditResults?.linkedin as any)?.url
   || '';
+
+// Pre-fill business_profile + geo_scope from sector.ts inference so the
+// user can confirm or change ("Detectado automáticamente"). If a user
+// already confirmed before, that takes priority.
+const inferredProfile = (auditResults?.sector as any)?.businessProfile as string | undefined;
+const inferredGeoScope = (auditResults?.sector as any)?.geoScope as string | undefined;
+const profileRationale = (auditResults?.sector as any)?.profileRationale as string | undefined;
+
+// Map module-canonical geoScope back to DB form for UI radio matching.
+const geoScopeDbMap: Record<string, string> = {
+  local: 'local_city',
+  national: 'national',
+  'regional-multi': 'multi_country',
+  global: 'global',
+};
+const inferredGeoScopeDb = inferredGeoScope ? geoScopeDbMap[inferredGeoScope] : undefined;
+
+const selectedProfile = (existing as any)?.business_profile || inferredProfile || '';
+const selectedGeoScope = existing?.geo_scope || inferredGeoScopeDb || '';
+const profileWasConfirmed = !!(existing as any)?.business_profile;
+const geoWasConfirmed = !!existing?.geo_scope;
+
+const PROFILE_OPTIONS = [
+  { value: 'freelance', label: 'Freelance / marca personal' },
+  { value: 'professional-services', label: 'Servicios profesionales (agencia / despacho)' },
+  { value: 'saas', label: 'SaaS / plataforma digital' },
+  { value: 'ecommerce', label: 'Ecommerce B2C' },
+  { value: 'local-single', label: 'Negocio local (1 ubicación)' },
+  { value: 'local-chain', label: 'Cadena / franquicia multi-sede' },
+  { value: 'media-education', label: 'Medios / educación online' },
+  { value: 'nonprofit-institutional', label: 'ONG / fundación / institución' },
+];
 ---
 
 <!DOCTYPE html>
@@ -149,12 +181,45 @@ const prefillLI = existing?.linkedin_url
         </div>
       </div>
 
+      <!-- 2c. Business profile (detected + confirm) -->
+      <div class="section">
+        <label>
+          <span class="material-symbols-outlined" style="font-size:18px;margin-right:4px;color:#1A4B8C;">category</span>
+          ¿Cómo clasificarías tu negocio?
+        </label>
+        {inferredProfile && !profileWasConfirmed && (
+          <div style="display:inline-flex;align-items:center;gap:6px;background:#FEF3C7;color:#92400E;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;margin-bottom:10px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span>
+            Detectado automáticamente — confirma o cambia
+          </div>
+        )}
+        <p class="hint">
+          Esto determina con qué referencias comparamos tus KPIs. Un freelance con 800 seguidores en Instagram no es lo mismo que un ecommerce B2C con 800.
+          {profileRationale && !profileWasConfirmed && <span style="display:block;margin-top:4px;font-style:italic;">Razón: {profileRationale}</span>}
+        </p>
+        <div class="radio-group" id="profile-group" style="margin-bottom:12px;">
+          {PROFILE_OPTIONS.map(opt => (
+            <label class={`radio-option ${selectedProfile === opt.value ? 'selected' : ''}`}>
+              <input type="radio" name="business_profile" value={opt.value}
+                checked={selectedProfile === opt.value} />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <!-- 3. Geographic scope + URL architecture -->
       <div class="section">
         <label>
           <span class="material-symbols-outlined" style="font-size:18px;margin-right:4px;color:#1A4B8C;">public</span>
           ¿Dónde se desarrolla tu actividad comercial?
         </label>
+        {inferredGeoScopeDb && !geoWasConfirmed && (
+          <div style="display:inline-flex;align-items:center;gap:6px;background:#FEF3C7;color:#92400E;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;margin-bottom:10px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span>
+            Detectado automáticamente — confirma o cambia
+          </div>
+        )}
         <p class="hint">Indica la zona donde operas. Si vendes en varios países, cuéntanos si tienes una URL por mercado o todo en un mismo sitio web.</p>
         <div class="radio-group" id="geo-group" style="margin-bottom:12px;">
           {[
@@ -163,9 +228,9 @@ const prefillLI = existing?.linkedin_url
             { value: 'multi_country', label: 'Varios países' },
             { value: 'global', label: 'Global' },
           ].map(opt => (
-            <label class={`radio-option ${existing?.geo_scope === opt.value ? 'selected' : ''}`}>
+            <label class={`radio-option ${selectedGeoScope === opt.value ? 'selected' : ''}`}>
               <input type="radio" name="geo_scope" value={opt.value}
-                checked={existing?.geo_scope === opt.value} />
+                checked={selectedGeoScope === opt.value} />
               {opt.label}
             </label>
           ))}
@@ -607,6 +672,7 @@ const prefillLI = existing?.linkedin_url
         business_description: fd.get('business_description'),
         primary_goal: fd.get('primary_goal'),
         goal_detail: fd.get('goal_detail') || null,
+        business_profile: fd.get('business_profile') || null,
         geo_scope: fd.get('geo_scope'),
         geo_detail: fd.get('geo_detail') || null,
         url_architecture: fd.get('url_architecture') || null,
