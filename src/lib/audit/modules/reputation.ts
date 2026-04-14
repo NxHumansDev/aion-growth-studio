@@ -349,16 +349,18 @@ async function fetchNewsPresence(
     }
 
     const headlines: NewsHeadline[] = newsItems
-      .slice(0, 15) // more candidates to filter from
+      .slice(0, 30) // more candidates to filter from
       .map((it: any) => ({
         title: String(it.title || '').slice(0, 120),
         source: String(it.source || it.domain || ''),
         ...(it.date && { date: String(it.date).slice(0, 20) }),
+        ...(it.url && { url: String(it.url) }),
+        ...(it.snippet && { snippet: String(it.snippet).slice(0, 200) }),
         _negative: NEGATIVE_RE.test(String(it.title || '')),
         _relevant: isRelevant(String(it.title || '')),
       }))
       .filter((h) => !h._negative && h._relevant)
-      .slice(0, 5)
+      .slice(0, 20)  // Keep up to 20 for media module (dashboard shows 10 + "ver más")
       .map(({ _negative, _relevant, ...rest }) => rest);
 
     return {

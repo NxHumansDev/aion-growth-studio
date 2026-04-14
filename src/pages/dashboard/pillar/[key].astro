@@ -98,45 +98,16 @@ function getKPIs(): KPI[] {
       const pli = pr.linkedin || {};
       const cc = r.content_cadence || {};
       const pcc = pr.content_cadence || {};
+      // For reputation pillar, KPIs are shown in dedicated modules below.
+      // Only surface cross-cutting summary metrics in the generic KPI grid.
       const kpis: KPI[] = [];
-
-      // GBP — merge from gbp module (primary) OR reputation module (fallback)
-      const rating = gbp.rating ?? rep.gbpRating ?? rep.combinedRating;
-      const prevRating = pgbp.rating ?? prep.gbpRating ?? prep.combinedRating;
-      if (rating != null) kpis.push({ label: 'Google Rating', current: `${rating}★`, prev: prevRating ? `${prevRating}★` : null, better: 'up' });
-
-      const reviews = gbp.reviewCount ?? rep.totalReviews ?? 0;
-      const prevReviews = pgbp.reviewCount ?? prep.totalReviews;
-      if (reviews > 0 || (gbp.found)) kpis.push({ label: 'Reseñas Google', current: reviews, prev: prevReviews, better: 'up' });
-
-      // Trustpilot
-      if (rep.trustpilotRating != null) kpis.push({ label: 'Trustpilot', current: `${rep.trustpilotRating}★`, prev: prep.trustpilotRating ? `${prep.trustpilotRating}★` : null, better: 'up' });
-
-      // Press mentions
+      const combined = rep.combinedRating;
+      const totalRev = rep.totalReviews ?? 0;
+      if (combined != null) kpis.push({ label: 'Rating combinado', current: `${combined}★`, prev: prep.combinedRating ? `${prep.combinedRating}★` : null, better: 'up' });
+      if (totalRev > 0) kpis.push({ label: 'Reseñas totales', current: totalRev, prev: prep.totalReviews, better: 'up' });
       kpis.push({ label: 'Menciones en prensa', current: rep.newsCount || 0, prev: prep.newsCount, better: 'up' });
-
-      // Instagram
-      if (ig.found && ig.followers) {
-        kpis.push(
-          { label: 'Instagram Followers', current: ig.followers, prev: pig.followers, better: 'up' },
-          { label: 'IG Engagement Rate', current: `${ig.engagementRate || 0}%`, prev: pig.engagementRate != null ? `${pig.engagementRate}%` : null, better: 'up' },
-          { label: 'IG Posts', current: ig.posts || 0, prev: pig.posts, better: 'up' },
-        );
-      }
-
-      // LinkedIn
-      if (li.found && li.followers) {
-        kpis.push({ label: 'LinkedIn Followers', current: li.followers, prev: pli.followers, better: 'up' });
-      }
-
-      // Content cadence (contributes to reputation/authority)
-      if (cc.totalPosts != null) {
-        kpis.push(
-          { label: 'Blog posts (90 días)', current: cc.postsLast90Days || 0, prev: pcc.postsLast90Days, better: 'up' },
-          { label: 'Cadencia blog', current: cc.cadenceLevel || 'inactive', prev: pcc.cadenceLevel, better: 'up' },
-        );
-      }
-
+      if (ig.found && ig.followers) kpis.push({ label: 'IG Followers', current: ig.followers, prev: pig.followers, better: 'up' });
+      if (li.found && li.followers) kpis.push({ label: 'LinkedIn Followers', current: li.followers, prev: pli.followers, better: 'up' });
       return kpis;
     }
     default: return [];
@@ -435,20 +406,403 @@ const briefing = r.briefing;
     </section>
   )}
 
-  <!-- News headlines (Reputation only) -->
-  {key === 'reputation' && r.reputation?.newsHeadlines?.length > 0 && (
-    <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-      <h3 style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:16px;">Menciones en prensa</h3>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        {(r.reputation.newsHeadlines as string[]).map((headline: string) => (
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f7f9ff;border-radius:8px;">
-            <span class="material-symbols-outlined" style="font-size:18px;color:#1A4B8C;">newspaper</span>
-            <span style="font-size:13px;color:#1a1a2e;">{headline}</span>
+  <!-- ══ REPUTATION — 3 dedicated modules ══ -->
+  {key === 'reputation' && (() => {
+    const rep = r.reputation || {};
+    const prep = pr.reputation || {};
+    const gbp = r.gbp || {};
+    const pgbp = pr.gbp || {};
+    const ig = r.instagram || {};
+    const pig = pr.instagram || {};
+    const li = r.linkedin || {};
+    const pli = pr.linkedin || {};
+
+    // ─── Module 1: Reviews ──────────────────────────────────────────
+    const googleRating = gbp.rating ?? rep.gbpRating;
+    const googleReviews = gbp.reviewCount ?? rep.totalReviews ?? 0;
+    const prevGoogleRating = pgbp.rating ?? prep.gbpRating;
+    const prevGoogleReviews = pgbp.reviewCount ?? prep.totalReviews;
+    const tpRating = rep.trustpilotRating;
+    const tpReviews = rep.trustpilotReviews ?? 0;
+    const prevTpRating = prep.trustpilotRating;
+    const prevTpReviews = prep.trustpilotReviews;
+    const combinedRating = rep.combinedRating;
+    const totalReviews = rep.totalReviews ?? googleReviews + tpReviews;
+    const hasReviews = googleRating != null || tpRating != null;
+
+    // Rating color helper
+    const ratingColor = (v: number | null | undefined) => v == null ? '#94a3b8' : v >= 4 ? '#1D9E75' : v >= 3 ? '#BA7517' : '#E24B4A';
+
+    // Delta helper with sign
+    const ratingDelta = (curr: number | null | undefined, prev: number | null | undefined) => {
+      if (curr == null || prev == null) return null;
+      const d = +(curr - prev).toFixed(2);
+      if (Math.abs(d) < 0.05) return null;
+      return { text: `${d > 0 ? '+' : ''}${d.toFixed(1)}`, color: d > 0 ? '#1D9E75' : '#E24B4A' };
+    };
+    const countDelta = (curr: number, prev: number | null | undefined) => {
+      if (prev == null) return null;
+      const d = curr - prev;
+      if (d === 0) return null;
+      return { text: `${d > 0 ? '+' : ''}${d}`, color: d > 0 ? '#1D9E75' : '#E24B4A' };
+    };
+
+    // ─── Module 2: Media ────────────────────────────────────────────
+    const newsHeadlines: any[] = rep.newsHeadlines || [];
+    const newsCount: number = rep.newsCount || 0;
+    const prevNewsCount: number = prep.newsCount || 0;
+    const mediaDelta = countDelta(newsCount, prevNewsCount);
+
+    // Group headlines by source domain
+    const headlinesBySource: any = newsHeadlines.reduce((acc: any, h: any) => {
+      const src = h.source || 'otros';
+      if (!acc[src]) acc[src] = [];
+      acc[src].push(h);
+      return acc;
+    }, {});
+    const topSources = Object.entries(headlinesBySource)
+      .sort((a: any, b: any) => (b[1] as any[]).length - (a[1] as any[]).length)
+      .slice(0, 5);
+
+    // ─── Module 3: Social ───────────────────────────────────────────
+    const hasIG = ig.found && ig.followers;
+    const hasLI = li.found && li.followers;
+    const hasSocial = hasIG || hasLI;
+
+    // Engagement level benchmarks (industry standard)
+    const igEngagementLevel = (rate: number) => {
+      if (rate >= 3) return { label: 'Excelente', color: '#1D9E75' };
+      if (rate >= 1.5) return { label: 'Bueno', color: '#BA7517' };
+      if (rate >= 0.5) return { label: 'Bajo', color: '#E24B4A' };
+      return { label: 'Muy bajo', color: '#E24B4A' };
+    };
+    const liEngagementLevel = (rate: number) => {
+      if (rate >= 5) return { label: 'Excelente', color: '#1D9E75' };
+      if (rate >= 2) return { label: 'Bueno', color: '#BA7517' };
+      return { label: 'Bajo', color: '#E24B4A' };
+    };
+
+    return (
+      <Fragment>
+        {/* ─────── MODULE 1: REVIEWS ─────── */}
+        {hasReviews && (
+          <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#D97706;">star</span>
+              <h3 style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Reseñas</h3>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;align-items:center;">
+              {/* Combined rating hero */}
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:20px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:12px;">
+                <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#78350f;">Rating combinado</span>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style={`font-size:42px;font-weight:900;color:${ratingColor(combinedRating ?? googleRating)};letter-spacing:-0.03em;`}>{combinedRating ?? googleRating ?? '—'}</span>
+                  <span style="font-size:18px;color:#78350f;">★</span>
+                </div>
+                <span style="font-size:12px;color:#78350f;">{totalReviews.toLocaleString('es-ES')} reseñas totales</span>
+              </div>
+
+              {/* Individual platforms */}
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                {googleRating != null && (
+                  <div style="padding:16px;border:1px solid #e2e8f0;border-radius:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                      <div style="width:28px;height:28px;border-radius:8px;background:#ffe6d5;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:14px;font-weight:800;color:#D85A30;">G</span>
+                      </div>
+                      <span style="font-size:12px;font-weight:700;color:#1a1a2e;">Google</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:6px;">
+                      <span style={`font-size:22px;font-weight:900;color:${ratingColor(googleRating)};`}>{googleRating}★</span>
+                      {(() => { const d = ratingDelta(googleRating, prevGoogleRating); return d && <span style={`font-size:11px;font-weight:700;color:${d.color};`}>{d.text}</span>; })()}
+                    </div>
+                    <p style="font-size:11px;color:#64748b;margin-top:2px;">
+                      {googleReviews.toLocaleString('es-ES')} reseñas
+                      {(() => { const d = countDelta(googleReviews, prevGoogleReviews); return d && <span style={`color:${d.color};font-weight:700;margin-left:4px;`}>{d.text}</span>; })()}
+                    </p>
+                  </div>
+                )}
+                {tpRating != null && (
+                  <div style="padding:16px;border:1px solid #e2e8f0;border-radius:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                      <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:14px;font-weight:800;color:#1D9E75;">T</span>
+                      </div>
+                      <span style="font-size:12px;font-weight:700;color:#1a1a2e;">Trustpilot</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:6px;">
+                      <span style={`font-size:22px;font-weight:900;color:${ratingColor(tpRating)};`}>{tpRating}★</span>
+                      {(() => { const d = ratingDelta(tpRating, prevTpRating); return d && <span style={`font-size:11px;font-weight:700;color:${d.color};`}>{d.text}</span>; })()}
+                    </div>
+                    <p style="font-size:11px;color:#64748b;margin-top:2px;">
+                      {tpReviews.toLocaleString('es-ES')} reseñas
+                      {(() => { const d = countDelta(tpReviews, prevTpReviews); return d && <span style={`color:${d.color};font-weight:700;margin-left:4px;`}>{d.text}</span>; })()}
+                    </p>
+                  </div>
+                )}
+                {googleRating == null && tpRating == null && (
+                  <div style="grid-column:span 2;padding:20px;text-align:center;color:#94a3b8;font-size:13px;">
+                    No hay reseñas verificables en Google o Trustpilot
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ─────── MODULE 2: MEDIA VISIBILITY ─────── */}
+        <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#D97706;">newspaper</span>
+              <h3 style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Visibilidad en medios</h3>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span style="font-size:24px;font-weight:900;color:#1a1a2e;">{newsCount.toLocaleString('es-ES')}</span>
+              <span style="font-size:11px;color:#64748b;">menciones</span>
+              {mediaDelta && <span style={`font-size:11px;font-weight:700;color:${mediaDelta.color};`}>{mediaDelta.text}</span>}
+            </div>
           </div>
-        ))}
-      </div>
-    </section>
-  )}
+
+          {newsHeadlines.length === 0 ? (
+            <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;background:#f7f9ff;border-radius:10px;">
+              No se han detectado menciones en prensa esta semana
+            </div>
+          ) : (
+            <Fragment>
+              {/* Top sources */}
+              {topSources.length > 1 && (
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f0f0f0;">
+                  {topSources.map(([src, items]: any) => (
+                    <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#f0f4ff;border-radius:16px;font-size:11px;font-weight:600;color:#1A4B8C;">
+                      <span>{src}</span>
+                      <span style="background:#1A4B8C;color:white;padding:1px 6px;border-radius:8px;font-size:10px;">{items.length}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Article list */}
+              <div style="display:flex;flex-direction:column;gap:10px;" id="media-list">
+                {newsHeadlines.slice(0, 10).map((h: any, i: number) => (
+                  <a href={h.url || '#'} target={h.url ? '_blank' : undefined} rel={h.url ? 'noopener' : undefined}
+                     style={`display:flex;gap:12px;padding:12px 14px;background:#f7f9ff;border-radius:10px;text-decoration:none;color:inherit;transition:background 0.15s;${h.url ? 'cursor:pointer;' : 'cursor:default;pointer-events:none;'}`}
+                     onmouseover={h.url ? "this.style.background='#e0e7ff'" : undefined}
+                     onmouseout={h.url ? "this.style.background='#f7f9ff'" : undefined}>
+                    <span class="material-symbols-outlined" style="font-size:18px;color:#1A4B8C;flex-shrink:0;margin-top:2px;">article</span>
+                    <div style="flex:1;min-width:0;">
+                      <p style="font-size:13px;font-weight:600;color:#1a1a2e;line-height:1.4;margin:0 0 4px 0;">{h.title}</p>
+                      <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;">
+                        <span style="font-weight:600;color:#1A4B8C;">{h.source}</span>
+                        {h.date && <span>{h.date}</span>}
+                        {h.url && <span class="material-symbols-outlined" style="font-size:12px;">open_in_new</span>}
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+              {newsHeadlines.length > 10 && (
+                <button type="button" id="media-toggle"
+                        style="margin-top:12px;padding:8px 14px;background:transparent;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;color:#1A4B8C;cursor:pointer;width:100%;"
+                        data-hidden-count={newsHeadlines.length - 10}>
+                  Ver {newsHeadlines.length - 10} menciones más
+                </button>
+              )}
+              {newsHeadlines.length > 10 && (
+                <div id="media-hidden" style="display:none;flex-direction:column;gap:10px;margin-top:10px;">
+                  {newsHeadlines.slice(10).map((h: any) => (
+                    <a href={h.url || '#'} target={h.url ? '_blank' : undefined} rel={h.url ? 'noopener' : undefined}
+                       style={`display:flex;gap:12px;padding:12px 14px;background:#f7f9ff;border-radius:10px;text-decoration:none;color:inherit;${h.url ? 'cursor:pointer;' : 'cursor:default;pointer-events:none;'}`}>
+                      <span class="material-symbols-outlined" style="font-size:18px;color:#1A4B8C;flex-shrink:0;margin-top:2px;">article</span>
+                      <div style="flex:1;min-width:0;">
+                        <p style="font-size:13px;font-weight:600;color:#1a1a2e;line-height:1.4;margin:0 0 4px 0;">{h.title}</p>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;">
+                          <span style="font-weight:600;color:#1A4B8C;">{h.source}</span>
+                          {h.date && <span>{h.date}</span>}
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </Fragment>
+          )}
+        </section>
+
+        {/* ─────── MODULE 3: SOCIAL NETWORKS ─────── */}
+        {hasSocial && (
+          <section style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#D97706;">share</span>
+              <h3 style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a2e;">Redes sociales</h3>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;">
+              {/* Instagram card */}
+              {hasIG && (() => {
+                const eng = igEngagementLevel(ig.engagementRate || 0);
+                const daysAgo = ig.lastPostDate ? Math.floor((Date.now() - new Date(ig.lastPostDate).getTime()) / 86400000) : null;
+                return (
+                  <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                      <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(45deg,#F77737,#E1306C,#833AB4);display:flex;align-items:center;justify-content:center;">
+                        <span class="material-symbols-outlined" style="font-size:20px;color:white;">photo_camera</span>
+                      </div>
+                      <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                          <p style="font-size:13px;font-weight:800;color:#1a1a2e;">Instagram</p>
+                          {ig.isVerified && <span class="material-symbols-outlined" style="font-size:14px;color:#1DA1F2;">verified</span>}
+                        </div>
+                        {ig.handle && <p style="font-size:11px;color:#64748b;">@{ig.handle}</p>}
+                      </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                      <div>
+                        <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;">Followers</p>
+                        <p style="font-size:20px;font-weight:900;color:#1a1a2e;">{Number(ig.followers).toLocaleString('es-ES')}</p>
+                        {(() => { const d = countDelta(ig.followers, pig.followers); return d && <p style={`font-size:11px;font-weight:700;color:${d.color};margin-top:2px;`}>{d.text}</p>; })()}
+                      </div>
+                      <div>
+                        <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;">Engagement</p>
+                        <p style={`font-size:20px;font-weight:900;color:${eng.color};`}>{(ig.engagementRate || 0).toFixed(1)}%</p>
+                        <p style={`font-size:10px;font-weight:600;color:${eng.color};margin-top:2px;`}>{eng.label}</p>
+                      </div>
+                    </div>
+
+                    <div style="padding-top:14px;border-top:1px solid #f0f0f0;display:flex;flex-direction:column;gap:6px;font-size:12px;">
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Posts (90d)</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{ig.postsLast90Days || 0}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Likes/post (media)</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{Math.round(ig.avgLikes || 0).toLocaleString('es-ES')}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Comentarios/post</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{Math.round(ig.avgComments || 0)}</span>
+                      </div>
+                      {daysAgo != null && (
+                        <div style="display:flex;justify-content:space-between;">
+                          <span style="color:#64748b;">Último post</span>
+                          <span style={`font-weight:700;color:${daysAgo <= 7 ? '#1D9E75' : daysAgo <= 30 ? '#BA7517' : '#E24B4A'};`}>
+                            hace {daysAgo} {daysAgo === 1 ? 'día' : 'días'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* LinkedIn card */}
+              {hasLI && (() => {
+                const eng = liEngagementLevel(li.engagementRate || 0);
+                const daysAgo = li.lastPostDate ? Math.floor((Date.now() - new Date(li.lastPostDate).getTime()) / 86400000) : null;
+                const isPersonal = li.isPersonal;
+                return (
+                  <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                      <div style="width:36px;height:36px;border-radius:10px;background:#0077B5;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:16px;font-weight:900;color:white;">in</span>
+                      </div>
+                      <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                          <p style="font-size:13px;font-weight:800;color:#1a1a2e;">LinkedIn</p>
+                          {li.isPremium && <span style="font-size:9px;background:#FFC107;color:#1a1a2e;padding:1px 6px;border-radius:3px;font-weight:700;">PREMIUM</span>}
+                          {isPersonal && <span style="font-size:9px;background:#f0f0f0;color:#64748b;padding:1px 6px;border-radius:3px;font-weight:700;">PERFIL</span>}
+                        </div>
+                        {li.name && <p style="font-size:11px;color:#64748b;">{li.name}</p>}
+                      </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                      <div>
+                        <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;">Followers</p>
+                        <p style="font-size:20px;font-weight:900;color:#1a1a2e;">{Number(li.followers).toLocaleString('es-ES')}</p>
+                        {(() => { const d = countDelta(li.followers, pli.followers); return d && <p style={`font-size:11px;font-weight:700;color:${d.color};margin-top:2px;`}>{d.text}</p>; })()}
+                      </div>
+                      <div>
+                        <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;">Engagement</p>
+                        <p style={`font-size:20px;font-weight:900;color:${eng.color};`}>{(li.engagementRate || 0).toFixed(1)}%</p>
+                        <p style={`font-size:10px;font-weight:600;color:${eng.color};margin-top:2px;`}>{eng.label}</p>
+                      </div>
+                    </div>
+
+                    <div style="padding-top:14px;border-top:1px solid #f0f0f0;display:flex;flex-direction:column;gap:6px;font-size:12px;">
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Posts (90d)</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{li.postsLast90Days || 0}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Likes/post (media)</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{Math.round(li.avgLikes || 0).toLocaleString('es-ES')}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="color:#64748b;">Comentarios/post</span>
+                        <span style="font-weight:700;color:#1a1a2e;">{Math.round(li.avgComments || 0)}</span>
+                      </div>
+                      {!isPersonal && li.employees != null && (
+                        <div style="display:flex;justify-content:space-between;">
+                          <span style="color:#64748b;">Empleados</span>
+                          <span style="font-weight:700;color:#1a1a2e;">{typeof li.employees === 'number' ? li.employees.toLocaleString('es-ES') : li.employees}</span>
+                        </div>
+                      )}
+                      {daysAgo != null && (
+                        <div style="display:flex;justify-content:space-between;">
+                          <span style="color:#64748b;">Último post</span>
+                          <span style={`font-weight:700;color:${daysAgo <= 7 ? '#1D9E75' : daysAgo <= 30 ? '#BA7517' : '#E24B4A'};`}>
+                            hace {daysAgo} {daysAgo === 1 ? 'día' : 'días'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Publications (personal profiles only) */}
+                    {isPersonal && Array.isArray(li.publications) && li.publications.length > 0 && (
+                      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0f0f0;">
+                        <p style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Publicaciones en medios</p>
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                          {li.publications.slice(0, 3).map((p: any) => (
+                            <a href={p.link || '#'} target={p.link ? '_blank' : undefined} rel="noopener"
+                               style={`font-size:12px;color:#1A4B8C;text-decoration:none;display:flex;gap:4px;align-items:start;${p.link ? '' : 'pointer-events:none;'}`}>
+                              <span style="flex-shrink:0;">•</span>
+                              <span style="line-height:1.4;">{p.title}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Note on sentiment analysis (honest disclosure) */}
+            <div style="margin-top:16px;padding:12px 16px;background:#f7f9ff;border-radius:10px;font-size:11px;color:#64748b;line-height:1.5;">
+              <strong style="color:#1a1a2e;">Próximamente:</strong> análisis de sentimiento de comentarios — requiere capturar texto completo de interacciones, disponible en tier Signals.
+            </div>
+          </section>
+        )}
+      </Fragment>
+    );
+  })()}
+
+  <script>
+    // Media "ver más" toggle
+    const toggle = document.getElementById('media-toggle');
+    const hidden = document.getElementById('media-hidden');
+    if (toggle && hidden) {
+      toggle.addEventListener('click', () => {
+        const isOpen = hidden.style.display !== 'none';
+        hidden.style.display = isOpen ? 'none' : 'flex';
+        const count = toggle.getAttribute('data-hidden-count');
+        toggle.textContent = isOpen ? `Ver ${count} menciones más` : 'Ver menos';
+      });
+    }
+  </script>
 
 </div>
 </DashboardLayout>

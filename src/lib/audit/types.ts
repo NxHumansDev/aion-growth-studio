@@ -622,6 +622,8 @@ export interface NewsHeadline {
   title: string;
   source: string;
   date?: string;
+  url?: string;        // Full article URL (DataForSEO returns this)
+  snippet?: string;    // First 200 chars of description
 }
 
 export interface ReputationResult extends ModuleResult {
