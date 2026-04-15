@@ -214,6 +214,93 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       </div>
     </div>
 
+    <!-- Business Impact: economic inputs -->
+    <div id="business-inputs" style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span class="material-symbols-outlined" style="color:#1A4B8C;">euro</span>
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Datos para calcular impacto de negocio</h2>
+      </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:20px;">
+        Con estos 3 datos podemos traducir tráfico y leads en € de pipeline, coste por venta y ROAS. Solo los verás tú — no se comparten con nadie.
+      </p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Valor medio por cliente</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="economic-deal-value" type="number" min="0" step="0.01" placeholder="Ej: 3500"
+              style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;" />
+            <span style="font-size:12px;color:#64748b;font-weight:600;">€</span>
+          </div>
+          <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Revenue típico de un cliente cerrado (o AOV en e-commerce).</p>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Tasa de cierre lead → cliente</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="economic-close-rate" type="number" min="0" max="100" step="0.1" placeholder="Ej: 20"
+              style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;" />
+            <span style="font-size:12px;color:#64748b;font-weight:600;">%</span>
+          </div>
+          <p style="font-size:11px;color:#94a3b8;margin-top:4px;">De cada 100 leads, cuántos acaban comprando. Default 20% si lo dejas vacío.</p>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Inversión mensual en ads</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="economic-ad-spend" type="number" min="0" step="0.01" placeholder="Ej: 1500"
+              style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;" />
+            <span style="font-size:12px;color:#64748b;font-weight:600;">€</span>
+          </div>
+          <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Google Ads + Meta Ads + LinkedIn Ads. Opcional — solo si haces paid.</p>
+        </div>
+      </div>
+
+      <button id="save-economic-inputs" type="button"
+        style="padding:10px 18px;background:#1A4B8C;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+        Guardar
+      </button>
+      <span id="save-economic-result" style="margin-left:10px;font-size:12px;color:#64748b;"></span>
+    </div>
+
+    <!-- Business Impact: manual monthly inputs -->
+    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span class="material-symbols-outlined" style="color:#BA7517;">edit_note</span>
+        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Datos propios de negocio (manual)</h2>
+      </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:20px;">
+        Si no tienes Google Analytics conectado, puedes reportar cada mes cuántos leads/ventas has tenido. Los usamos para calcular deltas y tendencias.
+      </p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end;margin-bottom:12px;">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Mes</label>
+          <input id="manual-input-month" type="month" style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Métrica</label>
+          <select id="manual-input-metric" style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;background:white;">
+            <option value="leads">Leads generados</option>
+            <option value="sales_count">Ventas cerradas</option>
+            <option value="revenue">Revenue (€)</option>
+            <option value="activations">Activaciones / trials</option>
+            <option value="bookings">Reservas</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:6px;">Cantidad</label>
+          <input id="manual-input-value" type="number" min="0" step="0.01" placeholder="0" style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;" />
+        </div>
+        <button id="save-manual-input" type="button"
+          style="padding:10px 18px;background:#1A4B8C;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;height:40px;">
+          Registrar
+        </button>
+      </div>
+
+      <div id="manual-inputs-list" style="margin-top:16px;"></div>
+    </div>
+
     <!-- KPIs principales -->
     <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -613,6 +700,89 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       } finally {
         btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">save</span> Guardar indicadores';
         btn.disabled = false;
+      }
+    });
+
+    // ── Business Impact: economic inputs ───────────────────────────────
+    (async function () {
+      try {
+        const res = await fetch('/api/dashboard/business-impact/economic-inputs');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.avg_deal_value != null) document.getElementById('economic-deal-value').value = data.avg_deal_value;
+        if (data.close_rate != null) document.getElementById('economic-close-rate').value = data.close_rate;
+        if (data.monthly_ad_spend != null) document.getElementById('economic-ad-spend').value = data.monthly_ad_spend;
+      } catch {}
+    })();
+
+    document.getElementById('save-economic-inputs').addEventListener('click', async () => {
+      const body = {};
+      const dealRaw = document.getElementById('economic-deal-value').value;
+      const closeRaw = document.getElementById('economic-close-rate').value;
+      const spendRaw = document.getElementById('economic-ad-spend').value;
+      if (dealRaw !== '') body.avg_deal_value = Number(dealRaw); else body.avg_deal_value = null;
+      if (closeRaw !== '') body.close_rate = Number(closeRaw); else body.close_rate = null;
+      if (spendRaw !== '') body.monthly_ad_spend = Number(spendRaw); else body.monthly_ad_spend = null;
+
+      const result = document.getElementById('save-economic-result');
+      result.textContent = 'Guardando…';
+      const res = await fetch('/api/dashboard/business-impact/economic-inputs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { result.textContent = '✓ Guardado'; result.style.color = '#1D9E75'; }
+      else {
+        const err = await res.json().catch(() => ({}));
+        result.textContent = 'Error: ' + (err.error || res.status);
+        result.style.color = '#E24B4A';
+      }
+      setTimeout(() => { result.textContent = ''; }, 3000);
+    });
+
+    // ── Business Impact: manual monthly inputs ─────────────────────────
+    async function loadManualInputs() {
+      try {
+        const res = await fetch('/api/dashboard/business-impact/manual-input');
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = document.getElementById('manual-inputs-list');
+        if (!data.inputs || data.inputs.length === 0) {
+          list.innerHTML = '<p style="font-size:12px;color:#94a3b8;">Aún no hay datos registrados.</p>';
+          return;
+        }
+        const metricLabels = { leads: 'Leads', sales_count: 'Ventas', revenue: 'Revenue', activations: 'Activaciones', bookings: 'Reservas' };
+        list.innerHTML = '<p style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;margin-bottom:8px;">Histórico</p>' +
+          '<div style="display:flex;flex-direction:column;gap:4px;">' +
+          data.inputs.slice(0, 12).map(inp => {
+            const month = new Date(inp.month).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:#f7f9ff;border-radius:6px;font-size:12px;">
+              <span>${month}</span>
+              <span style="font-weight:700;">${metricLabels[inp.metric_key] || inp.metric_key}: ${inp.value}</span>
+            </div>`;
+          }).join('') + '</div>';
+      } catch {}
+    }
+    loadManualInputs();
+
+    // Default month = current
+    const now = new Date();
+    document.getElementById('manual-input-month').value = now.toISOString().slice(0, 7);
+
+    document.getElementById('save-manual-input').addEventListener('click', async () => {
+      const month = document.getElementById('manual-input-month').value + '-01';
+      const metric = document.getElementById('manual-input-metric').value;
+      const value = Number(document.getElementById('manual-input-value').value);
+      if (!month || isNaN(value) || value < 0) return alert('Completa los campos');
+      const res = await fetch('/api/dashboard/business-impact/manual-input', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, metric_key: metric, value }),
+      });
+      if (res.ok) {
+        document.getElementById('manual-input-value').value = '';
+        loadManualInputs();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert('Error: ' + (err.error || res.status));
       }
     });
   </script>

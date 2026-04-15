@@ -2,6 +2,7 @@
 export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import ActionItem from '../../components/dashboard/ActionItem.astro';
+import BusinessImpactCard from '../../components/dashboard/BusinessImpactCard.astro';
 import { getClient, getLatestSnapshot, getAllSnapshots, getActiveRecommendations, getAllRecommendations, findAuditByEmail, createSnapshotFromAudit, getClientOnboarding } from '../../lib/db';
 import { getIntegration } from '../../lib/integrations';
 import type { Tier } from '../../lib/demo-data';
@@ -413,6 +414,9 @@ const compRows: CompRow[] = ctItems.map((c: any) => {
         <span style="font-size:12px;color:#1A4B8C;font-weight:600;">Conectar →</span>
       </a>
     )}
+
+    <!-- ══ BLOQUE 0: Impacto en Negocio (el CEO lo ve primero) ══ -->
+    <BusinessImpactCard />
 
     <!-- ══ BLOQUE 1: Score Global ══ -->
     <section style="background:white;border-radius:16px;padding:32px 36px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">

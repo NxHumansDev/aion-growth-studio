@@ -1,0 +1,309 @@
+---
+/**
+ * BusinessImpactCard — top-of-dashboard block with 4 business-level KPIs.
+ *
+ * Renders on the server using resolveBusinessKpis(). Shows:
+ *   - 4 KPI cards (value + delta + target if any + source badge + warning)
+ *   - "Personalizar KPIs" button → client-side modal to pick from catalog
+ *   - CTA cards for missing integrations (GA4, GBP, economic inputs)
+ *
+ * All client-side behaviour (customization modal, manual input form) lives
+ * inline with vanilla JS to keep dependencies zero.
+ */
+
+import { getClient } from '../../lib/db';
+import { resolveBusinessKpis } from '../../lib/business-impact/resolver';
+import { getKpisForProfile } from '../../lib/business-impact/definitions';
+
+export interface Props {
+  clientId?: string;
+}
+
+const client = Astro.locals.client ?? await getClient();
+const clientId = client.id;
+
+const { kpis, profile, availability } = await resolveBusinessKpis(clientId);
+
+// Catalog for the customization modal
+const catalog = getKpisForProfile(profile).map(def => {
+  let available = true;
+  if (def.requires_ga4 && !availability.has_ga4) available = false;
+  if (def.requires_gsc && !availability.has_gsc) available = false;
+  if (def.requires_gbp && !availability.has_gbp) available = false;
+  if (def.requires_deal_value && !availability.has_deal_value) available = false;
+  if (def.requires_ad_spend && !availability.has_ad_spend) available = false;
+  return { ...def, available };
+});
+
+const profileLabels: Record<string, string> = {
+  local_foot_traffic: 'Local (tienda / restaurante)',
+  local_services: 'Servicios locales',
+  ecommerce: 'E-commerce',
+  b2b_saas: 'B2B SaaS',
+  b2b_services: 'B2B Servicios',
+  media: 'Medio / Blog',
+  freelance_personal: 'Marca personal / Freelance',
+  unknown: 'Sin categorizar',
+};
+
+const sourceBadge: Record<string, { label: string; color: string }> = {
+  gbp: { label: 'GBP', color: '#D85A30' },
+  ga4: { label: 'GA4', color: '#1A4B8C' },
+  gsc: { label: 'GSC', color: '#0F9D58' },
+  dfs_seo: { label: 'Estimado', color: '#888780' },
+  reputation: { label: 'Reputación', color: '#D97706' },
+  social: { label: 'Social', color: '#E1306C' },
+  manual: { label: 'Manual', color: '#64748b' },
+  derived: { label: 'Calculado', color: '#6366F1' },
+};
+
+function computeHitTarget(kpi: any): boolean | null {
+  if (kpi.target == null || kpi.value == null) return null;
+  const delta = kpi.value - kpi.target;
+  return kpi.better === 'up' ? delta >= 0 : delta <= 0;
+}
+
+function computeProgressPct(kpi: any): number {
+  if (kpi.target == null || kpi.value == null || kpi.target === 0) return 0;
+  const pct = (kpi.value / kpi.target) * 100;
+  if (pct > 100) return 100;
+  if (pct < 0) return 0;
+  return Math.round(pct);
+}
+
+function formatValue(value: number | null, unit: string): string {
+  if (value === null || value === undefined) return '—';
+  if (unit === 'currency') return `${value >= 1000 ? (value / 1000).toFixed(1) + 'K' : value.toFixed(0)} €`;
+  if (unit === 'percentage') return `${value.toFixed(1)}%`;
+  if (unit === 'ratio') return value.toFixed(2);
+  // count
+  if (value >= 10000) return `${(value / 1000).toFixed(1)}K`;
+  return Math.round(value).toLocaleString('es-ES');
+}
+
+function deltaColor(delta: number | null, better: 'up' | 'down' | 'neutral'): string {
+  if (delta === null || delta === 0) return '#94a3b8';
+  const isGood = (better === 'up' && delta > 0) || (better === 'down' && delta < 0);
+  return isGood ? '#1D9E75' : '#E24B4A';
+}
+
+// Missing integration callouts
+const missingGa4 = !availability.has_ga4;
+const missingGbp = !availability.has_gbp;
+const missingEconomic = !availability.has_deal_value;
+
+const needsEconomicForVisible = kpis.some(k => (k.requires_deal_value && !availability.has_deal_value) || (k.requires_ad_spend && !availability.has_ad_spend));
+---
+
+<section style="background:white;border-radius:16px;padding:28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+    <div>
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:4px;">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px;color:#1A4B8C;">trending_up</span>
+        Impacto en negocio
+      </p>
+      <h2 style="font-size:22px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;">Este mes</h2>
+      <p style="font-size:11px;color:#94a3b8;margin-top:4px;">Perfil detectado: {profileLabels[profile] ?? profile}</p>
+    </div>
+    <button id="business-customize-btn" type="button"
+      style="padding:8px 14px;background:transparent;color:#1A4B8C;border:1px solid #1A4B8C;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+      <span class="material-symbols-outlined" style="font-size:14px;">tune</span>
+      Personalizar KPIs
+    </button>
+  </div>
+
+  <!-- 4 KPI cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+    {kpis.map((kpi, idx) => {
+      const color = deltaColor(kpi.delta, kpi.better);
+      const src = sourceBadge[kpi.source] ?? sourceBadge.manual;
+      const hitTarget = computeHitTarget(kpi);
+      const progressPct = computeProgressPct(kpi);
+      const deltaSign = (kpi.delta != null && kpi.delta > 0) ? '+' : '';
+      const deltaLabel = kpi.delta_pct != null ? `${kpi.delta_pct}%` : (kpi.delta ?? '');
+      const showDelta = kpi.delta != null && kpi.delta !== 0;
+      return (
+        <div style="background:#f7f9ff;border-radius:12px;padding:16px 18px;position:relative;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;line-height:1.3;flex:1;min-width:0;" title={kpi.description}>
+              {kpi.short_label}
+            </p>
+            <span style={`font-size:9px;padding:1px 6px;border-radius:4px;background:${src.color};color:white;font-weight:700;flex-shrink:0;`}>{src.label}</span>
+          </div>
+
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+            <span style="font-size:26px;font-weight:900;color:#1a1a2e;letter-spacing:-0.02em;">
+              {formatValue(kpi.value, kpi.unit)}
+            </span>
+            {showDelta && (
+              <span style={`font-size:11px;font-weight:700;color:${color};white-space:nowrap;`}>
+                {deltaSign}{deltaLabel}
+              </span>
+            )}
+          </div>
+
+          {kpi.target != null && (
+            <div style="margin-top:6px;">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:2px;">
+                <span>Objetivo: {formatValue(kpi.target, kpi.unit)}</span>
+                {hitTarget != null && (
+                  <span style={`font-weight:700;color:${hitTarget ? '#1D9E75' : '#BA7517'};`}>
+                    {hitTarget ? '✓' : `${progressPct}%`}
+                  </span>
+                )}
+              </div>
+              <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+                <div style={`height:100%;width:${progressPct}%;background:${hitTarget ? '#1D9E75' : '#1A4B8C'};`}></div>
+              </div>
+            </div>
+          )}
+
+          {kpi.warning && (
+            <p style="font-size:10px;color:#BA7517;margin-top:8px;line-height:1.3;">
+              <span class="material-symbols-outlined" style="font-size:11px;vertical-align:-2px;">info</span>
+              {kpi.warning}
+            </p>
+          )}
+
+          {kpi.is_estimate && !kpi.warning && (
+            <p style="font-size:10px;color:#94a3b8;margin-top:6px;">Estimación</p>
+          )}
+        </div>
+      );
+    })}
+  </div>
+
+  <!-- Missing integration CTAs (max 1 shown at a time, prioritized) -->
+  {(missingGa4 || missingGbp || needsEconomicForVisible) && (
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0;">
+      {missingGa4 && (
+        <a href="/dashboard/settings#integrations" style="flex:1;min-width:200px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0f4ff;border-radius:10px;text-decoration:none;">
+          <span class="material-symbols-outlined" style="color:#1A4B8C;font-size:20px;">link</span>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:12px;font-weight:700;color:#1a1a2e;margin:0;">Conecta Google Analytics 4</p>
+            <p style="font-size:10px;color:#64748b;margin:0;">Desbloquea leads, conversiones y revenue reales</p>
+          </div>
+          <span style="color:#1A4B8C;font-weight:700;font-size:13px;">→</span>
+        </a>
+      )}
+      {needsEconomicForVisible && (
+        <a href="/dashboard/settings#business-inputs" style="flex:1;min-width:200px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fef3c7;border-radius:10px;text-decoration:none;">
+          <span class="material-symbols-outlined" style="color:#BA7517;font-size:20px;">euro</span>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:12px;font-weight:700;color:#1a1a2e;margin:0;">Configura valor por cliente</p>
+            <p style="font-size:10px;color:#64748b;margin:0;">Necesario para calcular pipeline y CPA</p>
+          </div>
+          <span style="color:#BA7517;font-weight:700;font-size:13px;">→</span>
+        </a>
+      )}
+      {missingGbp && profile.startsWith('local_') && (
+        <a href="/dashboard/settings#integrations" style="flex:1;min-width:200px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0f4ff;border-radius:10px;text-decoration:none;">
+          <span class="material-symbols-outlined" style="color:#D85A30;font-size:20px;">storefront</span>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:12px;font-weight:700;color:#1a1a2e;margin:0;">Verifica tu Google Business Profile</p>
+            <p style="font-size:10px;color:#64748b;margin:0;">Para negocios locales es la métrica clave</p>
+          </div>
+          <span style="color:#D85A30;font-weight:700;font-size:13px;">→</span>
+        </a>
+      )}
+    </div>
+  )}
+</section>
+
+<!-- Customization modal -->
+<div id="business-customize-modal" style="display:none;position:fixed;inset:0;background:rgba(15,27,53,0.7);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:white;border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="font-size:18px;font-weight:900;color:#1a1a2e;">Personaliza tus KPIs de negocio</h3>
+      <button id="business-modal-close" type="button" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;">×</button>
+    </div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:18px;line-height:1.5;">
+      Elige hasta <strong>4-6 KPIs</strong> que quieres ver primero. El orden es el que aparecerán.
+      Si no seleccionas ninguno, usamos los recomendados para tu tipo de negocio.
+    </p>
+
+    <form id="business-customize-form" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+      {catalog.map(kpi => (
+        <label style={`display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;${kpi.available ? '' : 'opacity:0.5;'}`}>
+          <input type="checkbox" name="kpi" value={kpi.key}
+            checked={kpis.some(k => k.key === kpi.key)}
+            disabled={!kpi.available}
+            style="margin-top:2px;flex-shrink:0;" />
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
+              <span style="font-size:13px;font-weight:700;color:#1a1a2e;">{kpi.label}</span>
+              <span style={`font-size:9px;padding:1px 6px;border-radius:3px;background:${sourceBadge[kpi.source]?.color ?? '#64748b'};color:white;font-weight:700;`}>
+                {sourceBadge[kpi.source]?.label ?? kpi.source}
+              </span>
+              {!kpi.available && <span style="font-size:10px;color:#BA7517;font-weight:700;">(requiere config)</span>}
+            </div>
+            <p style="font-size:11px;color:#64748b;line-height:1.4;margin:0;">{kpi.description}</p>
+          </div>
+        </label>
+      ))}
+    </form>
+
+    <div style="display:flex;justify-content:space-between;gap:10px;padding-top:16px;border-top:1px solid #f0f0f0;">
+      <button id="business-reset-defaults" type="button" style="padding:10px 16px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+        Restaurar recomendados
+      </button>
+      <div style="display:flex;gap:10px;">
+        <button id="business-modal-cancel" type="button" style="padding:10px 18px;background:transparent;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button id="business-save-kpis" type="button" style="padding:10px 20px;background:#1A4B8C;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    const modal = document.getElementById('business-customize-modal');
+    const openBtn = document.getElementById('business-customize-btn');
+    const closeBtn = document.getElementById('business-modal-close');
+    const cancelBtn = document.getElementById('business-modal-cancel');
+    const saveBtn = document.getElementById('business-save-kpis');
+    const resetBtn = document.getElementById('business-reset-defaults');
+    if (!modal || !openBtn) return;
+
+    const open = () => { modal.style.display = 'flex'; };
+    const close = () => { modal.style.display = 'none'; };
+
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    cancelBtn.addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+    resetBtn.addEventListener('click', async () => {
+      if (!confirm('¿Quieres volver a los KPIs recomendados para tu tipo de negocio?')) return;
+      const res = await fetch('/api/dashboard/business-impact/save-kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpi_keys: [] }),
+      });
+      if (res.ok) { close(); window.location.reload(); }
+      else alert('Error al restaurar');
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const checked = Array.from(document.querySelectorAll('input[name="kpi"]:checked'))
+        .map(el => el.value);
+      if (checked.length === 0) {
+        if (!confirm('No has seleccionado ningún KPI. ¿Volver a los recomendados?')) return;
+      }
+      if (checked.length > 6) return alert('Máximo 6 KPIs');
+      saveBtn.disabled = true;
+      const res = await fetch('/api/dashboard/business-impact/save-kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpi_keys: checked }),
+      });
+      if (res.ok) { close(); window.location.reload(); }
+      else {
+        const err = await res.json().catch(() => ({}));
+        alert('Error: ' + (err.error || res.status));
+        saveBtn.disabled = false;
+      }
+    });
+  })();
+</script>
