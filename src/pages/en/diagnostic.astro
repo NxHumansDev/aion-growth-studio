@@ -296,6 +296,10 @@ const lang = 'en';
     const input = document.getElementById('manual-competitor-input') as HTMLInputElement;
     const val = input.value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
     if (!val || manualCompetitors.includes(val)) { input.value = ''; return; }
+    if (totalCompetitorsCount() >= MAX_COMPETITORS) {
+      showCompetitorLimitError();
+      return;
+    }
     manualCompetitors.push(val);
     renderManualCompetitors();
     input.value = '';
@@ -439,6 +443,24 @@ const lang = 'en';
     }
   }
 
+  const MAX_COMPETITORS = 3;
+
+  function totalCompetitorsCount() {
+    return selectedCompetitors.length + manualCompetitors.length;
+  }
+
+  function showCompetitorLimitError() {
+    const existing = document.getElementById('comp-limit-error');
+    if (existing) { existing.style.opacity = '1'; return; }
+    const hint = document.createElement('p');
+    hint.id = 'comp-limit-error';
+    hint.style.cssText = 'font-size:0.72rem;color:#ff6b6b;margin-top:8px;text-align:center;transition:opacity 0.3s;';
+    hint.textContent = `Max ${MAX_COMPETITORS} competitors. Remove one to add another.`;
+    const anchor = document.getElementById('manual-competitors-list');
+    anchor?.parentElement?.appendChild(hint);
+    setTimeout(() => { hint.style.opacity = '0'; setTimeout(() => hint.remove(), 300); }, 3500);
+  }
+
   (window as any).toggleCompetitor = function(el: HTMLElement) {
     const url = el.getAttribute('data-url') || '';
     const isSelected = el.classList.contains('selected');
@@ -450,6 +472,10 @@ const lang = 'en';
       if (checkMark) checkMark.style.display = 'none';
       selectedCompetitors = selectedCompetitors.filter(u => u !== url);
     } else {
+      if (totalCompetitorsCount() >= MAX_COMPETITORS) {
+        showCompetitorLimitError();
+        return;
+      }
       el.classList.add('selected');
       if (checkIcon) { checkIcon.style.background = '#69ff87'; checkIcon.style.borderColor = '#69ff87'; }
       if (checkMark) checkMark.style.display = 'block';

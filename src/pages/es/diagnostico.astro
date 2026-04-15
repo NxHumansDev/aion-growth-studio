@@ -321,13 +321,20 @@ const lang = 'es';
     const val = input.value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
     if (!val || manualCompetitors.includes(val)) { input.value = ''; return; }
 
-    // Validate domain exists
+    if (totalCompetitorsCount() >= MAX_COMPETITORS) {
+      showCompetitorLimitError();
+      return;
+    }
+
+    // Validate domain exists. The API returns { reachable: boolean } — an
+    // earlier version read `data.valid` (wrong field name), which silently
+    // rejected every valid URL on production.
     btn.textContent = 'Verificando...';
     btn.disabled = true;
     try {
       const res = await fetch(`/api/validate-url?url=${encodeURIComponent(`https://${val}`)}`);
       const data = await res.json();
-      if (!data.valid) {
+      if (!data.reachable) {
         input.style.borderColor = '#ff6b6b';
         const hint = document.createElement('p');
         hint.id = 'manual-comp-error';
@@ -497,6 +504,24 @@ const lang = 'es';
     }
   }
 
+  const MAX_COMPETITORS = 3;
+
+  function totalCompetitorsCount() {
+    return selectedCompetitors.length + manualCompetitors.length;
+  }
+
+  function showCompetitorLimitError() {
+    const existing = document.getElementById('comp-limit-error');
+    if (existing) { existing.style.opacity = '1'; return; }
+    const hint = document.createElement('p');
+    hint.id = 'comp-limit-error';
+    hint.style.cssText = 'font-size:0.72rem;color:#ff6b6b;margin-top:8px;text-align:center;transition:opacity 0.3s;';
+    hint.textContent = `Máximo ${MAX_COMPETITORS} competidores. Quita uno para añadir otro.`;
+    const anchor = document.getElementById('manual-competitors-list');
+    anchor?.parentElement?.appendChild(hint);
+    setTimeout(() => { hint.style.opacity = '0'; setTimeout(() => hint.remove(), 300); }, 3500);
+  }
+
   (window as any).toggleCompetitor = function(el: HTMLElement) {
     const url = el.getAttribute('data-url') || '';
     const isSelected = el.classList.contains('selected');
@@ -508,6 +533,10 @@ const lang = 'es';
       if (checkMark) checkMark.style.display = 'none';
       selectedCompetitors = selectedCompetitors.filter(u => u !== url);
     } else {
+      if (totalCompetitorsCount() >= MAX_COMPETITORS) {
+        showCompetitorLimitError();
+        return;
+      }
       el.classList.add('selected');
       if (checkIcon) { checkIcon.style.background = '#69ff87'; checkIcon.style.borderColor = '#69ff87'; }
       if (checkMark) checkMark.style.display = 'block';
