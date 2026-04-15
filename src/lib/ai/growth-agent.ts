@@ -192,6 +192,35 @@ export interface GrowthAgentInput {
     losers: Array<{ topic: string; sessions: number; type: string }>;
   };
 
+  // Business Impact KPIs — the CEO-level metrics shown at the top of the
+  // dashboard. The Growth Agent MUST prioritize actions that move these
+  // KPIs over actions that only improve technical scores. Current value,
+  // previous value, target (if configured), and source are provided.
+  businessKpis?: {
+    profile: string;                      // business_profile key
+    availability: {
+      has_ga4: boolean;
+      has_gsc: boolean;
+      has_gbp: boolean;
+      has_ad_spend: boolean;
+      has_deal_value: boolean;
+    };
+    kpis: Array<{
+      key: string;
+      label: string;
+      unit: 'count' | 'currency' | 'percentage' | 'ratio' | 'duration_ms';
+      source: string;
+      value: number | null;
+      previous_value: number | null;
+      target: number | null;
+      delta: number | null;
+      delta_pct: number | null;
+      better: 'up' | 'down' | 'neutral';
+      is_estimate: boolean;
+      warning?: string;
+    }>;
+  };
+
   // External visibility signals (Editorial AI optimization pack):
   //   - competitor_articles: competitors that recently published on topics
   //                          matching the client's priority_keywords —
@@ -407,7 +436,9 @@ Por eso la **coherencia es no negociable**:
 
 3. El \`pillarAnalysis\` de SEO no puede decir "todo bien" si el \`executiveSummary\` dice que el SEO es crítico, y viceversa.
 
-4. Las acciones NO se priorizan por pilar ni por dificultad técnica, se priorizan por **impacto en el objetivo de negocio del cliente**. Si el objetivo es "generar leads", una acción de conversión que duplica leads va antes que una acción SEO que solo sube posiciones medias.
+4. Las acciones NO se priorizan por pilar ni por dificultad técnica, se priorizan por **impacto en los KPIs DE NEGOCIO concretos del cliente** (la sección "KPIs DE NEGOCIO" del contexto los enumera). Una acción que mueve el KPI #1 (ej: "leads generados") de 8 a 15 va antes que una acción que sube PageSpeed de 45 a 70 sin conectar con ningún KPI de negocio. Si un KPI está muy por debajo de su objetivo, todas las acciones del top 3 deben tocarlo directamente.
+
+4b. Cada \`expectedOutcome\` debe expresarse en **unidades de negocio** cuando el KPI esté disponible ("pasar de 8 a 14 leads/mes", "bajar CPA de 120€ a 80€"), NO solo en métricas técnicas ("subir PageSpeed a 70"). El impacto técnico es un medio, no un fin.
 
 5. NO propongas acciones que el cliente ya descartó (están en \`actionHistory.rejected\`). Respeta sus razones.
 
@@ -626,6 +657,50 @@ Arquitectura URLs: ${ob?.url_architecture || 'URL única'}${ob?.url_detail ? ` �
 Presupuesto marketing: ${formatBudget(ob?.monthly_budget)}
 Equipo: ${formatTeam(ob?.team_size)}
 Competidores declarados: ${(ob?.competitors || []).map(c => c.url).join(', ') || 'ninguno'}`);
+
+  // ─── Business KPIs (the CEO view — PRIORITY ABOVE EVERYTHING ELSE) ──
+  // These are the business-level metrics the user sees at the top of the
+  // dashboard. Actions must prioritize moving these over technical scores.
+  if (input.businessKpis && input.businessKpis.kpis.length > 0) {
+    const bk = input.businessKpis;
+    const formatVal = (v: number | null, unit: string): string => {
+      if (v == null) return '—';
+      if (unit === 'currency') return `${v.toLocaleString('es-ES')} €`;
+      if (unit === 'percentage') return `${v.toFixed(1)}%`;
+      if (unit === 'ratio') return v.toFixed(2);
+      return v.toLocaleString('es-ES');
+    };
+    const lines: string[] = [];
+    lines.push(`## KPIs DE NEGOCIO (LO QUE VE EL CEO — PRIORIDAD ABSOLUTA)`);
+    lines.push(``);
+    lines.push(`Perfil: ${bk.profile}`);
+    lines.push(`Integraciones: GA4=${bk.availability.has_ga4 ? 'sí' : 'no'} · GSC=${bk.availability.has_gsc ? 'sí' : 'no'} · GBP=${bk.availability.has_gbp ? 'sí' : 'no'} · valor medio cliente=${bk.availability.has_deal_value ? 'configurado' : 'no configurado'}`);
+    lines.push(``);
+    lines.push(`Estos son los ${bk.kpis.length} KPIs que el cliente mira PRIMERO cada semana:`);
+    lines.push(``);
+    for (const k of bk.kpis) {
+      const line = [`- **${k.label}**: ${formatVal(k.value, k.unit)}`];
+      if (k.previous_value != null) {
+        const dir = k.delta != null && k.delta > 0 ? '+' : '';
+        const pct = k.delta_pct != null ? ` (${dir}${k.delta_pct}%)` : '';
+        line.push(`vs ${formatVal(k.previous_value, k.unit)}${pct}`);
+      }
+      if (k.target != null) {
+        const pctToTarget = k.value != null && k.target !== 0 ? Math.round((k.value / k.target) * 100) : 0;
+        line.push(`· objetivo: ${formatVal(k.target, k.unit)} (al ${pctToTarget}%)`);
+      }
+      if (k.warning) line.push(`· ⚠ ${k.warning}`);
+      if (k.is_estimate) line.push('· estimación');
+      lines.push(line.join(' — ').replace(' — ·', ' ·'));
+    }
+    lines.push(``);
+    lines.push(`**REGLA CRÍTICA DE PRIORIZACIÓN**: el impacto de tus recomendaciones se juzga por si mueven estos KPIs. Una acción que mejora PageSpeed de 45 a 70 NO vale nada si el cliente tiene 0 leads. Una acción que mueve leads de 8 a 15 vale más aunque no toque PageSpeed.`);
+    lines.push(`- En \`executiveSummary.headline\`: si hay un KPI muy por debajo de su objetivo, el headline debe mencionarlo explícitamente con el número real.`);
+    lines.push(`- En \`executiveSummary.situation\`: traduce el estado técnico a impacto de negocio (ej: "tu tráfico orgánico de 1.240 visitas ha generado 8 leads este mes, estás al 27% del objetivo de 30").`);
+    lines.push(`- En \`prioritizedActions\`: el \`expectedOutcome\` de cada acción DEBE vincularse a uno de estos KPIs siempre que sea posible ("pasar de 8 a 14 leads/mes"). Si una acción no mueve ninguno de estos KPIs y no es un correctivo técnico crítico, bájala en el ranking.`);
+    lines.push(`- En \`upsidePotential\`: usa el KPI #1 de negocio como métrica principal, no un score técnico.`);
+    sections.push(lines.join('\n'));
+  }
 
   // ─── Benchmark profile context — CRITICAL for calibrated valoraciones ─
   // The scoring system uses per-profile thresholds. The agent MUST base every

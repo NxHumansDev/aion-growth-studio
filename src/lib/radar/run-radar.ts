@@ -90,6 +90,34 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       editorialPerformance = await getEditorialPerformanceContext(client.id, 6);
     } catch { /* non-fatal */ }
 
+    // 0c-bis. Resolve Business Impact KPIs. These are the CEO-level metrics
+    // the user sees at the top of the dashboard. Growth Agent MUST prioritize
+    // actions that move these over actions that only improve technical scores.
+    let businessKpis: any = undefined;
+    try {
+      const { resolveBusinessKpis } = await import('../business-impact/resolver');
+      const resolved = await resolveBusinessKpis(client.id);
+      businessKpis = {
+        profile: resolved.profile,
+        availability: resolved.availability,
+        // Trim the KPI objects to what the prompt uses
+        kpis: resolved.kpis.map(k => ({
+          key: k.key,
+          label: k.label,
+          unit: k.unit,
+          source: k.source,
+          value: k.value,
+          previous_value: k.previous_value,
+          target: k.target,
+          delta: k.delta,
+          delta_pct: k.delta_pct,
+          better: k.better,
+          is_estimate: k.is_estimate,
+          warning: k.warning,
+        })),
+      };
+    } catch { /* non-fatal */ }
+
     // 0d. Gather external visibility signals: competitor new articles that
     // match client's priority_keywords, rising keywords (search volume
     // spikes), and unlinked brand mentions. Run in parallel — non-fatal.
@@ -160,6 +188,7 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       (audit as any).rejectedEditorialTopics = rejectedEditorialTopics;
       (audit as any).editorialPerformance = editorialPerformance;
       (audit as any).competitiveSignals = competitiveSignals;
+      (audit as any).businessKpis = businessKpis;
       (audit as any).clientId = client.id;
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {

@@ -286,6 +286,7 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
         rejectedEditorialTopics: (audit as any).rejectedEditorialTopics || undefined,
         editorialPerformance: (audit as any).editorialPerformance || undefined,
         competitiveSignals: (audit as any).competitiveSignals || undefined,
+        businessKpis: (audit as any).businessKpis || undefined,
       }, { skipQA: true });
       return analysis as any;
     }
