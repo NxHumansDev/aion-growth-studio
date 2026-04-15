@@ -90,6 +90,33 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       editorialPerformance = await getEditorialPerformanceContext(client.id, 6);
     } catch { /* non-fatal */ }
 
+    // 0d. Gather external visibility signals: competitor new articles that
+    // match client's priority_keywords, rising keywords (search volume
+    // spikes), and unlinked brand mentions. Run in parallel — non-fatal.
+    // These feed the Growth Agent so recommendations include real-world
+    // opportunities beyond static analysis.
+    let competitiveSignals: any = undefined;
+    try {
+      const { gatherCompetitiveSignals } = await import('../editorial/competitive-signals');
+      const priorityKwTexts = ((clientOnboarding?.priority_keywords as any[]) ?? [])
+        .map((k: any) => typeof k === 'string' ? k : k?.keyword)
+        .filter(Boolean);
+      const compDomains = (clientOnboarding?.competitors ?? [])
+        .map(c => { try { return new URL(c.url).hostname.replace(/^www\./, ''); } catch { return null; } })
+        .filter((d): d is string => !!d);
+      if (priorityKwTexts.length > 0 && compDomains.length > 0) {
+        // Determine language from onboarding.geo_scope (best-effort heuristic)
+        const lang: 'es' | 'en' =
+          (clientOnboarding?.geo_scope?.toLowerCase().includes('global') || clientOnboarding?.geo_scope?.toLowerCase().includes('us'))
+            ? 'en' : 'es';
+        competitiveSignals = await gatherCompetitiveSignals({
+          competitorDomains: compDomains,
+          priorityKeywords: priorityKwTexts,
+          language: lang,
+        });
+      }
+    } catch { /* non-fatal */ }
+
     // 1. Create audit (or reuse existing for phased execution)
     let auditId: string;
     if (options?.existingAuditId) {
@@ -132,6 +159,7 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       // similar content recommendations (P7-S6 loop 1).
       (audit as any).rejectedEditorialTopics = rejectedEditorialTopics;
       (audit as any).editorialPerformance = editorialPerformance;
+      (audit as any).competitiveSignals = competitiveSignals;
       (audit as any).clientId = client.id;
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {

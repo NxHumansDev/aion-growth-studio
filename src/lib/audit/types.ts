@@ -639,6 +639,12 @@ export interface NewsHeadline {
   date?: string;
   url?: string;        // Full article URL (DataForSEO returns this)
   snippet?: string;    // First 200 chars of description
+  /** True if the article links back to the client's domain.
+   *  false = mention without backlink → link-building opportunity.
+   *  undefined = not checked. */
+  linksBack?: boolean;
+  /** Set to true if the fetch to verify backlink failed (paywall, 403, etc.). */
+  linkCheckFailed?: boolean;
 }
 
 export interface ReputationResult extends ModuleResult {

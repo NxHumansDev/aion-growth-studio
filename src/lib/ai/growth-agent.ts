@@ -192,6 +192,32 @@ export interface GrowthAgentInput {
     losers: Array<{ topic: string; sessions: number; type: string }>;
   };
 
+  // External visibility signals (Editorial AI optimization pack):
+  //   - competitor_articles: competitors that recently published on topics
+  //                          matching the client's priority_keywords —
+  //                          "respond to this" content opportunities.
+  //   - rising_keywords:     keywords whose search volume is spiking this
+  //                          month — content-ride opportunities with 1-2
+  //                          week windows before competitors react.
+  //   - unlinked_mentions:   brand mentions in media that don't link back —
+  //                          each is a backlink-building opportunity.
+  competitiveSignals?: {
+    competitor_articles: Array<{
+      competitor_domain: string;
+      url: string;
+      title: string;
+      matched_keyword?: string;
+      published_at?: string;
+    }>;
+    rising_keywords: Array<{
+      keyword: string;
+      current_search_volume: number;
+      avg_12m_search_volume: number;
+      growth_ratio: number;
+    }>;
+    unlinked_mentions: Array<{ title: string; source: string; url?: string }>;
+  };
+
   // When omitted, the agent resolves it internally from sector.ts inference
   // inside pipelineOutput. Pass explicitly when the caller already has the
   // resolved profile (e.g. run-radar uses confirmed onboarding values).
@@ -858,6 +884,47 @@ ${(() => {
   if (input.rejectedEditorialTopics?.length) {
     const lines = input.rejectedEditorialTopics.slice(0, 10).map(t => `- ${t}`);
     sections.push(`## TOPICS DE CONTENIDO RECHAZADOS (NO proponer en contentGeneration ni temas semánticamente similares)\n${lines.join('\n')}`);
+  }
+
+  // ─── Editorial AI: external visibility signals ─────────────────────────
+  // Competitor content mining, rising keywords (search-volume spikes), and
+  // unlinked brand mentions. These are TIME-SENSITIVE opportunities — the
+  // agent should surface them as high-priority contentGeneration actions
+  // or link-building recommendations.
+  if (input.competitiveSignals) {
+    const cs = input.competitiveSignals;
+    const lines: string[] = [];
+
+    if (cs.competitor_articles.length > 0) {
+      lines.push('COMPETIDORES QUE HAN PUBLICADO RECIENTEMENTE sobre TUS keywords (últimos 30 días):');
+      cs.competitor_articles.slice(0, 6).forEach(a => {
+        lines.push(`- ${a.competitor_domain}: "${a.title}" — matchea tu keyword "${a.matched_keyword ?? '?'}"${a.url ? ` · ${a.url}` : ''}`);
+      });
+      lines.push('→ Recomienda contentGeneration que RESPONDA a esto (no copies, supera: más profundo, más reciente, con datos propios). Ventana de oportunidad: 2-4 semanas antes de que Google considere al competidor como canon.');
+      lines.push('');
+    }
+
+    if (cs.rising_keywords.length > 0) {
+      lines.push('KEYWORDS EN TENDENCIA (search volume >1.5x media anual):');
+      cs.rising_keywords.slice(0, 5).forEach(k => {
+        lines.push(`- "${k.keyword}": ${k.current_search_volume.toLocaleString('es-ES')} búsquedas este mes vs ${k.avg_12m_search_volume.toLocaleString('es-ES')} media 12m (×${k.growth_ratio})`);
+      });
+      lines.push('→ Estas keywords tienen una ventana de 1-2 semanas antes de que el volumen se normalice. Si alguna encaja con el expertise del cliente, prioriza una contentGeneration AGRESIVA sobre ella.');
+      lines.push('');
+    }
+
+    if (cs.unlinked_mentions.length > 0) {
+      lines.push('MEDIOS QUE MENCIONAN AL CLIENTE SIN ENLAZAR (oportunidad de backlink):');
+      cs.unlinked_mentions.forEach(m => {
+        lines.push(`- ${m.source}: "${m.title}"${m.url ? ` · ${m.url}` : ''}`);
+      });
+      lines.push('→ Incluye 1-2 acciones de outreach: email al autor pidiendo enlace. Es la acción SEO de mayor ROI (minutos de trabajo, potencial autoridad permanente).');
+      lines.push('');
+    }
+
+    if (lines.length > 0) {
+      sections.push(`## SEÑALES COMPETITIVAS EN TIEMPO REAL (no estaban en el pipeline — son externas)\n${lines.join('\n')}`);
+    }
   }
 
   // ─── Editorial AI: performance context (loop 4 of P7-S6) ───────────────

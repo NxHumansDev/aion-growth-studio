@@ -350,5 +350,14 @@ export interface BriefResolutionResult extends ArticleBrief {
   target_length: number;
   entities_to_cite: string[];
   competitor_articles: string[];
+  serp_features?: {
+    has_featured_snippet: boolean;
+    featured_snippet_domain?: string;
+    has_people_also_ask: boolean;
+    people_also_ask_questions: string[];
+    has_knowledge_panel: boolean;
+    has_video_results: boolean;
+    has_image_pack: boolean;
+  };
   warnings: string[];  // e.g. "Topic not in priority_keywords strategy"
 }

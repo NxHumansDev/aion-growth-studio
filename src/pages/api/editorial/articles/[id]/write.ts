@@ -6,6 +6,7 @@ import {
 } from '../../../../../lib/editorial/db';
 import { runWriter } from '../../../../../lib/editorial/agents/writer';
 import { resolveBrief } from '../../../../../lib/editorial/brief';
+import { suggestInternalLinks } from '../../../../../lib/editorial/internal-links';
 import type { ArticleBrief } from '../../../../../lib/editorial/types';
 
 /**
@@ -78,6 +79,21 @@ export const POST: APIRoute = async ({ params, locals }) => {
     funnel_stage: lockedArticle.funnel_stage,
   };
   const resolvedBrief = await resolveBrief(client.id, briefInput, profile);
+
+  // Internal link suggestions from the client's existing published corpus.
+  // Non-fatal: if embeddings or DB fail, we just skip the suggestions.
+  try {
+    const suggestions = await suggestInternalLinks(
+      client.id,
+      lockedArticle.topic,
+      resolvedBrief.resolved_primary_keyword,
+      articleId,
+      4,
+    );
+    if (suggestions.length > 0) {
+      (resolvedBrief as any).internal_link_suggestions = suggestions;
+    }
+  } catch { /* non-fatal */ }
 
   // Run the writer
   const result = await runWriter(lockedArticle, resolvedBrief);

@@ -140,14 +140,40 @@ function resolveTargetLength(profile: PublicationProfile, intent: BriefResolutio
 }
 
 /**
- * Fetch top competitor articles ranking for the primary keyword via DataForSEO.
- * Returns up to 3 URLs. Fails gracefully to empty array if DFS is down.
+ * SERP features detected on the target keyword. Populated by fetchCompetitorArticles
+ * as a side-product of the DataForSEO SERP query (we already paid for it, just
+ * we weren't reading all fields).
  */
-async function fetchCompetitorArticles(
+export interface SerpFeaturesFound {
+  has_featured_snippet: boolean;          // el snippet de Google arriba de todo
+  featured_snippet_domain?: string;       // quién lo tiene ahora (para saber a quién superar)
+  has_people_also_ask: boolean;
+  people_also_ask_questions: string[];    // hasta 4 preguntas exactas que extrae Google
+  has_knowledge_panel: boolean;
+  has_video_results: boolean;
+  has_image_pack: boolean;
+}
+
+/**
+ * Fetch top competitor articles ranking for the primary keyword via DataForSEO,
+ * AND extract SERP features (Featured Snippet, People Also Ask, Knowledge Panel,
+ * Video/Image packs) from the same response. These are opportunities for the
+ * writer to target specifically — owning a Featured Snippet captures 20-35% of
+ * top-1 clicks.
+ */
+async function fetchCompetitorArticlesAndSerpFeatures(
   primaryKeyword: string,
   language: EditorialLanguage,
-): Promise<string[]> {
-  if (!DFS_LOGIN || !DFS_PASSWORD) return [];
+): Promise<{ articles: string[]; serpFeatures: SerpFeaturesFound }> {
+  const emptyFeatures: SerpFeaturesFound = {
+    has_featured_snippet: false,
+    has_people_also_ask: false,
+    people_also_ask_questions: [],
+    has_knowledge_panel: false,
+    has_video_results: false,
+    has_image_pack: false,
+  };
+  if (!DFS_LOGIN || !DFS_PASSWORD) return { articles: [], serpFeatures: emptyFeatures };
   try {
     const auth = Buffer.from(`${DFS_LOGIN}:${DFS_PASSWORD}`).toString('base64');
     const locationCode = language === 'es' ? 2724 : 2840;   // Spain / United States
@@ -155,7 +181,7 @@ async function fetchCompetitorArticles(
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 20_000);
 
-    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/regular', {
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/advanced', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -170,15 +196,49 @@ async function fetchCompetitorArticles(
       }]),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) return { articles: [], serpFeatures: emptyFeatures };
     const data = await res.json();
     const items: any[] = data?.tasks?.[0]?.result?.[0]?.items ?? [];
-    return items
+
+    // Extract top competitor articles (organic type, top 3)
+    const articles: string[] = items
       .filter((it: any) => it.type === 'organic' && it.url)
       .slice(0, 3)
       .map((it: any) => it.url);
+
+    // Extract SERP features — DFS advanced endpoint returns them as separate items
+    const serpFeatures: SerpFeaturesFound = {
+      has_featured_snippet: false,
+      has_people_also_ask: false,
+      people_also_ask_questions: [],
+      has_knowledge_panel: false,
+      has_video_results: false,
+      has_image_pack: false,
+    };
+
+    for (const it of items) {
+      if (it.type === 'featured_snippet') {
+        serpFeatures.has_featured_snippet = true;
+        if (it.domain) serpFeatures.featured_snippet_domain = it.domain;
+      } else if (it.type === 'people_also_ask') {
+        serpFeatures.has_people_also_ask = true;
+        const questions: string[] = (it.items ?? [])
+          .map((q: any) => q.title || q.question)
+          .filter((t: any) => typeof t === 'string')
+          .slice(0, 4);
+        serpFeatures.people_also_ask_questions.push(...questions);
+      } else if (it.type === 'knowledge_graph') {
+        serpFeatures.has_knowledge_panel = true;
+      } else if (it.type === 'video') {
+        serpFeatures.has_video_results = true;
+      } else if (it.type === 'images') {
+        serpFeatures.has_image_pack = true;
+      }
+    }
+
+    return { articles, serpFeatures };
   } catch {
-    return [];
+    return { articles: [], serpFeatures: emptyFeatures };
   }
 }
 
@@ -234,8 +294,9 @@ export async function resolveBrief(
     if (c.name) entities_to_cite.push(c.name);
   }
 
-  // Competitor articles for the keyword (parallel fetch)
-  const competitor_articles = await fetchCompetitorArticles(resolvedPrimary, input.language);
+  // Competitor articles + SERP features for the keyword (single DFS call)
+  const { articles: competitor_articles, serpFeatures: serp_features } =
+    await fetchCompetitorArticlesAndSerpFeatures(resolvedPrimary, input.language);
 
   // Warnings
   const warnings: string[] = [];
@@ -259,6 +320,7 @@ export async function resolveBrief(
     target_length,
     entities_to_cite,
     competitor_articles,
+    serp_features,
     warnings,
   };
 }

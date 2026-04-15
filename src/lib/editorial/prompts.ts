@@ -183,6 +183,53 @@ export function buildWriterContext(args: {
     lines.push(`Artículos competidores que rankean por esta keyword (no los copies, supéralos):`);
     brief.competitor_articles.forEach(u => lines.push(`  - ${u}`));
   }
+
+  // SERP features — opportunities to target. "Owning" a Featured Snippet
+  // captures 20-35% of top-1 clicks. PAA questions should be answered
+  // verbatim in the article to trigger the expandable-answers feature.
+  if (brief.serp_features) {
+    const sf = brief.serp_features;
+    const features: string[] = [];
+    if (sf.has_featured_snippet) {
+      features.push(
+        sf.featured_snippet_domain
+          ? `Featured Snippet lo tiene **${sf.featured_snippet_domain}** — diséñalo para arrebatárselo: un bloque definitorio de 40-60 palabras respondiendo directamente a la pregunta implícita del keyword, en los primeros 200 palabras del artículo.`
+          : `Hay Featured Snippet disponible — diseña un bloque definitorio de 40-60 palabras respondiendo directamente a la pregunta implícita del keyword, en los primeros 200 palabras del artículo.`
+      );
+    }
+    if (sf.has_people_also_ask && sf.people_also_ask_questions.length) {
+      features.push(
+        `People Also Ask está activo. Responde literalmente estas ${sf.people_also_ask_questions.length} preguntas en H2/H3 dentro del artículo (o en la sección FAQ del final):`
+      );
+      sf.people_also_ask_questions.forEach(q => features.push(`  · ${q}`));
+    }
+    if (sf.has_knowledge_panel) {
+      features.push(`Knowledge Panel presente (Google ya tiene entidad principal). Cita esa entidad con nombre completo y data estructurada — la autoridad se obtiene asociándose, no compitiendo.`);
+    }
+    if (sf.has_video_results) {
+      features.push(`Video pack en SERP — añade una sección "Vídeo complementario" o sugiere al final embeber uno propio en la publicación final.`);
+    }
+    if (sf.has_image_pack) {
+      features.push(`Image pack en SERP — asegúrate de que el artículo incluye 2-3 imágenes originales con ALT text que contenga la primary_keyword.`);
+    }
+    if (features.length > 0) {
+      lines.push('');
+      lines.push(`SERP features detectados (oportunidades que DEBES abordar en el artículo):`);
+      features.forEach(f => lines.push(f));
+    }
+  }
+  // Internal links — corpus matches from the client's own published articles
+  const internalLinks: any[] = (brief as any).internal_link_suggestions ?? [];
+  if (internalLinks.length > 0) {
+    lines.push('');
+    lines.push(`## ENLACES INTERNOS A INCLUIR (artículos previos del MISMO cliente)`);
+    lines.push(`Debes incluir 2-4 enlaces internos en el artículo de forma natural — el linking interno es factor top-3 de SEO. Usa estos candidatos (anchor text sugerido + URL real):`);
+    internalLinks.forEach((l: any) => {
+      lines.push(`- [${l.suggested_anchor}](${l.published_url}) — relevancia semántica ${Math.round(l.similarity * 100)}%`);
+    });
+    lines.push(`No fuerces los enlaces. Si el anchor no encaja con tu argumentación, adapta el texto del anchor pero mantén la URL.`);
+  }
+
   if (brief.warnings.length) {
     lines.push('');
     lines.push(`## ⚠️ AVISOS DEL SISTEMA (no afectan al artículo, son para ti)`);

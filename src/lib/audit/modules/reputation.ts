@@ -295,6 +295,7 @@ async function fetchAmazonPresence(
 
 async function fetchNewsPresence(
   brandName: string,
+  clientDomain?: string,
 ): Promise<{ newsCount: number; newsHeadlines: NewsHeadline[] }> {
   if (!DFS_LOGIN || !DFS_PASSWORD) return { newsCount: 0, newsHeadlines: [] };
 
@@ -387,6 +388,14 @@ async function fetchNewsPresence(
       .slice(0, 20)  // Keep up to 20 for media module (dashboard shows 10 + "ver más")
       .map(({ _negative, _relevant, ...rest }) => rest);
 
+    // Detect backlinks: fetch each article with a URL and check if the HTML
+    // contains a link to the client's domain. Parallel, 5s timeout each.
+    // Headlines without backlinks are link-building opportunities — the
+    // recommendations engine surfaces them as "mention sin enlace".
+    if (clientDomain) {
+      await enrichWithBacklinkCheck(headlines, clientDomain);
+    }
+
     return {
       newsCount: headlines.length,
       newsHeadlines: headlines,
@@ -396,6 +405,48 @@ async function fetchNewsPresence(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * For each headline with a URL, fetch the article HTML and check whether it
+ * contains a link to the client's domain. Results are written back on
+ * headlines[i].linksBack (true|false) or headlines[i].linkCheckFailed=true.
+ *
+ * Parallel with 5s timeout each. Skips gracefully on any fetch failure —
+ * unknown status is better than a wrong status (we'd rather not flag a
+ * headline as "no backlink" when we couldn't verify).
+ */
+async function enrichWithBacklinkCheck(
+  headlines: NewsHeadline[],
+  clientDomain: string,
+): Promise<void> {
+  const normalizedDomain = clientDomain.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '').toLowerCase();
+  if (!normalizedDomain) return;
+
+  // Regex to match href="...domain..." OR href='...domain...'
+  const domainRegex = new RegExp(`href\\s*=\\s*["'][^"']*${normalizedDomain.replace(/\./g, '\\.')}[^"']*["']`, 'i');
+
+  await Promise.all(headlines.map(async (h) => {
+    if (!h.url) return;
+    try {
+      const res = await fetch(h.url, {
+        signal: AbortSignal.timeout(5_000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; AIONBacklinkBot/1.0)',
+          'Accept': 'text/html',
+        },
+        redirect: 'follow',
+      });
+      if (!res.ok) {
+        h.linkCheckFailed = true;
+        return;
+      }
+      const html = await res.text();
+      h.linksBack = domainRegex.test(html);
+    } catch {
+      h.linkCheckFailed = true;
+    }
+  }));
 }
 
 // ── Helper: try to extract a city from GBP address ───────────────
@@ -455,7 +506,7 @@ export async function runReputation(
   const [gbp, tp, news, tripadvisor, amazon] = await Promise.all([
     fetchGBPReputation(companyName, domain, cityHint),
     fetchTrustpilot(companyName, domain),
-    fetchNewsPresence(companyName),
+    fetchNewsPresence(companyName, domain),
     isHospitality ? fetchTripadvisor(companyName) : Promise.resolve({ rating: null, reviews: null, found: false }),
     isEcommerce ? fetchAmazonPresence(companyName, domain) : Promise.resolve({ rating: null, reviews: null, found: false }),
   ]);
