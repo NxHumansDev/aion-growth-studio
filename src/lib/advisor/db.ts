@@ -134,14 +134,16 @@ export async function checkBudget(clientId: string): Promise<BudgetCheck> {
     dailyUsed = 0;
   }
 
-  // Check monthly limit
+  // Check monthly limit — keep limits server-side (prevents runaway cost),
+  // but never expose euro amounts or tool names to the client. The UI just
+  // sees "has alcanzado el límite de consultas este mes".
   if (monthlyUsed >= MONTHLY_BUDGET_CENTS) {
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
     nextMonth.setHours(0, 0, 0, 0);
     return {
       allowed: false,
-      reason: `Has alcanzado el límite mensual de €${(MONTHLY_BUDGET_CENTS / 100).toFixed(2)}. Tu cupo se renueva el ${nextMonth.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}.`,
+      reason: `Has alcanzado el límite de consultas de este mes. Se renueva el ${nextMonth.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}.`,
       renewsAt: nextMonth.toISOString(),
       dailyUsed,
       monthlyUsed,
@@ -155,7 +157,7 @@ export async function checkBudget(clientId: string): Promise<BudgetCheck> {
     tomorrow.setHours(0, 0, 0, 0);
     return {
       allowed: false,
-      reason: `Has alcanzado el límite diario de €${(DAILY_BUDGET_CENTS / 100).toFixed(2)}. Tu cupo se renueva mañana a las ${tomorrow.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} del ${tomorrow.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}.`,
+      reason: `Has alcanzado el límite de consultas de hoy. Vuelve mañana y el Advisor seguirá aquí.`,
       renewsAt: tomorrow.toISOString(),
       dailyUsed,
       monthlyUsed,

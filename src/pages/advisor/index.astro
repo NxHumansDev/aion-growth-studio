@@ -23,7 +23,6 @@ const contextItems = [
   { label: 'PageSpeed', value: `${psScore}`, icon: 'speed' },
 ];
 
-const budgetPct = budget.monthlyUsed > 0 ? Math.min(100, Math.round(budget.monthlyUsed / 5)) : 0;
 ---
 
 <!DOCTYPE html>
@@ -63,12 +62,6 @@ const budgetPct = budget.monthlyUsed > 0 ? Math.min(100, Math.round(budget.month
       </a>
       <div style="width:1px;height:16px;background:#334155;"></div>
       <span style="font-size:14px;font-weight:700;color:white;">Advisor IA</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="font-size:11px;color:#94a3b8;" title={`Uso diario: €${(budget.dailyUsed / 100).toFixed(2)} / €0.50 | Mensual: €${(budget.monthlyUsed / 100).toFixed(2)} / €5.00`}>
-        <span class="material-symbols-outlined" style="font-size:14px;">token</span>
-        €{(budget.monthlyUsed / 100).toFixed(2)} / €5.00
-      </div>
     </div>
   </nav>
 
@@ -147,15 +140,6 @@ const budgetPct = budget.monthlyUsed > 0 ? Math.min(100, Math.round(budget.month
             <p style="font-size:16px;font-weight:800;color:#1a1a2e;">{item.value}</p>
           </div>
         ))}
-      </div>
-
-      <!-- Budget meter -->
-      <div style="border-top:1px solid #e8e5ff;padding-top:16px;">
-        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#434750;margin-bottom:8px;">Uso este mes</p>
-        <div style="background:#e8e5ff;border-radius:999px;height:6px;overflow:hidden;">
-          <div style={`background:#1a4b8c;height:100%;width:${budgetPct}%;border-radius:999px;transition:width 0.3s;`}></div>
-        </div>
-        <p style="font-size:11px;color:#94a3b8;margin-top:4px;">€{(budget.monthlyUsed / 100).toFixed(2)} de €5.00</p>
       </div>
 
       <div style="border-top:1px solid #e8e5ff;padding-top:16px;">
