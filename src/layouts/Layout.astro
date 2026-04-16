@@ -53,6 +53,20 @@ const ogImageUrl = ogImage.startsWith('http') ? ogImage : `${Astro.url.origin}${
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
+    <!-- Microsoft Clarity — only on the production domain. Skipped on
+         localhost and Vercel preview deploys so dev sessions don't pollute
+         the Clarity project with test data. is:inline keeps the snippet
+         exactly as Clarity published it (Astro doesn't bundle or hash it). -->
+    {Astro.url.hostname === 'aiongrowth.studio' && (
+      <script is:inline type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "vndfhabs6r");
+      </script>
+    )}
+
     <title>{title}</title>
   </head>
   <body class="font-sans antialiased text-slate-900 bg-white">
