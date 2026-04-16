@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import { getClientById, IS_DEMO } from '../../../lib/db';
 import { runRadarForClient } from '../../../lib/radar/run-radar';
 
@@ -105,24 +106,28 @@ export const POST: APIRoute = async ({ request }) => {
 
     console.log(`[radar:single] Phase ${phase} ${client.domain}: ${result.success ? 'OK' : 'FAIL'} in ${result.durationMs}ms`);
 
-    // Self-chain to next phase (fire-and-forget)
+    // Self-chain to next phase — waitUntil keeps this invocation alive until
+    // the fetch actually flushes (otherwise Vercel kills the process on
+    // return and the next phase never fires).
     if (result.success && config.nextPhase && result.auditId) {
       const selfUrl = new URL('/api/radar/run-client', request.url).href;
       const authValue = authHeader || `Bearer ${CRON_SECRET}`;
-      fetch(selfUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': authValue,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clientId,
-          auditId: result.auditId,
-          phase: config.nextPhase,
+      waitUntil(
+        fetch(selfUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authValue,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            clientId,
+            auditId: result.auditId,
+            phase: config.nextPhase,
+          }),
+        }).catch(err => {
+          console.warn(`[radar:single] Fire-and-forget to phase ${config.nextPhase} failed: ${(err as Error).message}. Will retry on next cron.`);
         }),
-      }).catch(err => {
-        console.warn(`[radar:single] Fire-and-forget to phase ${config.nextPhase} failed: ${(err as Error).message}. Will retry on next cron.`);
-      });
+      );
     }
 
     return new Response(JSON.stringify({ ...result, phase }), {

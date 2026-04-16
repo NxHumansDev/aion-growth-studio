@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import { listAllClients, IS_DEMO } from '../../../lib/db';
 
 const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
@@ -56,16 +57,22 @@ async function handler({ request }: { request: Request }): Promise<Response> {
 
     for (const client of clients) {
       try {
-        fetch(`${baseUrl}/api/radar/run-client`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${CRON_SECRET}`,
-          },
-          body: JSON.stringify({ clientId: client.id }),
-        }).catch(err => {
-          console.error(`[radar:cron] Dispatch failed for ${client.name}:`, err.message);
-        });
+        // waitUntil keeps the Function alive until the fetch actually flushes
+        // to the network, even after we return the Response. Without it,
+        // Vercel kills the process the moment this handler returns and the
+        // fan-out requests never hit run-client.
+        waitUntil(
+          fetch(`${baseUrl}/api/radar/run-client`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${CRON_SECRET}`,
+            },
+            body: JSON.stringify({ clientId: client.id }),
+          }).catch(err => {
+            console.error(`[radar:cron] Dispatch failed for ${client.name}:`, err.message);
+          }),
+        );
         dispatched.push(client.name);
         console.log(`[radar:cron] Dispatched: ${client.name} (${client.domain})`);
       } catch (err) {

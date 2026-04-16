@@ -12,6 +12,8 @@
  * the radar reliability card (#76).
  */
 
+import { waitUntil } from '@vercel/functions';
+
 const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
 const STUDIO_API_KEY = import.meta.env?.STUDIO_API_KEY || process.env.STUDIO_API_KEY;
 const PUBLIC_SITE_URL = import.meta.env?.PUBLIC_SITE_URL || process.env.PUBLIC_SITE_URL || 'https://aiongrowth.studio';
@@ -42,12 +44,16 @@ export function fireQABackground({ clientId, snapshotId, baseUrl }: FireQABackgr
 
   console.log(`[fire-qa-background] client=${clientId} snapshot=${snapshotId} → ${target}`);
 
-  // Intentionally not awaited — fire-and-forget.
-  fetch(target, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ clientId, snapshotId }),
-  }).catch(err => {
-    console.warn(`[fire-qa-background] HTTP failed (QA won't run this time): ${(err as Error).message}`);
-  });
+  // waitUntil keeps the parent Function alive until the fetch actually
+  // flushes. Without it, Vercel kills the process on Response return and
+  // the QA request is lost before reaching /api/growth-agent/qa.
+  waitUntil(
+    fetch(target, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ clientId, snapshotId }),
+    }).catch(err => {
+      console.warn(`[fire-qa-background] HTTP failed (QA won't run this time): ${(err as Error).message}`);
+    }),
+  );
 }
