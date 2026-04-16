@@ -166,11 +166,62 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
 ---
 
 <DashboardLayout title="Ajustes" currentPath="/dashboard/settings" tier={tier} clientName={client.name} domain={client.domain}>
-  <div style="display:flex;flex-direction:column;gap:32px;">
 
-    <div>
+  <style>
+    /* Accordion settings — one click per section, no long scroll */
+    .settings-section {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+    .settings-section[open] { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+    .settings-section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      user-select: none;
+    }
+    .settings-section > summary::-webkit-details-marker { display: none; }
+    .settings-section > summary:hover { background: #f8fafc; }
+    .settings-section > summary .ss-icon {
+      font-size: 22px;
+      color: #1A4B8C;
+      flex-shrink: 0;
+    }
+    .settings-section > summary .ss-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #1a1a2e;
+      flex: 1;
+    }
+    .settings-section > summary .ss-hint {
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .settings-section > summary .ss-chevron {
+      font-size: 24px;
+      color: #94a3b8;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .settings-section[open] > summary .ss-chevron { transform: rotate(180deg); }
+    .settings-section > .ss-body {
+      padding: 20px 28px 28px;
+      border-top: 1px solid #f1f5f9;
+    }
+  </style>
+
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <div style="margin-bottom:8px;">
       <h1 style="font-size:28px;font-weight:900;letter-spacing:-0.04em;color:#1a1a2e;">Ajustes</h1>
-      <p style="font-size:14px;color:#434750;margin-top:4px;">Configuración de tu cuenta y conexiones</p>
+      <p style="font-size:14px;color:#434750;margin-top:4px;">Haz click en cada sección para desplegarla</p>
     </div>
 
     <!-- Demo tier switcher -->
@@ -197,7 +248,13 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
     )}
 
     <!-- Company profile -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">business</span>
+        <span class="ss-title">Perfil de empresa</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:24px;">Perfil de empresa</h2>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         {[
@@ -212,10 +269,17 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
           </div>
         ))}
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Business Impact: economic inputs -->
-    <div id="business-inputs" style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details id="business-inputs" class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">euro</span>
+        <span class="ss-title">Datos para calcular impacto de negocio</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <span class="material-symbols-outlined" style="color:#1A4B8C;">euro</span>
         <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Datos para calcular impacto de negocio</h2>
@@ -261,10 +325,17 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
         Guardar
       </button>
       <span id="save-economic-result" style="margin-left:10px;font-size:12px;color:#64748b;"></span>
-    </div>
+      </div>
+    </details>
 
     <!-- Business Impact: manual monthly inputs -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined" style="color:#BA7517;">edit_note</span>
+        <span class="ss-title">Datos propios de negocio (manual)</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <span class="material-symbols-outlined" style="color:#BA7517;">edit_note</span>
         <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Datos propios de negocio (manual)</h2>
@@ -299,10 +370,18 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       </div>
 
       <div id="manual-inputs-list" style="margin-top:16px;"></div>
-    </div>
+      </div>
+    </details>
 
     <!-- KPIs principales -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">monitoring</span>
+        <span class="ss-title">Indicadores principales</span>
+        <span class="ss-hint">{savedKpis.length}/3 seleccionados</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Indicadores principales</h2>
         <span style="font-size:12px;color:#94a3b8;">{savedKpis.length}/3 seleccionados</span>
@@ -358,10 +437,18 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
         Guardar indicadores
       </button>
       <p id="kpi-save-status" style="display:none;font-size:12px;margin-top:8px;"></p>
-    </div>
+      </div>
+    </details>
 
     <!-- Keywords prioritarias -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">search</span>
+        <span class="ss-title">Keywords prioritarias</span>
+        <span class="ss-hint">{priorityKeywords.length} configuradas</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:12px;">
         <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Keywords prioritarias</h2>
         <button id="open-keyword-modal" style="background:#1A4B8C;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
@@ -419,7 +506,8 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
           )}
         </>
       )}
-    </div>
+      </div>
+    </details>
 
     {/* Keyword configurator modal (shared component) */}
     {hasSnapshotData && (
@@ -432,7 +520,13 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
     )}
 
     <!-- Team -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">group</span>
+        <span class="ss-title">Equipo</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
         <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Equipo</h2>
         {canManageTeam && !IS_DEMO && (
@@ -486,10 +580,18 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
           </div>
         ))}
       </div>
-    </div>
+      </div>
+    </details>
 
     <!-- Google Analytics 4 — primary integration -->
-    <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">link</span>
+        <span class="ss-title">Integraciones</span>
+        <span class="ss-hint">{ga4Connected ? 'GA4 conectado' : 'Sin conectar'}</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
       <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:24px;">Integraciones</h2>
 
       {ga4Connected ? (
@@ -786,16 +888,18 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       }
     });
   </script>
-
-  <!-- ══ Documentos del negocio ══ -->
-  <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span class="material-symbols-outlined" style="font-size:22px;color:#1A4B8C;">description</span>
-        <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Documentos del negocio</h2>
       </div>
-      <span style="font-size:12px;color:#64748b;" id="doc-counter">{clientDocs.length}/10 documentos</span>
-    </div>
+    </details>
+
+    <!-- ══ Documentos del negocio ══ -->
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">description</span>
+        <span class="ss-title">Documentos del negocio</span>
+        <span class="ss-hint" id="doc-counter">{clientDocs.length}/10 documentos</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
     <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Sube planes estrategicos, informes de agencias anteriores, historicos de ventas o brand guidelines. El advisor IA los usara para personalizar sus recomendaciones.</p>
 
     <!-- Upload area -->
@@ -845,7 +949,8 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
         No has subido documentos todavia. Sube tu plan estrategico o el informe de tu agencia anterior para que el advisor los tenga en cuenta.
       </div>
     )}
-  </div>
+      </div>
+    </details>
 
   <script>
     const dropzone = document.getElementById('doc-dropzone')!;
@@ -927,12 +1032,14 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
     });
   </script>
 
-  <!-- ══ Mis datos (GDPR) ══ -->
-  <div style="background:#ffffff;padding:32px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <span class="material-symbols-outlined" style="font-size:22px;color:#64748b;">shield</span>
-      <h2 style="font-size:16px;font-weight:800;color:#1a1a2e;margin:0;">Tus datos</h2>
-    </div>
+    <!-- ══ Mis datos (GDPR) ══ -->
+    <details class="settings-section">
+      <summary>
+        <span class="ss-icon material-symbols-outlined">shield</span>
+        <span class="ss-title">Tus datos (RGPD)</span>
+        <span class="ss-chevron material-symbols-outlined">expand_more</span>
+      </summary>
+      <div class="ss-body">
     <p style="font-size:13px;color:#64748b;margin-bottom:20px;">AION cumple con el RGPD. Puedes ver qué datos tenemos, exportarlos o eliminar tu cuenta permanentemente.</p>
 
     <div id="gdpr-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px;">
@@ -971,7 +1078,8 @@ const tierLabels: Record<Tier, string> = { radar: 'Radar', señales: 'Señales',
       </button>
     </div>
     <p id="gdpr-status" style="display:none;font-size:12px;margin-top:10px;"></p>
-  </div>
+      </div>
+    </details>
 
   <script is:inline>
     // Load GDPR data summary
