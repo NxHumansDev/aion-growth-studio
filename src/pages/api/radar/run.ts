@@ -1,7 +1,6 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
-import { waitUntil } from '@vercel/functions';
 import { listAllClients, IS_DEMO } from '../../../lib/db';
 
 const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
@@ -50,44 +49,57 @@ async function handler({ request }: { request: Request }): Promise<Response> {
     const host = request.headers.get('host') || 'localhost:4321';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
+    const targetUrl = `${baseUrl}/api/radar/run-client`;
 
-    // Fan-out: fire one request per client (don't await — fire and forget)
-    // Each /api/radar/run-client runs in its own Function with 300s timeout
-    const dispatched: string[] = [];
+    console.log(`[radar:cron] Internal fetch target: ${targetUrl}`);
 
-    for (const client of clients) {
-      try {
-        // waitUntil keeps the Function alive until the fetch actually flushes
-        // to the network, even after we return the Response. Without it,
-        // Vercel kills the process the moment this handler returns and the
-        // fan-out requests never hit run-client.
-        waitUntil(
-          fetch(`${baseUrl}/api/radar/run-client`, {
+    // Parallel fan-out WITH await. Each run-client call runs the full
+    // pipeline in its own 300s Function invocation, then returns.
+    // Dispatcher waits for all to settle via Promise.allSettled.
+    //
+    // waitUntil is intentionally NOT used here — instead of backgrounding
+    // the fetches and hoping Vercel keeps the function alive, we await
+    // them directly. Each run-client responds when its pipeline completes.
+    // With 7 clients in parallel and ~200-280s per pipeline, dispatcher
+    // fits within 300s limit (slowest client determines total).
+    const results = await Promise.allSettled(
+      clients.map(async (client) => {
+        const t0 = Date.now();
+        try {
+          const res = await fetch(targetUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${CRON_SECRET}`,
             },
             body: JSON.stringify({ clientId: client.id }),
-          }).catch(err => {
-            console.error(`[radar:cron] Dispatch failed for ${client.name}:`, err.message);
-          }),
-        );
-        dispatched.push(client.name);
-        console.log(`[radar:cron] Dispatched: ${client.name} (${client.domain})`);
-      } catch (err) {
-        console.error(`[radar:cron] Failed to dispatch ${client.name}:`, (err as Error).message);
-      }
-    }
+          });
+          const durMs = Date.now() - t0;
+          const ok = res.status >= 200 && res.status < 300;
+          console.log(`[radar:cron] ${client.name} → ${res.status} in ${durMs}ms`);
+          return { client: client.name, status: res.status, ok, durMs };
+        } catch (err) {
+          const durMs = Date.now() - t0;
+          console.error(`[radar:cron] ${client.name} → ERROR in ${durMs}ms: ${(err as Error).message}`);
+          return { client: client.name, status: 0, ok: false, durMs, error: (err as Error).message };
+        }
+      }),
+    );
 
-    console.log(`[radar:cron] Dispatched ${dispatched.length}/${clients.length} clients`);
+    const summary = results.map(r =>
+      r.status === 'fulfilled'
+        ? r.value
+        : { client: '?', status: 0, ok: false, error: String(r.reason) },
+    );
+    const okCount = summary.filter(s => s.ok).length;
+
+    console.log(`[radar:cron] Completed ${okCount}/${clients.length} clients`);
 
     return new Response(JSON.stringify({
       ok: true,
-      dispatched: dispatched.length,
+      completed: okCount,
       total: clients.length,
-      clients: dispatched,
-      message: `Dispatched ${dispatched.length} Radar runs in parallel`,
+      results: summary,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
