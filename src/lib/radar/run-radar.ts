@@ -72,6 +72,17 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
     const clientOnboarding = await getClientOnboarding(client.id);
     const compUrls = (clientOnboarding?.competitors || []).map(c => c.url).filter(Boolean);
 
+    // 0a. Load prior snapshot's pipeline_output so modules with cacheable
+    // external data (LinkedIn Apify posts today) can skip redundant fetches
+    // when nothing has changed. Loaded once per radar run and reused across
+    // every step. Non-fatal if missing — first-week runs don't have prior data.
+    let priorPipelineOutput: Record<string, any> | null = null;
+    try {
+      const allSnaps = await getAllSnapshots(client.id);
+      const latest = allSnaps[allSnaps.length - 1];
+      priorPipelineOutput = latest?.pipeline_output || null;
+    } catch { /* non-fatal */ }
+
     // 0b. Load Editorial AI rejected topics (loop 1 of P7-S6). The Growth
     // Agent uses this list to avoid proposing similar topics in new content
     // recommendations. Non-fatal if query fails.
@@ -190,6 +201,11 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       (audit as any).competitiveSignals = competitiveSignals;
       (audit as any).businessKpis = businessKpis;
       (audit as any).clientId = client.id;
+      // Prior snapshot's pipeline_output — consumed by modules that can poll
+      // external APIs instead of re-fetching full datasets (e.g. linkedin.ts
+      // reads priorPipelineOutput.linkedin to decide between maxPosts:3 poll
+      // and maxPosts:8 full refetch).
+      (audit as any).priorPipelineOutput = priorPipelineOutput;
 
       if (PHASE_ENTRY_STEPS.has(currentStep as AuditStep)) {
         // Phase execution (parallel steps)

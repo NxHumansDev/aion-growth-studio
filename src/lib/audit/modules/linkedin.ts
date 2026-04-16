@@ -12,49 +12,101 @@ interface PostMetrics {
   _totalLikes: number; _totalComments: number; // raw totals for ER recalc
 }
 
-/** Fetch recent posts from LinkedIn company page via Apify */
-async function fetchLinkedInPosts(companyUrl: string, followers: number): Promise<PostMetrics | null> {
-  if (!APIFY_TOKEN) return null;
+/** Minimal snapshot of the previous week's LinkedIn data used for poll-mode
+ *  dedup. When this is provided, fetchLinkedInPosts calls the actor with
+ *  maxPosts:3 first; if no post is newer than priorLastPostDate, the cached
+ *  aggregates are reused and the Apify bill drops from 8 posts/week to 3.
+ */
+export interface PriorPostData {
+  lastPostDate?: string;
+  postsLast90Days?: number;
+  avgLikes?: number;
+  avgComments?: number;
+  engagementRate?: number;
+}
+
+async function callLinkedInCompanyPosts(companyUrl: string, maxPosts: number): Promise<any[] | null> {
   try {
     const res = await axios.post(
       `https://api.apify.com/v2/acts/harvestapi~linkedin-company-posts/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
-      { companyUrls: [companyUrl], maxPosts: 15 },
+      { companyUrls: [companyUrl], maxPosts },
       { timeout: 180_000, headers: { 'Content-Type': 'application/json' } },
     );
     const posts = res.data;
-    if (!Array.isArray(posts) || posts.length === 0) return null;
-
-    const now = Date.now();
-    const MS_90D = 90 * 86_400_000;
-    let count90 = 0, totalLikes = 0, totalComments = 0;
-    let latestTs = 0;
-
-    for (const p of posts) {
-      const ts = p.postedAt?.timestamp ?? 0;
-      if (ts > latestTs) latestTs = ts;
-      if (now - ts <= MS_90D) {
-        count90++;
-        totalLikes += p.engagement?.likes ?? 0;
-        totalComments += p.engagement?.comments ?? 0;
-      }
-    }
-
-    const avgLikes = count90 > 0 ? Math.round(totalLikes / count90) : 0;
-    const avgComments = count90 > 0 ? Math.round((totalComments / count90) * 10) / 10 : 0;
-    const engRate = count90 > 0 && followers > 0
-      ? Math.round(((totalLikes + totalComments) / (count90 * followers)) * 10000) / 100
-      : 0;
-
-    console.log(`[linkedin] Posts: ${count90}/90d, avg ${avgLikes} likes, ER ${engRate}%`);
-    return {
-      postsLast90Days: count90, avgLikes, avgComments, engagementRate: engRate,
-      lastPostDate: latestTs > 0 ? new Date(latestTs).toISOString() : undefined,
-      _totalLikes: totalLikes, _totalComments: totalComments,
-    };
+    return Array.isArray(posts) ? posts : null;
   } catch (e) {
-    console.log(`[linkedin] Posts Actor failed: ${(e as Error).message?.slice(0, 80)}`);
+    console.log(`[linkedin] Posts Actor failed (maxPosts=${maxPosts}): ${(e as Error).message?.slice(0, 80)}`);
     return null;
   }
+}
+
+function aggregatePosts(posts: any[], followers: number): PostMetrics | null {
+  if (!posts || posts.length === 0) return null;
+  const now = Date.now();
+  const MS_90D = 90 * 86_400_000;
+  let count90 = 0, totalLikes = 0, totalComments = 0, latestTs = 0;
+  for (const p of posts) {
+    const ts = p.postedAt?.timestamp ?? 0;
+    if (ts > latestTs) latestTs = ts;
+    if (now - ts <= MS_90D) {
+      count90++;
+      totalLikes += p.engagement?.likes ?? 0;
+      totalComments += p.engagement?.comments ?? 0;
+    }
+  }
+  const avgLikes = count90 > 0 ? Math.round(totalLikes / count90) : 0;
+  const avgComments = count90 > 0 ? Math.round((totalComments / count90) * 10) / 10 : 0;
+  const engRate = count90 > 0 && followers > 0
+    ? Math.round(((totalLikes + totalComments) / (count90 * followers)) * 10000) / 100
+    : 0;
+  return {
+    postsLast90Days: count90, avgLikes, avgComments, engagementRate: engRate,
+    lastPostDate: latestTs > 0 ? new Date(latestTs).toISOString() : undefined,
+    _totalLikes: totalLikes, _totalComments: totalComments,
+  };
+}
+
+/**
+ * Fetch recent posts from a LinkedIn company page via Apify.
+ *
+ * Poll optimization: if `prior` is supplied (last week's aggregates),
+ * we first call the actor with maxPosts:3 to check whether any new post
+ * has been published. If the newest polled post isn't newer than the
+ * cached lastPostDate, we return the cached aggregates — costs 3 credits
+ * vs 8. If new activity is detected, we do a full fetch with maxPosts:8
+ * to get accurate 90-day metrics.
+ */
+async function fetchLinkedInPosts(companyUrl: string, followers: number, prior?: PriorPostData): Promise<PostMetrics | null> {
+  if (!APIFY_TOKEN) return null;
+  const priorTs = prior?.lastPostDate ? new Date(prior.lastPostDate).getTime() : 0;
+  const canPoll = priorTs > 0 && prior?.postsLast90Days != null;
+
+  if (canPoll) {
+    const polled = await callLinkedInCompanyPosts(companyUrl, 3);
+    if (polled && polled.length > 0) {
+      const newestTs = polled.reduce((m, p) => Math.max(m, p.postedAt?.timestamp ?? 0), 0);
+      if (newestTs > 0 && newestTs <= priorTs) {
+        // No new posts since last radar — reuse cached aggregates.
+        console.log(`[linkedin] Poll hit cache: no new posts since ${new Date(priorTs).toISOString().slice(0, 10)}. Reusing aggregates.`);
+        return {
+          postsLast90Days: prior.postsLast90Days ?? 0,
+          avgLikes: prior.avgLikes ?? 0,
+          avgComments: prior.avgComments ?? 0,
+          engagementRate: prior.engagementRate ?? 0,
+          lastPostDate: prior.lastPostDate,
+          _totalLikes: 0, _totalComments: 0, // not used downstream when reused
+        };
+      }
+      console.log(`[linkedin] Poll detected new activity (newest ${new Date(newestTs).toISOString().slice(0, 10)} > prior ${new Date(priorTs).toISOString().slice(0, 10)}). Refetching full.`);
+    } else {
+      console.log(`[linkedin] Poll returned nothing, falling back to full fetch.`);
+    }
+  }
+
+  const posts = await callLinkedInCompanyPosts(companyUrl, 8);
+  const metrics = aggregatePosts(posts || [], followers);
+  if (metrics) console.log(`[linkedin] Posts: ${metrics.postsLast90Days}/90d, avg ${metrics.avgLikes} likes, ER ${metrics.engagementRate}%`);
+  return metrics;
 }
 
 /** Search Google for "site:linkedin.com/company {brand}" to find LinkedIn page */
@@ -126,7 +178,18 @@ export async function runLinkedIn(
   crawlData: CrawlResult,
   competitorUrls: string[] = [],
   userLinkedinUrl?: string,
+  priorLinkedIn?: LinkedInResult,
 ): Promise<LinkedInResult> {
+  const prior: PriorPostData | undefined = priorLinkedIn?.found
+    ? {
+        lastPostDate: priorLinkedIn.lastPostDate,
+        postsLast90Days: priorLinkedIn.postsLast90Days,
+        avgLikes: priorLinkedIn.avgLikes,
+        avgComments: priorLinkedIn.avgComments,
+        engagementRate: priorLinkedIn.engagementRate,
+      }
+    : undefined;
+
   let linkedinUrl = userLinkedinUrl || crawlData.linkedinUrl;
 
   // ── Strategy 1: Extract LinkedIn URL from website HTML ─────────
@@ -165,7 +228,7 @@ export async function runLinkedIn(
     for (const slug of slugCandidates.slice(0, 5)) {
       const candidateUrl = `https://www.linkedin.com/company/${slug}`;
       console.log(`[linkedin] Trying Apify Actor with slug: ${slug}`);
-      const profile = await fetchLinkedInProfile(candidateUrl);
+      const profile = await fetchLinkedInProfile(candidateUrl, prior);
       if (profile.found && profile.followers && profile.followers > 0) {
         console.log(`[linkedin] Apify Actor success: ${profile.name} — ${profile.followers} followers (slug: ${slug})`);
         // Fetch competitors before returning
@@ -186,7 +249,7 @@ export async function runLinkedIn(
 
   // Normalise to absolute URL
   const url = linkedinUrl.startsWith('http') ? linkedinUrl : `https://${linkedinUrl}`;
-  const profile = await fetchLinkedInProfile(url);
+  const profile = await fetchLinkedInProfile(url, prior);
 
   const competitorResults = await fetchCompetitorLinkedIn(competitorUrls);
   return {
@@ -203,23 +266,38 @@ async function fetchCompetitorLinkedIn(competitorUrls: string[]): Promise<Linked
   return found.filter(Boolean) as LinkedInCompetitor[];
 }
 
-async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
+async function callLinkedInProfilePosts(url: string, maxPosts: number): Promise<any[] | null> {
+  try {
+    const res = await axios.post(
+      `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-posts/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
+      { profileUrls: [url], maxPosts },
+      { timeout: 180_000, headers: { 'Content-Type': 'application/json' } },
+    );
+    return Array.isArray(res.data) ? res.data : null;
+  } catch (e) {
+    console.log(`[linkedin] Profile posts Actor failed (maxPosts=${maxPosts}): ${(e as Error).message?.slice(0, 80)}`);
+    return null;
+  }
+}
+
+async function fetchLinkedInProfile(url: string, prior?: PriorPostData): Promise<LinkedInResult> {
   const isPersonalProfile = url.includes('/in/');
 
   // ── Personal profiles (/in/username) — profile + posts in parallel ──
   if (isPersonalProfile && APIFY_TOKEN) {
     try {
+      const priorTs = prior?.lastPostDate ? new Date(prior.lastPostDate).getTime() : 0;
+      const canPoll = priorTs > 0 && prior?.postsLast90Days != null;
+      // Profile scraper is always needed (follower count, connections, etc.)
+      // Posts scraper poll-mode: start with maxPosts:3 to check for new activity.
+      const postsMaxInitial = canPoll ? 3 : 8;
       const [profileRes, postsRes] = await Promise.allSettled([
         axios.post(
           `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
           { urls: [url] },
           { timeout: 180_000, headers: { 'Content-Type': 'application/json' } },
         ),
-        axios.post(
-          `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-posts/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=30`,
-          { profileUrls: [url], maxPosts: 15 },
-          { timeout: 180_000, headers: { 'Content-Type': 'application/json' } },
-        ),
+        callLinkedInProfilePosts(url, postsMaxInitial).then(data => ({ data })),
       ]);
 
       if (profileRes.status === 'fulfilled') {
@@ -230,14 +308,16 @@ async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
           const followers = p.followerCount ?? 0;
           const connections = p.connectionsCount ?? 0;
 
-          // Process posts for engagement metrics
+          // Process posts for engagement metrics. Poll logic: if prior
+          // aggregates exist and the polled batch has no post newer than
+          // prior.lastPostDate, reuse the cache (3 credits instead of 8).
+          // If new activity detected, fetch the full 8 for accurate 90-day
+          // metrics.
           let postMetrics: Partial<PostMetrics> = {};
-          if (postsRes.status === 'fulfilled') {
-            const posts: any[] = postsRes.value.data || [];
+          const aggregatePostsList = (posts: any[]) => {
             const now = Date.now();
             const MS_90D = 90 * 86_400_000;
             let count90 = 0, totalLikes = 0, totalComments = 0, latestTs = 0;
-            // Only count original posts (not reposts)
             for (const post of posts) {
               const ts = post.postedAt?.timestamp ?? new Date(post.postedAt?.date || 0).getTime();
               if (ts > latestTs) latestTs = ts;
@@ -252,14 +332,54 @@ async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
             const engRate = count90 > 0 && followers > 0
               ? Math.round(((totalLikes + totalComments) / (count90 * followers)) * 10000) / 100
               : 0;
-            postMetrics = {
+            return {
               postsLast90Days: count90,
               avgLikes,
               avgComments,
               engagementRate: engRate,
               lastPostDate: latestTs > 0 ? new Date(latestTs).toISOString() : undefined,
+              _latestTs: latestTs,
             };
-            console.log(`[linkedin] Personal posts: ${count90}/90d original, avg ${avgLikes} likes, ER ${engRate}%`);
+          };
+
+          if (postsRes.status === 'fulfilled') {
+            const initialPosts: any[] = (postsRes.value as any).data || [];
+            const polled = aggregatePostsList(initialPosts);
+
+            if (canPoll && polled._latestTs > 0 && polled._latestTs <= priorTs) {
+              // No new posts since last radar — reuse cached aggregates.
+              console.log(`[linkedin] Personal poll hit cache: no new posts since ${new Date(priorTs).toISOString().slice(0, 10)}. Reusing aggregates.`);
+              postMetrics = {
+                postsLast90Days: prior?.postsLast90Days ?? 0,
+                avgLikes: prior?.avgLikes ?? 0,
+                avgComments: prior?.avgComments ?? 0,
+                engagementRate: prior?.engagementRate ?? 0,
+                lastPostDate: prior?.lastPostDate,
+              };
+            } else if (canPoll) {
+              // Activity detected during a poll — refetch full for accurate 90d.
+              console.log(`[linkedin] Personal poll detected new activity. Refetching full.`);
+              const full = await callLinkedInProfilePosts(url, 8);
+              const aggregated = aggregatePostsList(full || []);
+              postMetrics = {
+                postsLast90Days: aggregated.postsLast90Days,
+                avgLikes: aggregated.avgLikes,
+                avgComments: aggregated.avgComments,
+                engagementRate: aggregated.engagementRate,
+                lastPostDate: aggregated.lastPostDate,
+              };
+              console.log(`[linkedin] Personal posts: ${aggregated.postsLast90Days}/90d original, avg ${aggregated.avgLikes} likes, ER ${aggregated.engagementRate}%`);
+            } else {
+              // First fetch ever (no prior cache) — use the maxPosts:8 batch.
+              postMetrics = {
+                postsLast90Days: polled.postsLast90Days,
+                avgLikes: polled.avgLikes,
+                avgComments: polled.avgComments,
+                engagementRate: polled.engagementRate,
+                lastPostDate: polled.lastPostDate,
+              };
+              console.log(`[linkedin] Personal posts: ${polled.postsLast90Days}/90d original, avg ${polled.avgLikes} likes, ER ${polled.engagementRate}%`);
+            }
           }
 
           // Extract recent publications (media articles, not posts)
@@ -310,7 +430,7 @@ async function fetchLinkedInProfile(url: string): Promise<LinkedInResult> {
           { timeout: 180_000, headers: { 'Content-Type': 'application/json' } },
         ),
         // Posts Actor runs in parallel — doesn't add latency
-        fetchLinkedInPosts(url, 0), // followers=0 placeholder, recalc ER below
+        fetchLinkedInPosts(url, 0, prior), // followers=0 placeholder, recalc ER below
       ]);
 
       if (actorRes.status === 'fulfilled') {

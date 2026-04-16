@@ -258,7 +258,11 @@ async function runStep(step: AuditStep, audit: AuditPageData): Promise<ModuleRes
     case 'linkedin': {
       if (results.linkedin) return results.linkedin;
       const competitorUrls = (results.competitors as any)?.competitors?.map((c: any) => c.url) || [];
-      return runLinkedIn(results.crawl || {}, competitorUrls, audit.userLinkedin);
+      // priorLinkedIn lets the module poll the Apify actor with maxPosts:3
+      // (vs 8) when last week's aggregates exist and no new activity is
+      // detected. run-radar.ts sets audit.priorPipelineOutput before calling.
+      const priorLinkedIn = (audit as any).priorPipelineOutput?.linkedin;
+      return runLinkedIn(results.crawl || {}, competitorUrls, audit.userLinkedin, priorLinkedIn);
     }
 
     case 'techstack':
