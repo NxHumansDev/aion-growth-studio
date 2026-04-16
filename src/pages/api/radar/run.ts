@@ -45,10 +45,23 @@ async function handler({ request }: { request: Request }): Promise<Response> {
 
     console.log(`[radar:cron] Dispatching Radar for ${clients.length} clients...`);
 
-    // Determine base URL for internal calls
+    // Determine base URL for internal calls.
+    //
+    // Vercel's internal deployment URL (aion-growth-studio-XXX.vercel.app)
+    // has Deployment Protection enabled by default, which rejects internal
+    // fetches with 401 before our auth code even runs. Using the public
+    // production domain routes through Vercel's edge to the current
+    // production deployment with no protection challenge.
     const host = request.headers.get('host') || 'localhost:4321';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
+    const isVercelDeploymentUrl = host.endsWith('.vercel.app');
+    const publicSiteUrl = import.meta.env?.PUBLIC_SITE_URL
+      || process.env.PUBLIC_SITE_URL
+      || 'https://aiongrowth.studio';
+    const baseUrl = host.includes('localhost')
+      ? `http://${host}`
+      : isVercelDeploymentUrl
+        ? publicSiteUrl.replace(/\/$/, '')
+        : `https://${host}`;
     const targetUrl = `${baseUrl}/api/radar/run-client`;
 
     console.log(`[radar:cron] Internal fetch target: ${targetUrl}`);
