@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import { listAllClients, IS_DEMO } from '../../../lib/db';
 
 const CRON_SECRET = import.meta.env?.CRON_SECRET || process.env.CRON_SECRET;
@@ -66,53 +67,47 @@ async function handler({ request }: { request: Request }): Promise<Response> {
 
     console.log(`[radar:cron] Internal fetch target: ${targetUrl}`);
 
-    // Parallel fan-out WITH await. Each run-client call runs the full
-    // pipeline in its own 300s Function invocation, then returns.
-    // Dispatcher waits for all to settle via Promise.allSettled.
+    // Fan-out: fire each run-client asynchronously. Each runs the full
+    // pipeline (~200-300s) in its own 300s Function invocation. The
+    // dispatcher must NOT await them — with 300s shared budget, a single
+    // slow client would timeout the dispatcher and lose all logs.
     //
-    // waitUntil is intentionally NOT used here — instead of backgrounding
-    // the fetches and hoping Vercel keeps the function alive, we await
-    // them directly. Each run-client responds when its pipeline completes.
-    // With 7 clients in parallel and ~200-280s per pipeline, dispatcher
-    // fits within 300s limit (slowest client determines total).
-    const results = await Promise.allSettled(
-      clients.map(async (client) => {
-        const t0 = Date.now();
-        try {
-          const res = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${CRON_SECRET}`,
-            },
-            body: JSON.stringify({ clientId: client.id }),
-          });
-          const durMs = Date.now() - t0;
-          const ok = res.status >= 200 && res.status < 300;
-          console.log(`[radar:cron] ${client.name} → ${res.status} in ${durMs}ms`);
-          return { client: client.name, status: res.status, ok, durMs };
-        } catch (err) {
-          const durMs = Date.now() - t0;
-          console.error(`[radar:cron] ${client.name} → ERROR in ${durMs}ms: ${(err as Error).message}`);
-          return { client: client.name, status: 0, ok: false, durMs, error: (err as Error).message };
-        }
-      }),
-    );
+    // Each fetch is wrapped in waitUntil() so Vercel keeps the dispatcher
+    // Function alive until the fetches settle — otherwise the TCP requests
+    // can be dropped when we return the Response.
+    //
+    // We previously tried awaited Promise.allSettled; it worked in theory
+    // but the slowest client kept pushing dispatcher past 300s, killing
+    // the log stream mid-run.
+    const dispatched: string[] = [];
+    for (const client of clients) {
+      const fetchPromise = fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CRON_SECRET}`,
+        },
+        body: JSON.stringify({ clientId: client.id }),
+      })
+        .then((res) => {
+          console.log(`[radar:cron] ${client.name} → ${res.status}`);
+          return res;
+        })
+        .catch((err) => {
+          console.error(`[radar:cron] ${client.name} → ERROR: ${err.message}`);
+        });
+      waitUntil(fetchPromise);
+      dispatched.push(client.name);
+      console.log(`[radar:cron] Dispatched: ${client.name}`);
+    }
 
-    const summary = results.map(r =>
-      r.status === 'fulfilled'
-        ? r.value
-        : { client: '?', status: 0, ok: false, error: String(r.reason) },
-    );
-    const okCount = summary.filter(s => s.ok).length;
-
-    console.log(`[radar:cron] Completed ${okCount}/${clients.length} clients`);
+    console.log(`[radar:cron] Dispatched ${dispatched.length}/${clients.length} (pipelines run in background, check run-client logs for results)`);
 
     return new Response(JSON.stringify({
       ok: true,
-      completed: okCount,
+      dispatched: dispatched.length,
       total: clients.length,
-      results: summary,
+      message: `Dispatched ${dispatched.length} run-client invocations in parallel. Each runs ~200-300s; check /api/radar/run-client logs for results.`,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
