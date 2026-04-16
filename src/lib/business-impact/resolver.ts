@@ -160,7 +160,11 @@ const EXTRACTORS: Record<KpiKey, Extractor> = {
     }
     return null;
   },
+  traffic_sessions: ctx => pick(ctx)?.analytics?.ga4?.sessions ?? null,
+  traffic_users: ctx => pick(ctx)?.analytics?.ga4?.users ?? null,
+  traffic_new_users: ctx => pick(ctx)?.analytics?.ga4?.newUsers ?? null,
   gsc_clicks: ctx => pick(ctx)?.analytics?.gsc?.totalClicks ?? null,
+  gsc_impressions: ctx => pick(ctx)?.analytics?.gsc?.totalImpressions ?? null,
   keywords_indexed_top10: ctx => pick(ctx)?.seo?.keywordsTop10 ?? null,
 
   // Ecommerce

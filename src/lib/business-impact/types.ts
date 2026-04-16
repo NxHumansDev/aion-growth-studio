@@ -14,7 +14,11 @@ export type KpiKey =
   // Traffic
   | 'traffic_organic_estimate'
   | 'traffic_branded'
+  | 'traffic_sessions'        // GA4 — sesiones reales
+  | 'traffic_users'           // GA4 — usuarios únicos
+  | 'traffic_new_users'       // GA4 — usuarios nuevos
   | 'gsc_clicks'
+  | 'gsc_impressions'
   | 'keywords_indexed_top10'
   // Ecommerce
   | 'ecommerce_revenue'
