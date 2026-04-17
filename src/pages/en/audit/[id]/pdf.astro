@@ -32,6 +32,9 @@ const metaAds = (!r.meta_ads?.skipped && r.meta_ads) ? r.meta_ads : null;
 const qa = r.qa || null;
 const qaSuppressed: string[] = qa?.suppressedSections || [];
 const insights = r.insights || {};
+const ga = (r.growth_agent || null) as any;
+const gaActions: any[] = ga?.prioritizedActions || [];
+const gaExec = ga?.executiveSummary || null;
 const linkedin = (!r.linkedin?.skipped && r.linkedin?.found) ? r.linkedin : null;
 const instagram = (!r.instagram?.skipped && r.instagram?.found) ? r.instagram : null;
 const sector = r.sector?.sector || audit.sector || '';
@@ -792,36 +795,81 @@ const scoreSvg = buildGauge(health.total, 'large');
 
   <h2><span class="section-bar" style="background:#1D9E75;"></span>Action Plan</h2>
 
-  <div class="grid-2 no-break" style="gap:10px;">
-    <div>
-      <h3 style="color:#1D9E75;">Quick Wins — 30 days</h3>
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        {displayQuickWins.slice(0, 4).map((win: any, idx: number) => (
-          <div class="plan-card">
-            <div class="plan-num" style="background:#E1F5EE;color:#085041;">{idx + 1}</div>
-            <div style="flex:1;">
-              <div style="font-size:8pt;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{typeof win === 'string' ? win : win.title}</div>
-              {typeof win !== 'string' && win.problem && <div style="font-size:7pt;color:#5A6478;line-height:1.4;">{win.problem}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
+  {gaExec && (
+    <div class="no-break" style="background:#F0F6FF;border-left:3px solid #1A4B8C;border-radius:6px;padding:10px 14px;margin-bottom:10px;">
+      <div style="font-size:9pt;font-weight:700;color:#1A4B8C;margin-bottom:4px;">{gaExec.headline}</div>
+      {gaExec.situation && <p style="font-size:7.5pt;color:#5A6478;line-height:1.5;margin:0 0 6px 0;">{gaExec.situation}</p>}
+      {gaExec.criticalGaps?.length > 0 && (
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          {gaExec.criticalGaps.slice(0, 3).map((gap: string) => (
+            <span style="font-size:7pt;font-weight:600;padding:2px 6px;border-radius:3px;background:#FCEBEB;color:#791F1F;">{gap}</span>
+          ))}
+        </div>
+      )}
     </div>
-    <div>
-      <h3 style="color:#1A4B8C;">Strategic — 90 days</h3>
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        {displayStrategic.slice(0, 4).map((action: any, idx: number) => (
-          <div class="plan-card">
-            <div class="plan-num" style="background:#EBF2FF;color:#1A4B8C;">{idx + 1}</div>
+  )}
+
+  {gaActions.length > 0 ? (
+    <div style="display:flex;flex-direction:column;gap:5px;">
+      {gaActions.slice(0, 8).map((action: any) => {
+        const impactColor = action.businessImpact === 'high' ? { bg: '#FCEBEB', fg: '#791F1F' } : action.businessImpact === 'medium' ? { bg: '#FAEEDA', fg: '#633806' } : { bg: '#F0F0F0', fg: '#5A6478' };
+        const pillarColors: any = {
+          seo: { bg: '#EBF2FF', fg: '#1A4B8C' }, geo: { bg: '#F3E8FF', fg: '#7C3AED' },
+          web: { bg: '#FEF3C7', fg: '#92400E' }, conversion: { bg: '#FED7AA', fg: '#9A3412' },
+          content: { bg: '#D1FAE5', fg: '#065F46' }, reputation: { bg: '#FEE2E2', fg: '#991B1B' },
+        };
+        const pc = pillarColors[action.pillar] || { bg: '#F0F0F0', fg: '#5A6478' };
+        return (
+          <div class="plan-card" style="align-items:flex-start;">
+            <div class="plan-num" style={`background:${impactColor.bg};color:${impactColor.fg};`}>{action.rank}</div>
             <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+                <span style={`font-size:6pt;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;background:${pc.bg};color:${pc.fg};`}>{action.pillar}</span>
+                {action.effort && <span style="font-size:6pt;color:#9CA3AF;">· Effort: {action.effort}</span>}
+                {action.timeframe && <span style="font-size:6pt;color:#9CA3AF;">· {action.timeframe}</span>}
+              </div>
               <div style="font-size:8pt;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{action.title}</div>
               <div style="font-size:7pt;color:#5A6478;line-height:1.4;">{action.description}</div>
+              {action.expectedOutcome && (
+                <div style="font-size:7pt;color:#085041;font-weight:600;margin-top:2px;">↑ {action.expectedOutcome}</div>
+              )}
             </div>
           </div>
-        ))}
+        );
+      })}
+    </div>
+  ) : (
+    <div class="grid-2 no-break" style="gap:10px;">
+      <div>
+        <h3 style="color:#1D9E75;">Quick Wins — 30 days</h3>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          {displayQuickWins.slice(0, 4).map((win: any, idx: number) => (
+            <div class="plan-card">
+              <div class="plan-num" style="background:#E1F5EE;color:#085041;">{idx + 1}</div>
+              <div style="flex:1;">
+                <div style="font-size:8pt;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{typeof win === 'string' ? win : win.title}</div>
+                {typeof win !== 'string' && win.problem && <div style="font-size:7pt;color:#5A6478;line-height:1.4;">{win.problem}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 style="color:#1A4B8C;">Strategic — 90 days</h3>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          {displayStrategic.slice(0, 4).map((action: any, idx: number) => (
+            <div class="plan-card">
+              <div class="plan-num" style="background:#EBF2FF;color:#1A4B8C;">{idx + 1}</div>
+              <div style="flex:1;">
+                <div style="font-size:8pt;font-weight:700;color:#1A1A2E;margin-bottom:2px;">{action.title}</div>
+                <div style="font-size:7pt;color:#5A6478;line-height:1.4;">{action.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
+  )}
 
   <div style="border:1px solid #4A7FD4;border-radius:6px;padding:10px 14px;background:#F0F6FF;margin-top:10px;" class="no-break">
     <div style="font-size:9pt;font-weight:700;color:#1A4B8C;margin-bottom:3px;">Want us to monitor this every month?</div>
