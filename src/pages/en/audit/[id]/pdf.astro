@@ -67,10 +67,11 @@ const statusByArea: { area: string; status: AreaStatus; summary: string }[] = [
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competitors with data` : 'No competitor data' },
   { area: 'Web & Speed', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Mobile score: ${ps.mobile?.performance ?? '—'}/100` : 'No PageSpeed data' },
   { area: 'Conversion', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'No data' },
-  { area: 'Measurement', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'No analytics') : 'No data' },
+  { area: 'Measurement', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Not detected in static HTML') : 'No data' },
 ];
 
 const heroStatus = statusStyle(ss(health.total));
+const analyticsDetection: string = (ts as any)?.analyticsDetection || 'none';
 
 // Tech stack
 const techStackMapped = {
@@ -125,7 +126,7 @@ const quickWins: string[] = insights?.bullets?.slice(0, 3) || [];
 const strategicActions: any[] = insights?.initiatives?.slice(0, 4) || [];
 interface QuickWin { title: string; problem: string; impact: 'high' | 'medium'; }
 const fallbackQuickWins: QuickWin[] = [
-  !techStackMapped.analytics.detected ? { title: 'Install Google Analytics 4 & Tag Manager', problem: 'Without tracking you cannot know what works.', impact: 'high' } : null,
+  !techStackMapped.analytics.detected ? { title: 'Install Google Analytics 4 & Tag Manager', problem: analyticsDetection === 'none' ? 'Not detected in public HTML — if already installed via GTM or consent tool, ignore this.' : 'Without tracking you cannot know what works.', impact: analyticsDetection === 'none' ? 'medium' : 'high' } : null,
   ps && (ps.mobile?.performance || 0) < 50 ? { title: `Improve mobile load speed (now ${ps.mobile?.lcp != null ? (ps.mobile.lcp / 1000).toFixed(1) + 's' : 'slow'})`, problem: 'Every extra second reduces conversions 10–20%.', impact: 'high' } : null,
   !crawl.hasRobotsTxt ? { title: 'Add robots.txt', problem: 'Without robots.txt Google may crawl irrelevant pages.', impact: 'medium' } : null,
   !cv?.hasContactForm ? { title: 'Add a visible contact form', problem: 'Without a form visitors have no clear path to convert.', impact: 'high' } : null,

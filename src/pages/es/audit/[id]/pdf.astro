@@ -67,10 +67,11 @@ const statusByArea: { area: string; status: AreaStatus; summary: string }[] = [
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competidores con datos` : 'Sin datos de competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos' },
-  { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Sin analytics') : 'Sin datos' },
+  { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'No detectado en HTML estático') : 'Sin datos' },
 ];
 
 const heroStatus = statusStyle(ss(health.total));
+const analyticsDetection: string = (ts as any)?.analyticsDetection || 'none';
 
 // Tech stack
 const techStackMapped = {
@@ -126,7 +127,7 @@ const quickWins: string[] = insights?.bullets?.slice(0, 3) || [];
 const strategicActions: any[] = insights?.initiatives?.slice(0, 4) || [];
 interface QuickWin { title: string; problem: string; impact: 'alto' | 'medio'; }
 const fallbackQuickWins: QuickWin[] = [
-  !techStackMapped.analytics.detected ? { title: 'Instalar Google Analytics 4 y Tag Manager', problem: 'Sin medición activa no puedes saber qué funciona.', impact: 'alto' } : null,
+  !techStackMapped.analytics.detected ? { title: 'Instalar Google Analytics 4 y Tag Manager', problem: analyticsDetection === 'none' ? 'No lo hemos detectado en el HTML público — si ya lo tienes vía GTM o cookies, ignora esto.' : 'Sin medición activa no puedes saber qué funciona.', impact: analyticsDetection === 'none' ? 'medio' : 'alto' } : null,
   ps && (ps.mobile?.performance || 0) < 50 ? { title: `Reducir tiempo de carga móvil (ahora ${ps.mobile?.lcp != null ? (ps.mobile.lcp / 1000).toFixed(1) + 's' : 'lento'})`, problem: 'Cada segundo de carga adicional reduce las conversiones entre un 10–20%.', impact: 'alto' } : null,
   !crawl.hasRobotsTxt ? { title: 'Añadir robots.txt', problem: 'Sin robots.txt Google puede rastrear páginas innecesarias.', impact: 'medio' } : null,
   !cv?.hasContactForm ? { title: 'Añadir formulario de contacto visible', problem: 'Sin formulario los visitantes no tienen camino para convertirse en leads.', impact: 'alto' } : null,

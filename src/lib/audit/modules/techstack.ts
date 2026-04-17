@@ -6,7 +6,8 @@ type Category = 'analytics' | 'tagManager' | 'conversionPixels' | 'crmAutomation
 const TOOLS: Array<{ name: string; category: Category; patterns: string[] }> = [
   // Analytics
   { name: 'Google Analytics 4', category: 'analytics',
-    patterns: ['gtag/js', 'googletagmanager.com/gtag', '"G-', "'G-", '/gtag/js?id=', 'measurementId":"G-', '"measurement_id":"G-'] },
+    patterns: ['gtag/js', 'googletagmanager.com/gtag', '"G-', "'G-", '/gtag/js?id=', 'measurementId":"G-', '"measurement_id":"G-',
+      'data-ga="G-', 'data-analytics-id="G-', 'data-measurement-id="G-', 'ga_measurement_id'] },
   { name: 'Universal Analytics', category: 'analytics',
     patterns: ['analytics.js', "'UA-", '"UA-'] },
   { name: 'Plausible', category: 'analytics',
@@ -177,6 +178,20 @@ export async function runTechStack(url: string, crawlData?: any): Promise<TechSt
       result.allTools!.push('Google Analytics (vía GTM)');
     }
 
+    // CMP inference: Consent Management Platforms (OneTrust, Cookiebot, CookieYes,
+    // Didomi, Iubenda, Complianz) often hold GA4 measurement IDs in their config
+    // blocks even when the actual gtag script is gated behind consent and doesn't
+    // appear as a standard <script> tag. Extract "G-XXXXXXX" from the full HTML.
+    const CMP_PATTERNS = ['onetrust.com', 'cookiebot.com', 'cookieyes.com', 'didomi.io', 'iubenda.com', 'complianz'];
+    const hasCMP = CMP_PATTERNS.some(p => html.includes(p));
+    if (hasCMP && result.analytics!.length === 0) {
+      const ga4IdMatch = html.match(/\bG-[A-Z0-9]{6,12}\b/);
+      if (ga4IdMatch) {
+        result.analytics!.push('Google Analytics 4 (vía CMP)');
+        result.allTools!.push('Google Analytics 4 (vía CMP)');
+      }
+    }
+
     // Shopify inference: Shopify injects its own analytics + pixel infrastructure
     if (result.cms === 'Shopify') {
       if (result.analytics!.length === 0) {
@@ -188,6 +203,17 @@ export async function runTechStack(url: string, crawlData?: any): Promise<TechSt
         result.allTools!.push('Shopify Conversion Tracking');
       }
     }
+
+    // Detection method: tells downstream consumers (report, dashboard) how
+    // reliable the "no analytics" verdict is.
+    //   'direct'  — found standard gtag/GA4 patterns in raw HTML (high confidence)
+    //   'inferred'— deduced from GTM/CMP/Shopify presence (medium-high confidence)
+    //   'none'    — nothing found in static HTML (could still exist via JS/sGTM)
+    const analyticsDetection: 'direct' | 'inferred' | 'none' =
+      TOOLS.filter(t => t.category === 'analytics').some(t => t.patterns.some(p => html.includes(p)))
+        ? 'direct'
+        : result.analytics!.length > 0 ? 'inferred' : 'none';
+    (result as any).analyticsDetection = analyticsDetection;
 
     // Maturity score:
     // Analytics (25) + TagManager (20) + Conversion pixels (20) + CRM/Automation (25) + Chat (10)

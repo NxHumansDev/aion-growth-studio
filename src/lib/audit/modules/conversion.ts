@@ -41,13 +41,41 @@ function detectSignals($: cheerio.CheerioAPI, html: string): SignalSet {
   // Lead-gen signals
   const formCount = $('form').length;
   const formFieldCount = $('form input:not([type=hidden]), form textarea, form select').length;
-  const hasContactForm = formFieldCount >= 2;
+  const EMBED_FORM_RE = /hubspot|typeform|calendly|acuity|booksy|jotform|cognito|wufoo|formstack|gravity|wpforms|ninja-forms|contact-form-7|elementor.*form|mailchimp/i;
+  const hasEmbeddedForm = $('iframe, script, div[data-form], div[data-src]').filter((_, el) => {
+    const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-form') || '';
+    const cls = $(el).attr('class') || '';
+    const id = $(el).attr('id') || '';
+    return EMBED_FORM_RE.test(src) || EMBED_FORM_RE.test(cls) || EMBED_FORM_RE.test(id);
+  }).length > 0 || EMBED_FORM_RE.test(html);
+  const hasContactForm = formFieldCount >= 2 || hasEmbeddedForm;
 
-  const CTA_RE = /contact|contac|demo|prueba|trial|compra|buy|register|registra|empieza|agenda|book|reserv|solicita|request|download|descarg|get.start|suscr|subscribe|habla|llama|cotiza|quote/i;
-  const ctaEls = $('button, a.btn, a.button, [class*="cta"], [class*="btn-"], [class*="button"]').filter((_, el) => {
-    return CTA_RE.test($(el).text()) || CTA_RE.test($(el).attr('class') || '') || CTA_RE.test($(el).attr('href') || '');
+  const CTA_RE = /contact|contac|demo|prueba|trial|compra|buy|register|registra|empieza|start|agenda|book|reserv|solicita|request|download|descarg|get.start|suscr|subscribe|habla|llama|cotiza|quote|pedir|enviar|send|submit|presupuesto|budget|apunt|join|unirse|contratar|hire|probar|comenzar|empezar|inscri|sign.up|log.?in|acceder|iniciar|ver.plan|see.plan|obtener|obtén|consult|agendar|schedule|apply|postul|particip/i;
+  const CTA_SELECTOR = [
+    'button',
+    'input[type="submit"]',
+    'input[type="button"]',
+    '[role="button"]',
+    'a.btn', 'a.button',
+    '[class*="cta"]', '[class*="btn-"]', '[class*="btn_"]',
+    '[class*="button"]', '[class*="action"]',
+    '[class*="hero"] a', '[class*="header"] a',
+  ].join(', ');
+  const ctaFromButtons = $(CTA_SELECTOR).filter((_, el) => {
+    const text = $(el).text().trim();
+    const cls = $(el).attr('class') || '';
+    const href = $(el).attr('href') || '';
+    return CTA_RE.test(text) || CTA_RE.test(cls) || CTA_RE.test(href);
   });
-  const ctaCount = ctaEls.length;
+  const ctaFromLinks = $('a[href]').filter((_, el) => {
+    const text = $(el).text().trim();
+    if (text.length < 2 || text.length > 60) return false;
+    return CTA_RE.test(text);
+  });
+  const ctaSet = new Set<any>();
+  ctaFromButtons.each((_, el) => ctaSet.add(el));
+  ctaFromLinks.each((_, el) => ctaSet.add(el));
+  const ctaCount = ctaSet.size;
   const hasCTA = ctaCount > 0;
 
   const LEAD_RE = /gratis|free|descarga|download|guía|guide|ebook|webinar|plantilla|template|checklist|recurso|resource|herramienta|tool|demo gratis|free trial/i;
@@ -359,6 +387,8 @@ Señales compartidas:
 - Testimonios / prueba social: ${structural.hasTestimonials ? 'Sí' : 'No'}
 - Precios visibles (servicios/planes): ${structural.hasPricing ? 'Sí' : 'No'}
 - Vídeo: ${structural.hasVideo ? 'Sí' : 'No'}
+
+IMPORTANTE: las señales anteriores se extraen del HTML estático (sin ejecutar JavaScript). Si el sitio usa frameworks JS (React, Vue, Angular, Next.js) o embeds de terceros (Calendly, HubSpot), es posible que CTAs y formularios existan pero NO se hayan detectado. NO marques "sin CTA" o "sin formulario" como debilidad si sospechas que el sitio es moderno y probablemente los tenga renderizados con JS. Sé conservador al señalar ausencias.
 
 Responde SOLO con JSON válido (sin markdown, sin \`\`\`):
 {

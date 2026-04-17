@@ -267,8 +267,10 @@ const statusByArea: { area: string; status: AreaStatus; summary: string; anchor:
   { area: 'Benchmark', status: (hasCompetitorData || competitors.length > 0) ? ss(health.competitividad ?? 0) : 'bad', summary: (hasCompetitorData || competitors.length > 0) ? `${Math.max(ctItems.length, competitors.length)} competidores analizados` : 'Sin datos de competidores', anchor: '#competidores' },
   { area: 'Web & Velocidad', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Score móvil: ${ps.mobile?.performance ?? '—'}/100` : 'Sin datos PageSpeed', anchor: '#experiencia' },
   { area: 'Conversión', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'Sin datos', anchor: '#experiencia' },
-  { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Sin analytics') : 'Sin datos', anchor: '#experiencia' },
+  { area: 'Medición', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'No detectado en HTML estático') : 'Sin datos', anchor: '#experiencia' },
 ];
+
+const analyticsDetection: string = (ts as any)?.analyticsDetection || 'none';
 
 // Tech stack
 const techStackMapped = {
@@ -517,7 +519,7 @@ const gaQuickWins: QuickWin[] = prioritizedActionsGA.slice(0, 6).map((a: any) =>
 
 // Heuristic fallback (only used when Growth Agent didn't produce actions)
 const fallbackQuickWins: QuickWin[] = [
-  !techStackMapped.analytics.detected ? { title: 'Instalar Google Analytics 4 y Tag Manager', problem: 'Sin medición activa no puedes saber qué funciona ni optimizar ninguna acción de marketing.', impact: 'alto' } : null,
+  !techStackMapped.analytics.detected ? { title: 'Instalar Google Analytics 4 y Tag Manager', problem: analyticsDetection === 'none' ? 'No lo hemos detectado en el HTML público — si ya lo tienes vía GTM o un CMP de cookies, ignora esta recomendación.' : 'Sin medición activa no puedes saber qué funciona ni optimizar ninguna acción de marketing.', impact: analyticsDetection === 'none' ? 'medio' : 'alto' } : null,
   ps&&(ps.mobile?.performance||0)<50 ? { title: `Reducir tiempo de carga móvil (ahora ${ps.mobile?.lcp != null ? (ps.mobile.lcp/1000).toFixed(1)+'s' : 'lento'})`, problem: 'Cada segundo de carga adicional reduce las conversiones entre un 10–20%. Tu web móvil necesita optimización urgente de imágenes y código.', impact: 'alto' } : null,
   !crawl.hasRobotsTxt ? { title: 'Añadir robots.txt', problem: 'Sin robots.txt Google puede rastrear páginas innecesarias, diluyendo el presupuesto de rastreo de las páginas que importan.', impact: 'medio' } : null,
   !cv?.hasContactForm ? { title: 'Añadir formulario de contacto visible', problem: 'Sin formulario en la página principal, los visitantes no tienen un camino claro para convertirse en leads.', impact: 'alto' } : null,
@@ -2868,7 +2870,7 @@ const donutSVG = buildDonutSVG();
                       <div style="font-size:0.78rem;font-weight:700;color:#e2e0fc;">Analytics</div>
                       {techStackMapped.analytics.detected
                         ? <div style={`font-size:0.68rem;color:${isViaGTM?'#ffb4ab':'#69FF87'};`}>{techStackMapped.analytics.tool || 'Detectado'}{isViaGTM ? ' — confirma en GTM' : ''}</div>
-                        : <div style="font-size:0.68rem;color:#ffb4ab;">No detectado</div>}
+                        : <div style="font-size:0.68rem;color:#ffb4ab;">No detectado en HTML{analyticsDetection === 'none' ? ' · podría estar vía JS' : ''}</div>}
                     </div>
                   </div>
                 );

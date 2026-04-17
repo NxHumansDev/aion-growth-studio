@@ -112,8 +112,10 @@ const statusByArea: { area: string; status: AreaStatus; summary: string; anchor:
   { area: 'Benchmark', status: hasCompetitorData ? ss(health.competitividad ?? 0) : 'bad', summary: hasCompetitorData ? `${ctItems.length} competitors with data` : 'No competitor data', anchor: '#competidores' },
   { area: 'Web & Speed', status: ss(ps?.mobile?.performance ?? 0), summary: ps ? `Mobile score: ${ps.mobile?.performance ?? '—'}/100` : 'No PageSpeed data', anchor: '#experiencia' },
   { area: 'Conversion', status: ss(cv?.funnelScore ?? health.conversion ?? 0), summary: cv ? `Funnel score: ${cv.funnelScore ?? '—'}/100` : 'No conversion data', anchor: '#experiencia' },
-  { area: 'Measurement', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'No analytics detected') : 'No data', anchor: '#experiencia' },
+  { area: 'Measurement', status: ss(ts?.maturityScore ?? health.measurement ?? 0), summary: ts ? (ts.analytics?.length ? ts.analytics.join(', ') : 'Not detected in static HTML') : 'No data', anchor: '#experiencia' },
 ];
+
+const analyticsDetection: string = (ts as any)?.analyticsDetection || 'none';
 
 // Tech stack
 const techStackMapped = {
@@ -315,7 +317,7 @@ const quickWins: string[] = insights?.bullets?.slice(0,3)||[];
 const strategicActions: any[] = insights?.initiatives?.slice(0,4)||[];
 interface QuickWin { title: string; problem: string; impact: 'high' | 'medium'; }
 const fallbackQuickWins: QuickWin[] = [
-  !techStackMapped.analytics.detected ? { title: 'Install Google Analytics 4 and Tag Manager', problem: 'Without measurement you cannot know what works or optimize any marketing action.', impact: 'high' } : null,
+  !techStackMapped.analytics.detected ? { title: 'Install Google Analytics 4 and Tag Manager', problem: analyticsDetection === 'none' ? 'Not detected in public HTML — if you already have it via GTM or a cookie consent tool, ignore this.' : 'Without measurement you cannot know what works or optimize any marketing action.', impact: analyticsDetection === 'none' ? 'medium' : 'high' } : null,
   ps&&(ps.mobile?.performance||0)<50 ? { title: `Reduce mobile load time (currently ${ps.mobile?.lcp != null ? (ps.mobile.lcp/1000).toFixed(1)+'s' : 'slow'})`, problem: 'Every extra second of load time reduces conversions by 10–20%. Your mobile site urgently needs image and code optimization.', impact: 'high' } : null,
   !crawl.hasRobotsTxt ? { title: 'Add robots.txt', problem: 'Without robots.txt Google may crawl unnecessary pages, diluting crawl budget from pages that matter.', impact: 'medium' } : null,
   !cv?.hasContactForm ? { title: 'Add a visible contact form', problem: 'Without a contact form on the main page, visitors have no clear path to become leads.', impact: 'high' } : null,
