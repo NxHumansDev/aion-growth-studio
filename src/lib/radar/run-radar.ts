@@ -249,9 +249,46 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
     const snapshotId = await createSnapshotFromAudit(auditId, client.id);
     result.snapshotId = snapshotId;
 
-    // 4. Copy growth_agent → growth_analysis IMMEDIATELY (CRITICAL — hero text)
-    // The pipeline step saved analysis as `growth_agent` key. The dashboard
-    // reads from `growth_analysis`. Copy now before anything else can timeout.
+    // 4. Ingest ALL connected integrations (CRITICAL — Business Impact KPIs)
+    // Must run early: if Phase C times out during recommendation seeding,
+    // analytics data is already saved and the dashboard shows real GA4/GSC.
+    // Previously this was step 6 and never reached due to timeout.
+    try {
+      const analyticsData = await ingestAnalytics(client.id, client.domain);
+      if (analyticsData) {
+        const sb = getSupabase();
+        const { data: snapData } = await sb.from('snapshots').select('pipeline_output, date').eq('id', snapshotId).single();
+        if (snapData) {
+          const updated = { ...snapData.pipeline_output, analytics: analyticsData };
+          await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
+          console.log(`[radar] Analytics ingested: GA4=${!!analyticsData.ga4} GSC=${!!analyticsData.gsc}`);
+
+          const { writeKpiSeries, materializeSnapshotColumns } = await import('../data/kpi-extract');
+          writeKpiSeries(client.id, snapshotId, snapData.date, updated).catch(() => {});
+          materializeSnapshotColumns(snapshotId, updated).catch(() => {});
+
+          if (analyticsData.dataQualityScore != null) {
+            const { updateDataQualityScore } = await import('../integrations');
+            await updateDataQualityScore(client.id, 'google_analytics', analyticsData.dataQualityScore);
+          }
+
+          // Conversion × GA4 cross-diagnostics
+          const { enrichConversionWithGA4 } = await import('../audit/conversion-ga4');
+          const enriched = enrichConversionWithGA4(updated.conversion, analyticsData, updated.pagespeed);
+          if (enriched.length > 0) {
+            updated.conversion = { ...updated.conversion, ga4Diagnostics: enriched };
+            await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
+            console.log(`[radar] Conversion enriched with ${enriched.length} GA4 diagnostics`);
+          }
+        }
+      } else {
+        console.log(`[radar] No analytics integration for ${client.domain} (skip)`);
+      }
+    } catch (err) {
+      console.error(`[radar] Analytics failed (non-fatal):`, (err as Error).message);
+    }
+
+    // 5. Copy growth_agent → growth_analysis (CRITICAL — hero text)
     const pipelineGrowthAgent = (await getAuditPage(auditId)).results?.growth_agent;
     if (pipelineGrowthAgent && pipelineGrowthAgent.executiveSummary?.headline) {
       try {
@@ -265,8 +302,6 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
         }
         console.log(`[radar] Copied growth_agent → growth_analysis (${pipelineGrowthAgent.prioritizedActions?.length || 0} actions)`);
 
-        // Fire Opus QA in a separate Vercel Function invocation.
-        // The draft already has qaPending=true from runGrowthAgent({skipQA:true}).
         if (pipelineGrowthAgent.qaPending) {
           const { fireQABackground } = await import('../ai/fire-qa-background');
           fireQABackground({ clientId: client.id, snapshotId });
@@ -276,9 +311,7 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       }
     }
 
-    // 5. Seed recommendations (IMPORTANT — plan de acción needs these)
-    // Dedup (exact + semantic similarity ≥70% per pillar) is centralized
-    // in logRecommendation. No need for the caller to pre-filter.
+    // 6. Seed recommendations (IMPORTANT but not blocking dashboard)
     const allRecs = await getAllRecommendations(client.id);
     const beforeCount = allRecs.length;
     if (pipelineGrowthAgent?.prioritizedActions?.length) {
@@ -308,40 +341,6 @@ export async function runRadarForClient(client: RadarClient, options?: RadarRunO
       } catch (err) {
         console.error(`[radar] Recommendation seeding failed:`, (err as Error).message);
       }
-    }
-
-    // 6. Analytics ingestion (NICE-TO-HAVE — enriches but not critical for first view)
-    try {
-      const analyticsData = await ingestAnalytics(client.id, client.domain);
-      if (analyticsData) {
-        const sb = getSupabase();
-        const { data: snapData } = await sb.from('snapshots').select('pipeline_output, date').eq('id', snapshotId).single();
-        if (snapData) {
-          const updated = { ...snapData.pipeline_output, analytics: analyticsData };
-          await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
-          console.log(`[radar] Analytics ingested: GA4=${!!analyticsData.ga4} GSC=${!!analyticsData.gsc}`);
-
-          const { writeKpiSeries, materializeSnapshotColumns } = await import('../data/kpi-extract');
-          writeKpiSeries(client.id, snapshotId, snapData.date, updated).catch(() => {});
-          materializeSnapshotColumns(snapshotId, updated).catch(() => {});
-
-          if (analyticsData.dataQualityScore != null) {
-            const { updateDataQualityScore } = await import('../integrations');
-            await updateDataQualityScore(client.id, 'google_analytics', analyticsData.dataQualityScore);
-          }
-
-          // 6b. Conversion × GA4 cross-diagnostics
-          const { enrichConversionWithGA4 } = await import('../audit/conversion-ga4');
-          const enriched = enrichConversionWithGA4(updated.conversion, analyticsData, updated.pagespeed);
-          if (enriched.length > 0) {
-            updated.conversion = { ...updated.conversion, ga4Diagnostics: enriched };
-            await sb.from('snapshots').update({ pipeline_output: updated }).eq('id', snapshotId);
-            console.log(`[radar] Conversion enriched with ${enriched.length} GA4 diagnostics`);
-          }
-        }
-      }
-    } catch (err) {
-      console.error(`[radar] Analytics failed (non-fatal):`, (err as Error).message);
     }
 
     // 6c. Editorial AI performance ingestion (P7-S7 loop 4).

@@ -287,6 +287,21 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
                         {recData.detail.replace(/\*\*(.*?)\*\*/g, '$1')}
                       </div>
                     )}
+                    {recData.contentGeneration?.topic && recData.contentGeneration?.type && (
+                      <div style="margin-top:12px;padding:12px 16px;background:linear-gradient(135deg,#f0f4ff,#eef0ff);border-radius:10px;display:flex;align-items:center;gap:10px;border:1px solid #d6e3ff;">
+                        <span class="material-symbols-outlined" style="font-size:20px;color:#1A4B8C;">edit_note</span>
+                        <span style="flex:1;font-size:13px;color:#1a1a2e;font-weight:500;">¿Te ayudamos a redactarlo con IA?</span>
+                        <button
+                          type="button"
+                          class="editorial-generate-btn"
+                          data-payload={encodeURIComponent(JSON.stringify({ contentGeneration: recData.contentGeneration, sourceActionId: rec.id }))}
+                          style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#1A4B8C;color:white;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;"
+                        >
+                          <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span>
+                          Ir al editor
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -347,7 +362,7 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
           const statusColor = isActive ? '#0e7c5f' : '#1A4B8C';
           const statusBg = isActive ? '#d1fae5' : '#d6e3ff';
           return (
-            <div class="rec-row" style={`--priority-color:${statusColor};`}>
+            <div class="rec-row" id={`action-${action.id}`} style={`--priority-color:${statusColor};`}>
               <div class="rec-header">
                 <div class="rec-trigger">
                   <span class="rec-chip" style={`background:${statusBg};color:${statusColor};`}>{isActive ? 'En marcha' : 'Pendiente'}</span>
@@ -591,6 +606,19 @@ const pillarLabels: Record<string, { label: string; bg: string; fg: string }> = 
   document.querySelectorAll('.rec-btn-icon').forEach(btn => {
     btn.addEventListener('click', (e) => e.stopPropagation());
   });
+
+  // Deep-link: if URL has #action-{id}, scroll to it and expand
+  if (window.location.hash.startsWith('#action-')) {
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (target) {
+      const body = target.querySelector(':scope > .rec-body') as HTMLElement | null;
+      if (body) { body.hidden = false; target.classList.add('is-open'); }
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.style.outline = '2px solid #1A4B8C';
+      target.style.outlineOffset = '2px';
+      setTimeout(() => { target.style.outline = ''; target.style.outlineOffset = ''; }, 3000);
+    }
+  }
 
   async function callAPI(body: Record<string, any>) {
     await fetch('/api/dashboard/update-action', {
