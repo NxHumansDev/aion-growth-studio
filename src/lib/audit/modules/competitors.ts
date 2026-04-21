@@ -120,19 +120,32 @@ export async function runCompetitors(
         const rootUrl = `${parsed.protocol}//${parsed.hostname}`;
         const hasSubpath = parsed.pathname.length > 1;
 
-        // Helper: extract best name from a loaded cheerio page
+        // Helper: extract best name from a loaded cheerio page.
+        // Prioritises og:site_name, then the title part most similar to the domain.
+        // Old logic blindly took title.split('|')[0], which picked taglines like
+        // "Consultoría de negocio especialista en Power BI" over the actual brand.
+        const compDomainBase = compDomain.replace(/\.[a-z]{2,6}$/i, '').replace(/-/g, '').toLowerCase();
         const extractName = ($: ReturnType<typeof cheerio.load>) => {
           const ogSite = $('meta[property="og:site_name"]').attr('content')?.trim();
           if (ogSite && ogSite.length > 1 && !BAD_TITLE_RE.test(ogSite)) return ogSite;
-          const titleRaw = $('title').first().text().split(/[-–—|·:]/)[0].trim().slice(0, 80);
-          return (titleRaw && !BAD_TITLE_RE.test(titleRaw)) ? titleRaw : null;
+          const fullTitle = $('title').first().text().trim().slice(0, 120);
+          const parts = fullTitle.split(/[-–—|·:]/).map(s => s.trim()).filter(s => s.length > 1 && !BAD_TITLE_RE.test(s));
+          if (parts.length === 0) return null;
+          // Domain match wins (brand name ≈ domain)
+          const domMatch = parts.find(p => {
+            const clean = p.replace(/\s+/g, '').toLowerCase();
+            return clean === compDomainBase || compDomainBase.includes(clean) || clean.includes(compDomainBase);
+          });
+          if (domMatch) return domMatch;
+          // Shortest non-generic part (brands are concise, taglines are long)
+          return [...parts].sort((a, b) => a.length - b.length)[0];
         };
 
         try {
           // Step 1: try the exact URL provided (captures section context when it's a subpage)
           const res = await axios.get(normalized, {
             timeout: 60_000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
             validateStatus: (s) => s < 500,
           });
           const $sub = cheerio.load(res.data as string);
@@ -146,7 +159,7 @@ export async function runCompetitors(
           if (hasSubpath) {
             const rootRes = await axios.get(rootUrl, {
               timeout: 60_000,
-              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
               validateStatus: (s) => s < 500,
             });
             const $root = cheerio.load(rootRes.data as string);
@@ -175,7 +188,7 @@ export async function runCompetitors(
         try {
           const res = await axios.get(normalized, {
             timeout: 60_000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
             validateStatus: (s) => s < 500,
           });
           const $ = cheerio.load(res.data as string);

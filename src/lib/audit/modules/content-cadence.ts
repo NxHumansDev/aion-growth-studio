@@ -62,7 +62,7 @@ async function findBlogByCrawl(origin: string): Promise<{ blogUrl?: string; post
     // Fetch homepage and look for blog links
     const res = await axios.get(origin, {
       timeout: 60_000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
       validateStatus: (s) => s < 500,
     });
     const $ = cheerio.load(String(res.data));
@@ -99,7 +99,7 @@ async function findBlogByCrawl(origin: string): Promise<{ blogUrl?: string; post
     // Fetch the blog page and extract post dates
     const blogRes = await axios.get(blogUrl, {
       timeout: 60_000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
       validateStatus: (s) => s < 500,
     });
     const $blog = cheerio.load(String(blogRes.data));

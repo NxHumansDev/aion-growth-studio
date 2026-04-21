@@ -23,7 +23,7 @@ export const POST: APIRoute = async ({ request }) => {
     try {
       const res = await axios.get(normalizedUrl, {
         timeout: 60_000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)', Accept: 'text/html' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', Accept: 'text/html' },
         validateStatus: (s) => s < 500,
       });
       const $ = cheerio.load(res.data as string);

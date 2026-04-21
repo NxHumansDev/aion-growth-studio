@@ -399,7 +399,7 @@ export async function runSEO(url: string): Promise<SEOResult> {
         }),
         // Sitemap URL count
         fetch(new URL('/sitemap.xml', `https://${domain}`).href, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
         }).catch(() => null),
       ]);
 
@@ -476,7 +476,7 @@ export async function runSEO(url: string): Promise<SEOResult> {
           const subResults = await Promise.allSettled(
             subUrls.map(u => fetch(u, {
               signal: AbortSignal.timeout(60_000),
-              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
             }).then(r => r.ok ? r.text() : ''))
           );
           for (const r of subResults) {

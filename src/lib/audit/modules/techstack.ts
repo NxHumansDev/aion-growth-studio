@@ -130,7 +130,7 @@ export async function runTechStack(url: string, crawlData?: any): Promise<TechSt
     let res;
     const axiosCfg = {
       timeout: 90_000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIONAuditBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
       maxRedirects: 5,
       validateStatus: (s: number) => s < 500,
     };

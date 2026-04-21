@@ -141,17 +141,26 @@ function extractCompanyName(
     return { name: ogSite, confidence: domainSimilarity(ogSite) ? 'high' : 'medium', source: 'og:site_name' };
   }
 
-  // 4. Title with separator — brand is usually the LAST non-generic part
+  // 4. Title with separator — find the brand among the parts.
+  //    Priority: (a) part that looks like the domain → almost certainly the brand
+  //              (b) shortest non-generic part (brands are typically shorter than taglines)
+  //    Old logic picked the LAST part, which broke for "NXHUMANS | Automatización e IA para
+  //    empresas" → picked the tagline instead of the brand.
   if (title) {
     for (const sep of [' | ', ' - ', ' — ', ' · ']) {
       if (title.includes(sep)) {
-        const parts = title.split(sep).map(s => s.trim()).filter(s => s.length > 1);
-        for (let i = parts.length - 1; i >= 0; i--) {
-          if (!GENERIC_TITLES.has(parts[i].toLowerCase())) {
-            return { name: parts[i], confidence: domainSimilarity(parts[i]) ? 'high' : 'medium', source: 'title' };
-          }
+        const parts = title.split(sep).map(s => s.trim()).filter(s => s.length > 1 && !GENERIC_TITLES.has(s.toLowerCase()));
+        if (parts.length === 0) break;
+
+        // (a) Domain match wins unconditionally
+        const domainMatch = parts.find(p => domainSimilarity(p));
+        if (domainMatch) {
+          return { name: domainMatch, confidence: 'high', source: 'title-domain' };
         }
-        break;
+
+        // (b) Shortest non-generic part — brands are concise, taglines are long
+        const shortest = [...parts].sort((a, b) => a.length - b.length)[0];
+        return { name: shortest, confidence: 'medium', source: 'title' };
       }
     }
     // 5. Title is a single meaningful word
