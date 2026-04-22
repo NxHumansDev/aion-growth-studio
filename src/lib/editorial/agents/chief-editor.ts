@@ -28,8 +28,8 @@ const SONNET_CACHE_READ_PER_M = 0.3;
 const WEB_SEARCH_COST_PER_CALL = 0.01;  // $10 / 1000 searches
 
 // Per-call caps
-const REVIEW_MAX_SEARCHES  = 20;  // iter 0 — big initial fact-check
-const REWRITE_MAX_SEARCHES = 12;  // iter 1 — fill specific gaps
+const REVIEW_MAX_SEARCHES  = 10;  // iter 0 — fact-check (reduced from 20 to avoid Vercel 300s timeout)
+const REWRITE_MAX_SEARCHES = 8;   // iter 1 — fill specific gaps
 
 export type EditorMode = 'review' | 'rewrite';
 
@@ -256,9 +256,9 @@ export async function runEditor(
 
   const instructions = buildEditorInstructions(article, profile, mode, previousVerdict);
 
-  // 280s timeout (within Vercel 300s)
+  // 550s timeout (within Vercel 600s maxDuration)
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 280_000);
+  const timer = setTimeout(() => controller.abort(), 550_000);
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
