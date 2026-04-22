@@ -284,7 +284,13 @@ async function translateToSpanish(text: string): Promise<string | null> {
   }
 }
 
-export async function runCrawl(url: string): Promise<CrawlResult> {
+export async function runCrawl(
+  url: string,
+  /** @internal Pre-fetched HTML from headless browser retry. Do not pass from outside. */
+  _prefetchedHtml?: string,
+  /** @internal Override final URL from browser redirect. */
+  _prefetchedFinalUrl?: string,
+): Promise<CrawlResult> {
   try {
     // Shared axios config — use a realistic browser UA so Cloudflare/WAFs
     // don't block us. This is a diagnostic the user explicitly requested,
@@ -308,67 +314,90 @@ export async function runCrawl(url: string): Promise<CrawlResult> {
       validateStatus: (status: number) => status < 500,
     };
 
-    let response;
-    try {
-      // First attempt: strict SSL (normal)
-      response = await axios.get(url, axiosConfig);
-    } catch (sslErr: any) {
-      // If SSL error (incomplete chain, self-signed, expired), retry with relaxed SSL.
-      // Many real-world sites (especially Spanish SMBs) have misconfigured SSL chains
-      // but work fine in browsers. We still want their data for the audit.
-      const isSSLError = sslErr.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
-        || sslErr.code === 'CERT_HAS_EXPIRED'
-        || sslErr.code === 'DEPTH_ZERO_SELF_SIGNED_CERT'
-        || sslErr.code === 'SELF_SIGNED_CERT_IN_CHAIN'
-        || sslErr.message?.includes('unable to verify')
-        || sslErr.message?.includes('certificate');
+    let html: string;
+    let finalUrl: string = url;
+    let httpStatus = 200;
 
-      if (isSSLError) {
-        console.warn(`[crawl] SSL error for ${url}: ${sslErr.code || sslErr.message}. Retrying with relaxed SSL...`);
-        const https = await import('https');
-        const agent = new https.Agent({ rejectUnauthorized: false });
-        response = await axios.get(url, { ...axiosConfig, httpsAgent: agent });
-        console.log(`[crawl] Relaxed SSL retry succeeded for ${url}`);
-      } else {
-        throw sslErr; // Re-throw non-SSL errors
+    if (_prefetchedHtml) {
+      // Browser retry path — HTML already fetched by headless Chrome
+      html = _prefetchedHtml;
+      finalUrl = _prefetchedFinalUrl || url;
+      console.log(`[crawl] Using browser-fetched HTML (${html.length} chars)`);
+    } else {
+      // Normal path — fetch with axios
+      let response;
+      try {
+        response = await axios.get(url, axiosConfig);
+      } catch (sslErr: any) {
+        const isSSLError = sslErr.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+          || sslErr.code === 'CERT_HAS_EXPIRED'
+          || sslErr.code === 'DEPTH_ZERO_SELF_SIGNED_CERT'
+          || sslErr.code === 'SELF_SIGNED_CERT_IN_CHAIN'
+          || sslErr.message?.includes('unable to verify')
+          || sslErr.message?.includes('certificate');
+
+        if (isSSLError) {
+          console.warn(`[crawl] SSL error for ${url}: ${sslErr.code || sslErr.message}. Retrying with relaxed SSL...`);
+          const https = await import('https');
+          const agent = new https.Agent({ rejectUnauthorized: false });
+          response = await axios.get(url, { ...axiosConfig, httpsAgent: agent });
+          console.log(`[crawl] Relaxed SSL retry succeeded for ${url}`);
+        } else {
+          throw sslErr;
+        }
       }
+
+      finalUrl = response.request?.res?.responseUrl || response.config?.url || url;
+      httpStatus = response.status;
+      html = String(response.data);
     }
 
-    // Detect redirect: if final URL differs from input, propagate it
-    const finalUrl = response.request?.res?.responseUrl || response.config?.url || url;
     const redirected = finalUrl !== url && new URL(finalUrl).hostname !== new URL(url).hostname;
     if (redirected) {
       console.log(`[crawl] Redirect detected: ${url} → ${finalUrl}`);
     }
 
-    const httpStatus = response.status;
-    const html = String(response.data);
     const $ = cheerio.load(html);
 
     const title = $('title').first().text().trim().slice(0, 100);
 
     // ── Crawler block detection ────────────────────────────────────
-    // Detect via HTTP status (403/401) OR page content (WAF challenge pages).
-    // When blocked, downstream modules that depend on HTML (conversion,
-    // techstack, on-page audit) must not score based on the error page.
+    // Skip when using pre-fetched browser HTML (already verified clean).
     const ACCESS_DENIED_BODY_RE = /access.denied|just.a.moment|attention.required|captcha.required|cloudflare|checking.your.browser|ddos.protection|security.check|pardon.our.interruption|please.verify|enable.javascript.and.cookies/i;
     let crawlerBlocked = false;
     let crawlerBlockedReason = '';
 
-    if (httpStatus === 403 || httpStatus === 401) {
-      crawlerBlocked = true;
-      crawlerBlockedReason = `HTTP ${httpStatus}`;
-    } else if (BLOCKED_TITLE_RE.test(title)) {
-      crawlerBlocked = true;
-      crawlerBlockedReason = `Pagina de bloqueo detectada: "${title.slice(0, 40)}"`;
-    } else if (ACCESS_DENIED_BODY_RE.test(html.slice(0, 5000)) && html.length < 20000) {
-      // Short pages with WAF/challenge content
-      crawlerBlocked = true;
-      crawlerBlockedReason = 'WAF/challenge page (contenido corto con marcadores de bloqueo)';
-    }
+    if (!_prefetchedHtml) {
+      if (httpStatus === 403 || httpStatus === 401) {
+        crawlerBlocked = true;
+        crawlerBlockedReason = `HTTP ${httpStatus}`;
+      } else if (BLOCKED_TITLE_RE.test(title)) {
+        crawlerBlocked = true;
+        crawlerBlockedReason = `Pagina de bloqueo detectada: "${title.slice(0, 40)}"`;
+      } else if (ACCESS_DENIED_BODY_RE.test(html.slice(0, 5000)) && html.length < 20000) {
+        crawlerBlocked = true;
+        crawlerBlockedReason = 'WAF/challenge page (contenido corto con marcadores de bloqueo)';
+      }
 
-    if (crawlerBlocked) {
-      console.log(`[crawl] CRAWLER BLOCKED: ${crawlerBlockedReason} for ${url}`);
+      // ── Headless browser retry when WAF blocks axios ─────────────
+      if (crawlerBlocked) {
+        console.log(`[crawl] CRAWLER BLOCKED: ${crawlerBlockedReason} for ${url}. Retrying with headless browser...`);
+        try {
+          const { browserCrawl } = await import('./browser-crawl');
+          const browserResult = await browserCrawl(url);
+          if (browserResult && browserResult.html.length > 1000) {
+            const $b = cheerio.load(browserResult.html);
+            const browserTitle = $b('title').first().text().trim().slice(0, 100);
+            if (!BLOCKED_TITLE_RE.test(browserTitle) && !ACCESS_DENIED_BODY_RE.test(browserResult.html.slice(0, 5000))) {
+              console.log(`[crawl] Browser bypass SUCCESS: ${browserResult.html.length} chars, title="${browserTitle.slice(0, 50)}"`);
+              return runCrawl(url, browserResult.html, browserResult.finalUrl);
+            }
+            console.log(`[crawl] Browser also blocked (title="${browserTitle.slice(0, 40)}"). Falling through to Google.`);
+          }
+        } catch (err) {
+          console.error(`[crawl] Browser fallback error: ${(err as Error).message}`);
+        }
+      }
     }
     let description = ($('meta[name="description"]').attr('content') || '').trim().slice(0, 200);
     const h1s = $('h1')
