@@ -1,11 +1,12 @@
 ---
 export const prerender = false;
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { getClient, IS_DEMO, DEMO_USERS } from '../../lib/db';
+import { getClient, IS_DEMO, DEMO_USERS, listClientUsers } from '../../lib/db';
 import type { Tier } from '../../lib/demo-data';
 
 const client = Astro.locals.client ?? await getClient();
 const tier: Tier = client.tier;
+const teamMembers = IS_DEMO ? DEMO_USERS : await listClientUsers(client.id);
 
 const tiers = [
   {
@@ -135,7 +136,7 @@ const tiers = [
         </button>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
-        {DEMO_USERS.map(u => (
+        {teamMembers.map(u => (
           <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f5f2ff;border-radius:10px;">
             <div style="display:flex;align-items:center;gap:12px;">
               <div style="width:36px;height:36px;border-radius:50%;background:#1a4b8c;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">
