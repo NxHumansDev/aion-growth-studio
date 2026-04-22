@@ -1,8 +1,11 @@
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import {
   exchangeCodeForTokens, getGoogleUserEmail, listGA4Properties,
-  saveIntegration, isConfigured,
+  saveIntegration, isConfigured, getIntegration,
 } from '../../../lib/integrations';
+import { ingestAnalytics } from '../../../lib/analytics/ingest';
+import { getSupabase, getLatestSnapshot } from '../../../lib/db';
 
 export const prerender = false;
 
@@ -76,6 +79,32 @@ export const GET: APIRoute = async ({ url, redirect, cookies, locals }) => {
     if (properties.length > 1) {
       // Multiple properties — user needs to select
       return redirect('/dashboard/settings?ga4=select_property');
+    }
+
+    // Auto-fetch analytics data in background so the dashboard shows
+    // real GA4/GSC data immediately instead of waiting for the next Radar run.
+    if (selectedProperty && clientId !== 'unknown') {
+      waitUntil((async () => {
+        try {
+          const sb = getSupabase();
+          const { data: clientRow } = await sb.from('clients').select('domain').eq('id', clientId).single();
+          const domain = clientRow?.domain || '';
+          if (!domain) return;
+          const analytics = await ingestAnalytics(clientId, domain);
+          if (!analytics) return;
+          const snapshot = await getLatestSnapshot(clientId);
+          if (snapshot.id && snapshot.id !== 'empty') {
+            const sb = getSupabase();
+            const po = snapshot.pipeline_output || {};
+            await sb.from('snapshots')
+              .update({ pipeline_output: { ...po, analytics }, updated_at: new Date().toISOString() })
+              .eq('id', snapshot.id);
+            console.log(`[google-callback] Auto-refreshed analytics for ${domain}`);
+          }
+        } catch (err) {
+          console.error(`[google-callback] Auto-refresh failed:`, (err as Error).message);
+        }
+      })());
     }
 
     return redirect('/dashboard/settings?ga4=connected');
