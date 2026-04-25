@@ -364,7 +364,8 @@ const lang = 'en';
     const email = (document.getElementById('email') as HTMLInputElement).value.trim();
 
     if (!url) return showError('error-step1', 'Please enter your website URL.');
-    const isValidUrl = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+    const cleanUrl = url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    const isValidUrl = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanUrl);
     if (!isValidUrl) return showError('error-step1', 'Please enter a valid URL (eg: example.com).');
     if (!name) return showError('error-step1', 'Please enter your name.');
     if (!email || !email.includes('@')) return showError('error-step1', 'Please enter a valid email.');

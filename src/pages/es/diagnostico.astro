@@ -423,7 +423,8 @@ const lang = 'es';
     const email = (document.getElementById('email') as HTMLInputElement).value.trim();
 
     if (!url) return showError('error-step1', 'Introduce la URL de tu web.');
-    const isValidUrl = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+    const cleanUrl = url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    const isValidUrl = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanUrl);
     if (!isValidUrl) return showError('error-step1', 'Introduce una URL válida (ej: ejemplo.com).');
     if (!name) return showError('error-step1', 'Introduce tu nombre.');
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
